@@ -1,0 +1,84 @@
+[package]
+name = "mathlib"
+version = "0.1.0"
+authors = ["Dimension"]
+description = "Linear algebra library: dense/sparse matrices, vectors, SVD, 3D math"
+keywords = ["algebra", "linear-algebra", "matrix", "sparse", "simd", "math"]
+readme = "README.md"
+repository = "https://github.com/dimension/dimension"
+categories = ["science", "mathematics", "wasm"]
+documentation = "https://docs.rs/mathlib"
+license = "MIT"
+edition = "2024"
+
+[badges]
+maintenance = { status = "actively-developed" }
+
+[lib]
+name = "mathlib"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+# Feature matrix: wasm builds use --features wasm or "wasm simd" only (parallel not supported on wasm32).
+[features]
+default = []
+serde = ["dep:serde"]
+parallel = ["dep:rayon"]
+simd = ["dep:wide"]
+full = ["parallel", "simd"]
+wasm = ["dep:wasm-bindgen", "dep:js-sys"]
+genetic = ["dep:rand", "dep:rand_distr"]
+
+[dependencies]
+tracing = "0.1"
+serde = { version = "1", optional = true, features = ["derive"] }
+rayon = { version = "1", optional = true }
+wide = { version = "0.7", optional = true, default-features = false }
+wasm-bindgen = { version = "0.2", optional = true }
+js-sys = { version = "0.3", optional = true }
+rand = { version = "0.8", optional = true }
+rand_distr = { version = "0.4", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
+
+[package.metadata.docs.rs]
+all-features = true
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+debug = true
+strip = false
+
+[profile.bench]
+inherits = "release"
+debug = true
+strip = false
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[dev-dependencies]
+criterion = "0.5"
+image = "0.25"
+serde_json = "1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[[example]]
+name = "cmaes"
+required-features = ["genetic"]
+
+[[example]]
+name = "wasm"
+required-features = ["wasm"]
+
+[[bench]]
+name = "benchmarks"
+harness = false

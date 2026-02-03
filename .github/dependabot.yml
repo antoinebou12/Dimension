@@ -1,0 +1,30 @@
+# Dependabot: dependency and GitHub Actions updates
+# https://docs.github.com/en/code-security/dependabot
+
+version: 2
+registries: {}
+
+updates:
+  # Cargo (mathlib crate)
+  - package-ecosystem: "cargo"
+    directory: "/mathlib"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "ci"

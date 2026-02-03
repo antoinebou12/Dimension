@@ -1,0 +1,26 @@
+{
+  "name": "Dimension (mathlib)",
+  "image": "mcr.microsoft.com/devcontainers/rust:1-1-bookworm",
+
+  "postCreateCommand": "cd mathlib && cargo build",
+  "postStartCommand": "git config --global --add safe.directory .",
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml"
+      ],
+      "settings": {
+        "rust-analyzer.cargo.buildScripts.enable": true,
+        "rust-analyzer.check.command": "clippy",
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "rust-lang.rust-analyzer",
+        "[rust].editor.defaultFormatter": "rust-lang.rust-analyzer"
+      }
+    }
+  },
+
+  "remoteUser": "vscode",
+  "features": {}
+}

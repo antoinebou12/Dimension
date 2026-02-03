@@ -1,0 +1,14 @@
+# Cargo config at repo root (Dimension).
+# The mathlib crate and its .cargo/config.toml live in mathlib/.
+
+[build]
+# Optional: uncomment to set a default target or rustflags for the workspace.
+# rustflags = []
+
+# Aliases for running common commands from repo root (e.g. cargo -C mathlib build).
+# Use: cargo mbuild, cargo mtest, cargo mbench, cargo mdoc
+[alias]
+mbuild = "build -C mathlib"
+mtest = "test -C mathlib"
+mbench = "bench -C mathlib"
+mdoc = "doc -C mathlib --open"

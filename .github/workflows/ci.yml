@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mathlib
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            mathlib/target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.os }}-${{ hashFiles('mathlib/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Check format
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test
+
+  typos:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: crate-ci/typos@v1
+        with:
+          config: .typos.toml
+
+  security:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mathlib
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Generate lockfile for audit
+        run: cargo generate-lockfile
+
+      - name: Audit dependencies
+        run: cargo audit
+
+  coverage:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mathlib
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            mathlib/target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-${{ runner.os }}-${{ hashFiles('mathlib/Cargo.lock') }}
+          restore-keys: |
+            cargo-${{ runner.os }}-
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin --locked
+
+      - name: Run coverage
+        run: cargo tarpaulin --out Xml --out Html --output-dir coverage --timeout 300
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: mathlib/coverage/
+
+      # Optional: upload to Codecov for badges and PR comments (add CODECOV_TOKEN in repo secrets)
+      - name: Upload to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: mathlib/coverage/cobertura.xml
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
