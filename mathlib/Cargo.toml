@@ -66,7 +66,7 @@ debug = true
 opt-level = 3
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 image = "0.25"
 serde_json = "1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
