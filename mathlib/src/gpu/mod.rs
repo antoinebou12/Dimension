@@ -383,7 +383,15 @@ async fn init_inner_async() -> Option<GpuContext> {
             return None;
         }
     };
-    let (matmul_pipeline, matmul_bind_group_layout) = create_matmul_pipeline(&device);
+    let (matmul_pipeline, matmul_pipeline_16, matmul_bind_group_layout) = create_matmul_pipeline(&device);
+    let limits = device.limits();
+    let matmul_workgroup_size = if limits.max_compute_workgroup_size_x >= 16
+        && limits.max_compute_workgroup_size_y >= 16
+    {
+        16u32
+    } else {
+        8u32
+    };
     let (dot_pipeline, dot_bind_group_layout) = create_dot_pipeline(&device);
     let (matvec_pipeline, matvec_bind_group_layout) = create_matvec_pipeline(&device);
     let (add_pipeline, add_bind_group_layout) = create_add_pipeline(&device);
@@ -1117,14 +1125,20 @@ pub fn try_matmul_f32(_a: &Matrix<f32>, _b: &Matrix<f32>) -> Option<Matrix<f32>>
                 label: Some("matmul encoder"),
             });
         {
+            let ws = ctx.matmul_workgroup_size;
+            let pipeline = if ws >= 16 {
+                &ctx.matmul_pipeline_16
+            } else {
+                &ctx.matmul_pipeline
+            };
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 label: Some("matmul pass"),
                 timestamp_writes: None,
             });
-            pass.set_pipeline(&ctx.matmul_pipeline);
+            pass.set_pipeline(pipeline);
             pass.set_bind_group(0, &bind_group, &[]);
-            let wg_x = (m + 7) / 8;
-            let wg_y = (n + 7) / 8;
+            let wg_x = (m + ws - 1) / ws;
+            let wg_y = (n + ws - 1) / ws;
             pass.dispatch_workgroups(wg_x, wg_y, 1);
         }
         let staging = ctx.device.create_buffer(&wgpu::BufferDescriptor {
