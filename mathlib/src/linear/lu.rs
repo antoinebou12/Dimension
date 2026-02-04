@@ -131,6 +131,13 @@ impl Lu {
         self.lu()
     }
 
+    /// Sign of the row permutation: +1 or -1 (used for determinant).
+    #[inline]
+    #[must_use]
+    pub fn sign(&self) -> i8 {
+        self.sign
+    }
+
     /// Pivot indices: row i of permuted system is original row pivot[i].
     pub fn pivot(&self) -> &[usize] {
         &self.pivot

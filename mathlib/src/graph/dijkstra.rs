@@ -17,7 +17,7 @@ pub struct DijkstraResult {
 }
 
 /// Runs Dijkstra from `source` on `graph`. Returns distances and predecessors.
-/// With `parallel` feature, uses Rayon for neighbor relaxation; otherwise sequential.
+/// With `parallel` feature, uses chili for neighbor relaxation; otherwise sequential.
 #[must_use]
 pub fn dijkstra(graph: &Graph, source: usize) -> DijkstraResult {
     let num_nodes = graph.num_nodes();
@@ -30,7 +30,7 @@ pub fn dijkstra(graph: &Graph, source: usize) -> DijkstraResult {
 
 #[cfg(all(feature = "parallel", not(target_arch = "wasm32")))]
 fn dijkstra_parallel(graph: &Graph, source: usize) -> DijkstraResult {
-    use rayon::prelude::*;
+    use par_iter::prelude::*;
     let n = graph.num_nodes();
     assert!(source < n);
 

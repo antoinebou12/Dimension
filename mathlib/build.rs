@@ -1,4 +1,4 @@
-//! Build script: rejects wasm32 + parallel feature (rayon is not wasm32-compatible).
+//! Build script: rejects wasm32 + parallel feature (par-iter with chili is not wasm32-compatible).
 
 fn main() {
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap_or_default();

@@ -4,9 +4,38 @@ Quick reference for development setup, CI, and optional tooling.
 
 ## CI and coverage
 
-- **CI**: `.github/workflows/ci.yml` runs on push/PR to `main`/`master`: typos (spelling), format check, Clippy, tests, `cargo audit`, and coverage (tarpaulin).
-- **Coverage**: The coverage job produces Cobertura XML and HTML in `mathlib/coverage/` (artifact). Optional: add `CODECOV_TOKEN` in repo secrets to upload to Codecov for badges and PR comments.
-- **Local coverage**: From `mathlib/`, run `cargo tarpaulin --out Html --out Stdout --output-dir coverage`. Output is in `coverage/` (gitignored).
+- **CI**: `.github/workflows/ci.yml` runs on push/PR to `main`/`master`: typos (spelling), format check, Clippy, tests, `cargo audit`, WASM check (`cargo check --target wasm32-unknown-unknown --features wasm`), and coverage (tarpaulin).
+- **Coverage (CI)**: The coverage job uses the same command as `just coverage-xml` (tarpaulin with `--features parallel`, Cobertura XML and HTML in `mathlib/coverage/`). The parallel backend and related code paths are included. Artifact: `mathlib/coverage/`. Optional: add `CODECOV_TOKEN` in repo secrets to upload to Codecov for badges and PR comments.
+- **Local coverage**: From repo root run `just coverage` (HTML + stdout) or `just coverage-xml` (same as CI, with Xml). Open `mathlib/coverage/tarpaulin-report.html` for the report. A pre-commit hook runs coverage at the **push** stage (`pre-commit run --hook-stage push`) so commits stay fast.
+
+## WASM demo
+
+- **Build**: From repo root, `just wasm-build` (builds pkg and copies into `mathlib/wasm-demo/pkg/`).
+- **Serve**: From repo root, `just wasm-serve` (or `just demo` to build then serve). Open **/wasm-demo/** (use the URL shown by the server).
+- **GitHub Pages**: The wasm-demo is built in CI and deployed to GitHub Pages on push to `main`/`master` (workflow: [.github/workflows/pages.yml](../.github/workflows/pages.yml)). Enable **Settings → Pages → GitHub Actions** to publish the live demo at your repo's Pages URL.
+- **Details**: See [mathlib/wasm-demo/README.md](../mathlib/wasm-demo/README.md), [wasm.md](wasm.md), and the [WASM and browser demo](DOCS.md#wasm-and-browser-demo) section in DOCS.md.
+
+## Running by domain
+
+Tests and benchmarks are grouped by domain. From `mathlib/`:
+
+```bash
+# Run tests for one domain
+cargo test --test linear
+cargo test --test ml
+cargo test --test cg
+cargo test --test optimisation
+cargo test --test graph
+cargo test --test tree
+cargo test --test transforms
+# etc.
+
+# Run benchmarks (filter by group name)
+cargo bench -- benchmarks -- linear
+cargo bench -- benchmarks -- transforms
+```
+
+See [domains.md](domains.md) for the full list of test/bench domains.
 
 ## Agents and MCP (Cursor)
 

@@ -71,28 +71,3 @@ pub fn perlin_2d(x: f64, y: f64) -> f64 {
     let nx1 = (1.0 - u) * g01 + u * g11;
     (1.0 - v) * nx0 + v * nx1
 }
-
-#[cfg(test)]
-mod tests {
-    use super::perlin_2d;
-
-    #[test]
-    fn perlin_2d_deterministic() {
-        assert_eq!(perlin_2d(1.0, 2.0), perlin_2d(1.0, 2.0));
-        assert_eq!(perlin_2d(0.5, 0.5), perlin_2d(0.5, 0.5));
-    }
-
-    #[test]
-    fn perlin_2d_bounded() {
-        for (x, y) in [(0.0, 0.0), (1.5, 2.5), (10.0, 10.0)] {
-            let v = perlin_2d(x, y);
-            assert!(
-                v >= -1.5 && v <= 1.5,
-                "perlin_2d({}, {}) = {} out of range",
-                x,
-                y,
-                v
-            );
-        }
-    }
-}

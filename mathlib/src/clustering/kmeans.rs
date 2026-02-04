@@ -106,7 +106,7 @@ fn assign_points_to_centroids(
 ) -> Vec<usize> {
     #[cfg(all(feature = "parallel", not(target_arch = "wasm32")))]
     {
-        use rayon::prelude::*;
+        use par_iter::prelude::*;
         (0..n_samples)
             .into_par_iter()
             .map(|i| {

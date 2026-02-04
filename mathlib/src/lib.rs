@@ -102,10 +102,14 @@ pub mod noise;
 pub use math::{cg, easing, math3d, quaternion, trig};
 pub mod argmin;
 pub mod decomposition;
+#[cfg(feature = "gpu")]
+pub mod gpu;
 pub mod matrix;
 pub mod operators;
+pub mod simplex;
 pub mod stats;
 pub mod svm;
+pub mod transforms;
 pub mod vector;
 
 pub use linear::{chol, lu, qz, schur, solve};
@@ -141,9 +145,11 @@ pub use graph::disjoint::UnionFind;
 pub use graph::disjoint_set::DisjointSet;
 pub use graph::dstar::{DStarLite, DStarLiteResult};
 pub use graph::{
-    AStarResult, DijkstraResult, Edge, Graph, NodeId, Weight, articulation_points, astar, bridges,
-    connected_components, connected_components_undirected, dijkstra, dstar_lite,
-    greedy_vertex_coloring, is_bipartite, reverse_graph,
+    AStarResult, BfsResult, DijkstraResult, Edge, Graph, Node, NodeId, Tree, Weight,
+    articulation_points, astar, bfs, bridges, connected_components,
+    connected_components_undirected, dfs_postorder, dfs_postorder_forest, dfs_preorder,
+    dfs_preorder_forest, dijkstra, dsatur_coloring, dstar_lite, greedy_vertex_coloring,
+    is_bipartite, reverse_graph,
 };
 pub use hash::HashableElement;
 pub use lane::{LaneCount, LaneScalar, SimdLane, as_f64x4_chunks, as_f64x4_chunks_mut};
@@ -157,9 +163,15 @@ pub use matrix::Matrix;
 pub use quaternion::Quat4f;
 pub use qz::{Qz, QzError, qz};
 pub use schur::{Schur, SchurError, schur};
+pub use simplex::{SimplexError, SimplexResult, SimplexStatus, simplex_solve};
 pub use solve::{SolveError, solve};
 pub use stats::covariance;
 pub use svm::{SvmError, SvmOptions, SvmRbfResult, SvmResult, svm, svm_rbf};
+pub use transforms::{
+    Complex64, TransformsError, apply_window, apply_window_in_place, blackman, conv_1d,
+    conv_1d_same, conv_2d, dct2_forward, dct2_inverse, dwt_haar_forward, dwt_haar_inverse,
+    fft_forward, fft_forward_real, fft_inverse, hamming, hann, tukey,
+};
 pub use trig::{
     acos, acosh, asin, asinh, atan, atan2, atanh, cos, cos_scalar, cosh, degrees, radians, sin,
     sin_scalar, sinh, tan, tanh,
@@ -179,6 +191,26 @@ pub use easing::{
     ease_out_quart, ease_out_quint, ease_out_sine, hermite, lerp, linear,
 };
 pub use noise::{fbm_2d, perlin_2d, wave_2d, wave_2d_params};
+
+// Domain re-export modules (optional namespaces; crate root API unchanged).
+/// ML domain: clustering, svm, distance.
+pub mod ml {
+    pub use crate::{clustering, distance, svm};
+}
+/// Optimisation domain: argmin, genetic (if feature enabled).
+pub mod optimisation {
+    pub use crate::argmin;
+    #[cfg(feature = "genetic")]
+    pub use crate::genetic;
+}
+/// Tree traversal (BFS, DFS) from graph.
+pub mod tree {
+    pub use crate::graph::tree::*;
+}
+/// Tensor domain: Cube and related types.
+pub mod tensor {
+    pub use crate::cube::*;
+}
 
 #[cfg(feature = "wasm")]
 pub mod wasm;

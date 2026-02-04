@@ -40,3 +40,9 @@ repos:
         entry: bash -c "cd mathlib && cargo clippy -- -D warnings"
         language: system
         pass_filenames: false
+      - id: cargo-coverage
+        name: cargo tarpaulin (mathlib)
+        entry: bash -c "cd mathlib && cargo tarpaulin --features parallel --out Html --out Stdout --output-dir coverage --timeout 300"
+        language: system
+        pass_filenames: false
+        stages: [pre-push]

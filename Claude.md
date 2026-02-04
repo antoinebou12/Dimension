@@ -1,6 +1,6 @@
 # Dimension — Project context for Claude and other AI assistants
 
-**Dimension** is the repository for **mathlib**, a Rust linear algebra library. All code lives in the **mathlib** crate. It provides dense and sparse matrices, vectors, SVD and other decompositions, 3D math, clustering, distance metrics, PCA, and camera/projection helpers.
+**Dimension** is the repository for **mathlib**, a Rust linear algebra library. All code lives in the **mathlib** crate. It provides dense and sparse matrices, vectors, SVD and other decompositions, 3D math, clustering, distance metrics, PCA, simplex (LP), camera/projection helpers, graph pathfinding (Dijkstra, A*, D* Lite, vertex coloring, tree BFS/DFS), and optional WASM/SIMD/parallel support.
 
 ## Layout
 
@@ -19,27 +19,42 @@ cd mathlib && cargo test
 cd mathlib && cargo doc --open
 ```
 
-Optional: use [just](https://github.com/casey/just) from the repo root — e.g. `just build`, `just test`, `just bench` (see [justfile](../justfile)).
+Optional: use [just](https://github.com/casey/just) from the repo root — e.g. `just build`, `just test`, `just bench` (see [justfile](justfile)). For WASM: `just build-wasm`, `just test-wasm` (no `parallel` on `wasm32`).
 
 ## Conventions
 
-- Follow [CONTRIBUTING.md](../CONTRIBUTING.md): run `cargo fmt`, `cargo clippy`, and `cargo test` inside `mathlib/` before submitting changes.
-- Add or update tests when changing behavior; update docs (e.g. [docs/DOCS.md](DOCS.md) or doc comments) when changing public APIs.
+- Follow [CONTRIBUTING.md](CONTRIBUTING.md): run `cargo fmt`, `cargo clippy`, and `cargo test` inside `mathlib/` before submitting changes.
+- Add or update tests when changing behavior; update docs (e.g. [docs/DOCS.md](docs/DOCS.md) or doc comments) when changing public APIs.
+- Solvers and decompositions return `Result`; indexing may panic in debug if out of bounds.
 
 ## Where to read
 
-- **[docs/DOCS.md](DOCS.md)** — Architecture, main types, operators, usage examples.
-- **Rustdoc** — Full API: `cd mathlib && cargo doc --open`.
-- **[AGENTS.md](../AGENTS.md)** — Structured module map and conventions for LLMs.
+| Doc | Use when |
+|-----|----------|
+| **[docs/DOCS.md](docs/DOCS.md)** | Architecture, main types, operators, usage examples. |
+| **[AGENTS.md](AGENTS.md)** | Full module map, features, error types, where to add code (preferred for larger edits). |
+| **Rustdoc** | Full API: `cd mathlib && cargo doc --open`. |
 
 ## Key files
 
-| File | Role |
-|------|------|
+| File / dir | Role |
+|------------|------|
 | `mathlib/src/lib.rs` | Crate root; re-exports and `prelude`. |
 | `mathlib/src/structure/` | Storage (dense/sparse), `MatrixBase`, `SubMatrix`, sparse formats. |
 | `mathlib/src/matrix.rs` | `Matrix<T>`; indexing, transpose, block views. |
 | `mathlib/src/vector.rs` | `Vector<T>`; dot, norm, resize. |
 | `mathlib/src/operators.rs` | `Add`, `Sub`, `Mul` for matrices and vectors. |
 | `mathlib/src/solve.rs` | General linear solve; `Cholesky`, `Lu` in `chol.rs`, `lu.rs`. |
-| `mathlib/src/svd.rs` | SVD and `svd_econ`. |
+| `mathlib/src/decomposition/` | SVD, `svd_econ`, PCA. |
+| `mathlib/src/simplex/` | Linear programming: `simplex_solve`, `SimplexResult`, `SimplexError`. |
+| `mathlib/src/wasm/` | WASM bindings (feature `wasm`); matrices, vectors, SVD, camera, etc. |
+
+## Features (summary)
+
+- `default` — no optional deps.
+- `parallel` — par-iter with chili backend (not on `wasm32`). Uses heartbeat scheduling for better performance with many short-lived tasks.
+- `simd` — SIMD via `wide` (works on wasm); used by distance, operators, PSO.
+- `wasm` — WebAssembly build; exposes `mathlib::wasm`.
+- `genetic` — CMA-ES (adds `rand`, `rand_distr`).
+
+See [AGENTS.md](AGENTS.md) for the full feature table and error types.

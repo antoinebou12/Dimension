@@ -48,6 +48,17 @@ impl<T: Clone + Default> Vector<T> {
         }
     }
 
+    /// Creates a vector by copying the slice.
+    pub fn from_slice(data: &[T]) -> Self
+    where
+        T: Copy,
+    {
+        let n = data.len();
+        let mut base = MatrixBase::with_dimensions(n, 1);
+        base.data_mut().copy_from_slice(data);
+        Self { base }
+    }
+
     pub fn resize(&mut self, rows: usize) {
         self.base.resize(rows, 1);
     }
@@ -84,9 +95,17 @@ impl<T: Clone + Default> Vector<T> {
 
     pub fn dot(&self, other: &Vector<T>) -> T
     where
-        T: Copy + Default + std::ops::AddAssign + std::ops::Mul<Output = T> + Float,
+        T: Copy + Default + std::ops::AddAssign + std::ops::Mul<Output = T> + Float + 'static,
     {
         assert_eq!(self.rows(), other.rows());
+        #[cfg(feature = "gpu")]
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+            let a: &Vector<f32> = unsafe { &*(self as *const Vector<T> as *const Vector<f32>) };
+            let b: &Vector<f32> = unsafe { &*(other as *const Vector<T> as *const Vector<f32>) };
+            if let Some(gpu_dot) = crate::gpu::try_dot_f32(a, b) {
+                return unsafe { std::mem::transmute_copy(&gpu_dot) };
+            }
+        }
         let n = self.rows();
         let mut sum = T::default();
         for i in 0..n {
@@ -97,8 +116,15 @@ impl<T: Clone + Default> Vector<T> {
 
     pub fn norm(&self) -> T
     where
-        T: Copy + Default + std::ops::AddAssign + std::ops::Mul<Output = T> + Float,
+        T: Copy + Default + std::ops::AddAssign + std::ops::Mul<Output = T> + Float + 'static,
     {
+        #[cfg(feature = "gpu")]
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+            let v: &Vector<f32> = unsafe { &*(self as *const Vector<T> as *const Vector<f32>) };
+            if let Some(gpu_norm) = crate::gpu::try_norm_f32(v) {
+                return unsafe { std::mem::transmute_copy(&gpu_norm) };
+            }
+        }
         let n = self.dot(self);
         n.sqrt()
     }
@@ -138,7 +164,7 @@ impl<T: Clone + Default> Vector<T> {
     #[must_use]
     pub fn normalize(&self) -> Vector<T>
     where
-        T: RealNumber + std::ops::AddAssign + PartialOrd,
+        T: RealNumber + std::ops::AddAssign + PartialOrd + 'static,
     {
         let n = self.norm();
         let eps = T::from_f64(1e-20);

@@ -11,14 +11,7 @@ cd mathlib && cargo bench
 cd mathlib && cargo doc --open
 ```
 
-**Linting and coverage (optional):**
-
-```bash
-cd mathlib && cargo clippy --all-targets -- -D warnings
-cd mathlib && cargo install cargo-tarpaulin && cargo tarpaulin --out Html --output-dir coverage
-```
-
-Open `mathlib/coverage/tarpaulin-report.html` for a local coverage report.
+**Linting and coverage (optional):** From repo root run `just clippy` and `just coverage` (or see [docs/dev-tools.md](docs/dev-tools.md)). Open `mathlib/coverage/tarpaulin-report.html` for the coverage report.
 
 ## Documentation
 

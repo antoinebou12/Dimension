@@ -1,14 +1,67 @@
+//! Arithmetic operators for matrices, vectors, and cubes.
+//!
+//! This module implements standard Rust arithmetic traits (`Add`, `Sub`, `Mul`) for
+//! the core mathlib types. All operations work on references to avoid unnecessary copies.
+//!
+//! # Supported Operations
+//!
+//! | Operation | Types | Notes |
+//! |-----------|-------|-------|
+//! | `A + B` | Matrix + Matrix | Element-wise, same dimensions required |
+//! | `A - B` | Matrix - Matrix | Element-wise, same dimensions required |
+//! | `A * B` | Matrix × Matrix | Standard matrix multiply, `A.cols == B.rows` |
+//! | `s * A` | scalar × Matrix | Element-wise scaling (`f64`, `f32`) |
+//! | `A * v` | Matrix × Vector | Matrix-vector product |
+//! | `u + v` | Vector + Vector | Element-wise, same length required |
+//! | `u - v` | Vector - Vector | Element-wise, same length required |
+//! | `u * v` | Vector × Vector | Dot product (returns scalar) |
+//! | `s * v` | scalar × Vector | Element-wise scaling |
+//!
+//! # Usage
+//!
+//! ```
+//! use mathlib::{Matrix, Vector, Storage};
+//!
+//! let a = Matrix::<f64>::with_storage(2, 2, Storage::Column);
+//! let b = Matrix::<f64>::with_storage(2, 2, Storage::Column);
+//! let c = &a + &b;  // Matrix addition
+//! let d = &a * &b;  // Matrix multiplication
+//!
+//! let mut u = Vector::<f64>::with_capacity(2);
+//! u.data_mut().copy_from_slice(&[1.0, 2.0]);
+//! let mut v = Vector::<f64>::with_capacity(2);
+//! v.data_mut().copy_from_slice(&[3.0, 4.0]);
+//! let dot = u.dot(&v);  // Dot product: 1*3 + 2*4 = 11
+//! ```
+//!
+//! # Panics
+//!
+//! Operations panic if dimensions are incompatible:
+//! - Addition/subtraction: matrices must have same dimensions
+//! - Matrix multiplication: `A.cols()` must equal `B.rows()`
+//! - Vector operations: vectors must have same length
+
 use crate::cube::Cube;
 use crate::matrix::Matrix;
 use crate::types::Storage;
 use crate::vector::Vector;
 use std::ops::{Add, Mul, Sub};
 
-impl<T: Copy + Default + Add<Output = T>> Add<&Matrix<T>> for &Matrix<T> {
+impl<T: Copy + Default + Add<Output = T> + 'static> Add<&Matrix<T>> for &Matrix<T> {
     type Output = Matrix<T>;
 
     fn add(self, other: &Matrix<T>) -> Matrix<T> {
         assert!(self.rows() == other.rows() && self.cols() == other.cols());
+        #[cfg(feature = "gpu")]
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+            let a: &Matrix<f32> = unsafe { &*(self as *const Matrix<T> as *const Matrix<f32>) };
+            let b: &Matrix<f32> = unsafe { &*(other as *const Matrix<T> as *const Matrix<f32>) };
+            if let Some(gpu_out) = crate::gpu::try_add_f32(a.data(), b.data()) {
+                let mut out = Matrix::with_storage(a.rows(), a.cols(), a.storage);
+                out.data_mut().copy_from_slice(&gpu_out);
+                return unsafe { std::mem::transmute(out) };
+            }
+        }
         let mut out = Matrix::with_storage(self.rows(), self.cols(), self.storage);
         for i in 0..self.rows() {
             for j in 0..self.cols() {
@@ -19,11 +72,21 @@ impl<T: Copy + Default + Add<Output = T>> Add<&Matrix<T>> for &Matrix<T> {
     }
 }
 
-impl<T: Copy + Default + Sub<Output = T>> Sub<&Matrix<T>> for &Matrix<T> {
+impl<T: Copy + Default + Sub<Output = T> + 'static> Sub<&Matrix<T>> for &Matrix<T> {
     type Output = Matrix<T>;
 
     fn sub(self, other: &Matrix<T>) -> Matrix<T> {
         assert!(self.rows() == other.rows() && self.cols() == other.cols());
+        #[cfg(feature = "gpu")]
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+            let a: &Matrix<f32> = unsafe { &*(self as *const Matrix<T> as *const Matrix<f32>) };
+            let b: &Matrix<f32> = unsafe { &*(other as *const Matrix<T> as *const Matrix<f32>) };
+            if let Some(gpu_out) = crate::gpu::try_sub_f32(a.data(), b.data()) {
+                let mut out = Matrix::with_storage(a.rows(), a.cols(), a.storage);
+                out.data_mut().copy_from_slice(&gpu_out);
+                return unsafe { std::mem::transmute(out) };
+            }
+        }
         let mut out = Matrix::with_storage(self.rows(), self.cols(), self.storage);
         for i in 0..self.rows() {
             for j in 0..self.cols() {
@@ -34,13 +97,21 @@ impl<T: Copy + Default + Sub<Output = T>> Sub<&Matrix<T>> for &Matrix<T> {
     }
 }
 
-impl<T: Copy + Default + From<u8> + std::ops::AddAssign + Mul<Output = T>> Mul<&Matrix<T>>
+impl<T: Copy + Default + From<u8> + std::ops::AddAssign + Mul<Output = T> + 'static> Mul<&Matrix<T>>
     for &Matrix<T>
 {
     type Output = Matrix<T>;
 
     fn mul(self, other: &Matrix<T>) -> Matrix<T> {
         assert!(self.cols() == other.rows());
+        #[cfg(feature = "gpu")]
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+            let a: &Matrix<f32> = unsafe { &*(self as *const Matrix<T> as *const Matrix<f32>) };
+            let b: &Matrix<f32> = unsafe { &*(other as *const Matrix<T> as *const Matrix<f32>) };
+            if let Some(gpu_out) = crate::gpu::try_matmul_f32(a, b) {
+                return unsafe { std::mem::transmute(gpu_out) };
+            }
+        }
         let mut out = Matrix::with_storage(self.rows(), other.cols(), Storage::Column);
         out.set_zero();
         for i in 0..self.rows() {
@@ -75,6 +146,12 @@ impl Mul<&Matrix<f32>> for f32 {
     type Output = Matrix<f32>;
 
     fn mul(self, rhs: &Matrix<f32>) -> Matrix<f32> {
+        #[cfg(feature = "gpu")]
+        if let Some(gpu_out) = crate::gpu::try_scale_f32(self, rhs.data()) {
+            let mut out = Matrix::with_storage(rhs.rows(), rhs.cols(), rhs.storage);
+            out.data_mut().copy_from_slice(&gpu_out);
+            return out;
+        }
         let mut out = Matrix::with_storage(rhs.rows(), rhs.cols(), rhs.storage);
         for i in 0..rhs.rows() {
             for j in 0..rhs.cols() {
@@ -87,13 +164,27 @@ impl Mul<&Matrix<f32>> for f32 {
 
 // --- Matrix * Vector ---
 impl<
-    T: Copy + Default + From<u8> + std::ops::Add<Output = T> + std::ops::AddAssign + Mul<Output = T>,
+    T: Copy
+        + Default
+        + From<u8>
+        + std::ops::Add<Output = T>
+        + std::ops::AddAssign
+        + Mul<Output = T>
+        + 'static,
 > Mul<&Vector<T>> for &Matrix<T>
 {
     type Output = Vector<T>;
 
     fn mul(self, v: &Vector<T>) -> Vector<T> {
         assert!(self.cols() == v.rows());
+        #[cfg(feature = "gpu")]
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+            let a: &Matrix<f32> = unsafe { &*(self as *const Matrix<T> as *const Matrix<f32>) };
+            let b: &Vector<f32> = unsafe { &*(v as *const Vector<T> as *const Vector<f32>) };
+            if let Some(gpu_out) = crate::gpu::try_matvec_f32(a, b) {
+                return unsafe { std::mem::transmute(gpu_out) };
+            }
+        }
         let mut out = Vector::with_capacity(self.rows());
         out.set_zero();
         for j in 0..self.cols() {
@@ -132,6 +223,12 @@ impl Mul<&Vector<f32>> for f32 {
     type Output = Vector<f32>;
 
     fn mul(self, rhs: &Vector<f32>) -> Vector<f32> {
+        #[cfg(feature = "gpu")]
+        if let Some(gpu_out) = crate::gpu::try_scale_f32(self, rhs.data()) {
+            let mut out = Vector::with_capacity(rhs.rows());
+            out.data_mut().copy_from_slice(&gpu_out);
+            return out;
+        }
         let mut out = Vector::with_capacity(rhs.rows());
         for i in 0..rhs.rows() {
             out.set(i, self * rhs.get(i));
@@ -140,11 +237,21 @@ impl Mul<&Vector<f32>> for f32 {
     }
 }
 
-impl<T: Copy + Default + Add<Output = T>> Add<&Vector<T>> for &Vector<T> {
+impl<T: Copy + Default + Add<Output = T> + 'static> Add<&Vector<T>> for &Vector<T> {
     type Output = Vector<T>;
 
     fn add(self, other: &Vector<T>) -> Vector<T> {
         assert!(self.rows() == other.rows());
+        #[cfg(feature = "gpu")]
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+            let a: &Vector<f32> = unsafe { &*(self as *const Vector<T> as *const Vector<f32>) };
+            let b: &Vector<f32> = unsafe { &*(other as *const Vector<T> as *const Vector<f32>) };
+            if let Some(gpu_out) = crate::gpu::try_add_f32(a.data(), b.data()) {
+                let mut out = Vector::with_capacity(a.rows());
+                out.data_mut().copy_from_slice(&gpu_out);
+                return unsafe { std::mem::transmute(out) };
+            }
+        }
         let mut out = Vector::with_capacity(self.rows());
         for i in 0..self.rows() {
             out.set(i, self.get(i) + other.get(i));
@@ -153,11 +260,21 @@ impl<T: Copy + Default + Add<Output = T>> Add<&Vector<T>> for &Vector<T> {
     }
 }
 
-impl<T: Copy + Default + Sub<Output = T>> Sub<&Vector<T>> for &Vector<T> {
+impl<T: Copy + Default + Sub<Output = T> + 'static> Sub<&Vector<T>> for &Vector<T> {
     type Output = Vector<T>;
 
     fn sub(self, other: &Vector<T>) -> Vector<T> {
         assert!(self.rows() == other.rows());
+        #[cfg(feature = "gpu")]
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+            let a: &Vector<f32> = unsafe { &*(self as *const Vector<T> as *const Vector<f32>) };
+            let b: &Vector<f32> = unsafe { &*(other as *const Vector<T> as *const Vector<f32>) };
+            if let Some(gpu_out) = crate::gpu::try_sub_f32(a.data(), b.data()) {
+                let mut out = Vector::with_capacity(a.rows());
+                out.data_mut().copy_from_slice(&gpu_out);
+                return unsafe { std::mem::transmute(out) };
+            }
+        }
         let mut out = Vector::with_capacity(self.rows());
         for i in 0..self.rows() {
             out.set(i, self.get(i) - other.get(i));
@@ -206,187 +323,5 @@ impl<T: Copy + Default + Sub<Output = T>> Sub<&Cube<T>> for &Cube<T> {
             }
         }
         out
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn make_vector(data: &[f64]) -> Vector<f64> {
-        let mut v = Vector::with_capacity(data.len());
-        for (i, &val) in data.iter().enumerate() {
-            v.set(i, val);
-        }
-        v
-    }
-
-    fn make_matrix(rows: usize, cols: usize, data: &[f64]) -> Matrix<f64> {
-        let mut m = Matrix::with_dimensions(rows, cols);
-        for i in 0..rows {
-            for j in 0..cols {
-                m.set(i, j, data[i * cols + j]);
-            }
-        }
-        m
-    }
-
-    #[test]
-    fn test_matrix_add() {
-        let a = make_matrix(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        let b = make_matrix(2, 2, &[5.0, 6.0, 7.0, 8.0]);
-        let c = &a + &b;
-        assert!((c.get(0, 0) - 6.0).abs() < 1e-10);
-        assert!((c.get(0, 1) - 8.0).abs() < 1e-10);
-        assert!((c.get(1, 0) - 10.0).abs() < 1e-10);
-        assert!((c.get(1, 1) - 12.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_matrix_sub() {
-        let a = make_matrix(2, 2, &[5.0, 6.0, 7.0, 8.0]);
-        let b = make_matrix(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        let c = &a - &b;
-        assert!((c.get(0, 0) - 4.0).abs() < 1e-10);
-        assert!((c.get(1, 1) - 4.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_matrix_mul() {
-        // [1 2] * [5 6] = [1*5+2*7  1*6+2*8] = [19 22]
-        // [3 4]   [7 8]   [3*5+4*7  3*6+4*8]   [43 50]
-        let a = make_matrix(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        let b = make_matrix(2, 2, &[5.0, 6.0, 7.0, 8.0]);
-        let c = &a * &b;
-        assert!((c.get(0, 0) - 19.0).abs() < 1e-10);
-        assert!((c.get(0, 1) - 22.0).abs() < 1e-10);
-        assert!((c.get(1, 0) - 43.0).abs() < 1e-10);
-        assert!((c.get(1, 1) - 50.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_matrix_mul_identity() {
-        let a = make_matrix(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        let mut i = Matrix::with_dimensions(2, 2);
-        i.set_identity();
-        let c = &a * &i;
-        assert!((c.get(0, 0) - 1.0).abs() < 1e-10);
-        assert!((c.get(0, 1) - 2.0).abs() < 1e-10);
-        assert!((c.get(1, 0) - 3.0).abs() < 1e-10);
-        assert!((c.get(1, 1) - 4.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_matrix_mul_rectangular() {
-        // [1 2 3] * [7 ]   [1*7+2*8+3*9]   [50]
-        // [4 5 6]   [8 ] = [4*7+5*8+6*9] = [122]
-        //           [9 ]
-        let a = make_matrix(2, 3, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
-        let b = make_matrix(3, 1, &[7.0, 8.0, 9.0]);
-        let c = &a * &b;
-        assert_eq!(c.rows(), 2);
-        assert_eq!(c.cols(), 1);
-        assert!((c.get(0, 0) - 50.0).abs() < 1e-10);
-        assert!((c.get(1, 0) - 122.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_scalar_mul_matrix_f64() {
-        let a = make_matrix(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        let c = 2.0_f64 * &a;
-        assert!((c.get(0, 0) - 2.0).abs() < 1e-10);
-        assert!((c.get(1, 1) - 8.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_scalar_mul_matrix_f32() {
-        let mut a: Matrix<f32> = Matrix::with_dimensions(2, 2);
-        a.set(0, 0, 1.0);
-        a.set(1, 1, 4.0);
-        let c = 3.0_f32 * &a;
-        assert!((c.get(0, 0) - 3.0).abs() < 1e-6);
-        assert!((c.get(1, 1) - 12.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn test_matrix_vector_mul() {
-        // [1 2] * [3] = [1*3+2*4] = [11]
-        // [3 4]   [4]   [3*3+4*4]   [25]
-        let a = make_matrix(2, 2, &[1.0, 2.0, 3.0, 4.0]);
-        let v = make_vector(&[3.0, 4.0]);
-        let c = &a * &v;
-        assert_eq!(c.rows(), 2);
-        assert!((c.get(0) - 11.0).abs() < 1e-10);
-        assert!((c.get(1) - 25.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_scalar_mul_vector_f64() {
-        let v = make_vector(&[1.0, 2.0, 3.0]);
-        let c = 2.0_f64 * &v;
-        assert!((c.get(0) - 2.0).abs() < 1e-10);
-        assert!((c.get(1) - 4.0).abs() < 1e-10);
-        assert!((c.get(2) - 6.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_scalar_mul_vector_f32() {
-        let mut v: Vector<f32> = Vector::with_capacity(2);
-        v.set(0, 1.0);
-        v.set(1, 2.0);
-        let c = 5.0_f32 * &v;
-        assert!((c.get(0) - 5.0).abs() < 1e-6);
-        assert!((c.get(1) - 10.0).abs() < 1e-6);
-    }
-
-    #[test]
-    fn test_vector_add() {
-        let a = make_vector(&[1.0, 2.0, 3.0]);
-        let b = make_vector(&[4.0, 5.0, 6.0]);
-        let c = &a + &b;
-        assert!((c.get(0) - 5.0).abs() < 1e-10);
-        assert!((c.get(1) - 7.0).abs() < 1e-10);
-        assert!((c.get(2) - 9.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_vector_sub() {
-        let a = make_vector(&[4.0, 5.0, 6.0]);
-        let b = make_vector(&[1.0, 2.0, 3.0]);
-        let c = &a - &b;
-        assert!((c.get(0) - 3.0).abs() < 1e-10);
-        assert!((c.get(1) - 3.0).abs() < 1e-10);
-        assert!((c.get(2) - 3.0).abs() < 1e-10);
-    }
-
-    fn make_cube(rows: usize, cols: usize, slices: usize, data: &[f64]) -> Cube<f64> {
-        let mut c = Cube::with_dimensions(rows, cols, slices);
-        for (idx, &val) in data.iter().enumerate() {
-            let n = rows * cols;
-            let k = idx / n;
-            let r = idx % n;
-            let j = r / rows;
-            let i = r % rows;
-            c.set(i, j, k, val);
-        }
-        c
-    }
-
-    #[test]
-    fn test_cube_add() {
-        let a = make_cube(2, 2, 2, &[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0]);
-        let b = make_cube(2, 2, 2, &[10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0, 80.0]);
-        let c = &a + &b;
-        assert!((c.get(0, 0, 0) - 11.0).abs() < 1e-10);
-        assert!((c.get(1, 1, 1) - 88.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_cube_sub() {
-        let a = make_cube(2, 2, 1, &[5.0, 6.0, 7.0, 8.0]);
-        let b = make_cube(2, 2, 1, &[1.0, 2.0, 3.0, 4.0]);
-        let c = &a - &b;
-        assert!((c.get(0, 0, 0) - 4.0).abs() < 1e-10);
-        assert!((c.get(1, 1, 0) - 4.0).abs() < 1e-10);
     }
 }

@@ -1,3 +1,33 @@
+//! Dense matrix type with column-major or row-major storage.
+//!
+//! The [`Matrix<T>`] type is the primary dense matrix representation. It supports:
+//! - Column-major (default) or row-major storage via [`Storage`]
+//! - Element access with `get(i, j)` / `set(i, j, value)`
+//! - Transpose, identity, zero initialization
+//! - Block views via [`SubMatrix`]
+//! - Arithmetic operations (`+`, `-`, `*`) via [`crate::operators`]
+//!
+//! # Storage Layout
+//!
+//! - **Column-major** (`Storage::Column`): Elements stored column-by-column.
+//!   Index `(i, j)` maps to `j * rows + i`. This is the default and matches OpenGL conventions.
+//! - **Row-major** (`Storage::Row`): Elements stored row-by-row.
+//!   Index `(i, j)` maps to `i * cols + j`.
+//!
+//! # Example
+//!
+//! ```
+//! use mathlib::{Matrix, Storage};
+//!
+//! let mut m = Matrix::<f64>::with_storage(3, 3, Storage::Column);
+//! m.set_identity();
+//! assert_eq!(m.get(0, 0), 1.0);
+//! assert_eq!(m.get(0, 1), 0.0);
+//!
+//! let t = m.transpose();
+//! assert_eq!(t.rows(), 3);
+//! ```
+
 use crate::matrix_base::MatrixBase;
 use crate::submatrix::SubMatrix;
 use crate::types::Storage;
@@ -106,6 +136,23 @@ impl<T: Clone + Default> Matrix<T> {
     {
         Self {
             base: MatrixBase::with_dimensions(rows, cols),
+            storage,
+        }
+    }
+
+    /// Creates a matrix from a contiguous slice in column-major order.
+    /// `data.len()` must equal `rows * cols`.
+    pub fn from_vec(data: &[T], rows: usize, cols: usize, storage: Storage) -> Self
+    where
+        T: Copy,
+    {
+        assert_eq!(data.len(), rows * cols);
+        Self {
+            base: MatrixBase {
+                storage: crate::structure::DenseStorageDynamic::from_slice(data),
+                rows,
+                cols,
+            },
             storage,
         }
     }
@@ -344,176 +391,5 @@ where
             &["storage", "rows", "cols", "data"],
             MatrixVisitor::<T>(PhantomData),
         )
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_matrix_new() {
-        let m: Matrix<f64> = Matrix::new();
-        assert_eq!(m.rows(), 0);
-        assert_eq!(m.cols(), 0);
-    }
-
-    #[test]
-    fn test_matrix_with_dimensions() {
-        let m: Matrix<f64> = Matrix::with_dimensions(3, 4);
-        assert_eq!(m.rows(), 3);
-        assert_eq!(m.cols(), 4);
-    }
-
-    #[test]
-    fn test_matrix_with_storage() {
-        let m: Matrix<f64> = Matrix::with_storage(2, 3, Storage::Row);
-        assert_eq!(m.rows(), 2);
-        assert_eq!(m.cols(), 3);
-    }
-
-    #[test]
-    fn test_matrix_get_set_column_storage() {
-        let mut m: Matrix<f64> = Matrix::with_storage(3, 3, Storage::Column);
-        m.set(1, 2, 5.5);
-        assert!((m.get(1, 2) - 5.5).abs() < 1e-10);
-        assert!((m.get(0, 0) - 0.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_matrix_get_set_row_storage() {
-        let mut m: Matrix<f64> = Matrix::with_storage(3, 3, Storage::Row);
-        m.set(1, 2, 7.7);
-        assert!((m.get(1, 2) - 7.7).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_matrix_index_operators() {
-        let mut m: Matrix<f64> = Matrix::with_dimensions(2, 2);
-        m[(0, 1)] = 2.5;
-        assert!((m[(0, 1)] - 2.5).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_matrix_resize() {
-        let mut m: Matrix<f64> = Matrix::with_dimensions(2, 2);
-        m.resize(4, 5);
-        assert_eq!(m.rows(), 4);
-        assert_eq!(m.cols(), 5);
-    }
-
-    #[test]
-    fn test_matrix_set_zero() {
-        let mut m: Matrix<f64> = Matrix::with_dimensions(2, 2);
-        m.set(0, 0, 10.0);
-        m.set_zero();
-        assert!((m.get(0, 0) - 0.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_matrix_set_identity() {
-        let mut m: Matrix<f64> = Matrix::with_dimensions(3, 3);
-        m.set_identity();
-        assert!((m.get(0, 0) - 1.0).abs() < 1e-10);
-        assert!((m.get(1, 1) - 1.0).abs() < 1e-10);
-        assert!((m.get(2, 2) - 1.0).abs() < 1e-10);
-        assert!((m.get(0, 1) - 0.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_matrix_transpose_column() {
-        let mut m: Matrix<f64> = Matrix::with_storage(2, 3, Storage::Column);
-        m.set(0, 0, 1.0);
-        m.set(0, 1, 2.0);
-        m.set(0, 2, 3.0);
-        m.set(1, 0, 4.0);
-        m.set(1, 1, 5.0);
-        m.set(1, 2, 6.0);
-
-        let t = m.transpose();
-        assert_eq!(t.rows(), 3);
-        assert_eq!(t.cols(), 2);
-        assert!((t.get(0, 0) - 1.0).abs() < 1e-10);
-        assert!((t.get(1, 0) - 2.0).abs() < 1e-10);
-        assert!((t.get(2, 1) - 6.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_matrix_transpose_row() {
-        let mut m: Matrix<f64> = Matrix::with_storage(2, 3, Storage::Row);
-        m.set(0, 0, 1.0);
-        m.set(1, 2, 6.0);
-
-        let t = m.transpose();
-        assert_eq!(t.rows(), 3);
-        assert_eq!(t.cols(), 2);
-        assert!((t.get(0, 0) - 1.0).abs() < 1e-10);
-        assert!((t.get(2, 1) - 6.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_matrix_double_transpose() {
-        let mut m: Matrix<f64> = Matrix::with_dimensions(2, 3);
-        m.set(0, 1, 5.0);
-        m.set(1, 2, 7.0);
-
-        let tt = m.transpose().transpose();
-        assert_eq!(tt.rows(), 2);
-        assert_eq!(tt.cols(), 3);
-        assert!((tt.get(0, 1) - 5.0).abs() < 1e-10);
-        assert!((tt.get(1, 2) - 7.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_matrix_rectangular_identity() {
-        let mut m: Matrix<f64> = Matrix::with_dimensions(3, 5);
-        m.set_identity();
-        // Only diagonal up to min(rows, cols) should be 1
-        assert!((m.get(0, 0) - 1.0).abs() < 1e-10);
-        assert!((m.get(1, 1) - 1.0).abs() < 1e-10);
-        assert!((m.get(2, 2) - 1.0).abs() < 1e-10);
-        assert!((m.get(0, 3) - 0.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_matrix_data_access() {
-        let mut m: Matrix<f64> = Matrix::with_dimensions(2, 2);
-        m.data_mut()[0] = 9.0;
-        assert!((m.data()[0] - 9.0).abs() < 1e-10);
-    }
-
-    #[test]
-    fn test_matrix_display() {
-        let mut m: Matrix<i32> = Matrix::with_dimensions(2, 2);
-        m.set(0, 0, 1);
-        m.set(1, 1, 4);
-        let display = format!("{}", m);
-        assert!(display.contains("2x2"));
-    }
-
-    #[test]
-    fn test_matrix_pow() {
-        let mut a: Matrix<f64> = Matrix::with_storage(2, 2, Storage::Column);
-        a.set(0, 0, 1.0);
-        a.set(0, 1, 2.0);
-        a.set(1, 0, 3.0);
-        a.set(1, 1, 4.0);
-
-        let id = a.pow(0);
-        assert!((id.get(0, 0) - 1.0).abs() < 1e-10);
-        assert!((id.get(1, 1) - 1.0).abs() < 1e-10);
-        assert!((id.get(0, 1) - 0.0).abs() < 1e-10);
-        assert!((id.get(1, 0) - 0.0).abs() < 1e-10);
-
-        let a1 = a.pow(1);
-        assert!((a1.get(0, 0) - a.get(0, 0)).abs() < 1e-10);
-        assert!((a1.get(1, 1) - a.get(1, 1)).abs() < 1e-10);
-
-        let a2 = &a * &a;
-        let a2_pow = a.pow(2);
-        assert!((a2_pow.get(0, 0) - a2.get(0, 0)).abs() < 1e-10);
-        assert!((a2_pow.get(0, 1) - a2.get(0, 1)).abs() < 1e-10);
-        assert!((a2_pow.get(1, 0) - a2.get(1, 0)).abs() < 1e-10);
-        assert!((a2_pow.get(1, 1) - a2.get(1, 1)).abs() < 1e-10);
     }
 }

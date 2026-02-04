@@ -1,3 +1,41 @@
+//! 3D math types and transformations.
+//!
+//! This module provides type aliases and functions for 3D graphics and geometry:
+//!
+//! - **Vectors**: [`Vector3f`], [`Vector4f`] (column vectors of `f32`)
+//! - **Matrices**: [`Matrix3f`], [`Matrix4f`] (3×3 and 4×4 transformation matrices)
+//! - **Points**: [`Point3`] (distinct from vectors; represents a location in space)
+//!
+//! # Type Aliases
+//!
+//! All 3D types use `f32` to match GPU precision:
+//!
+//! | Type | Description |
+//! |------|-------------|
+//! | `Vector3f` | 3D vector (x, y, z) |
+//! | `Vector4f` | 4D homogeneous vector (x, y, z, w) |
+//! | `Matrix3f` | 3×3 rotation/scale matrix |
+//! | `Matrix4f` | 4×4 transformation matrix (rotation, scale, translation) |
+//!
+//! # Key Functions
+//!
+//! - [`make_rotation`]: Create a 3×3 rotation matrix from Euler angles
+//! - [`matrix4f_inverse`]: Invert a 4×4 matrix
+//! - [`matrix4_mul_vector3`]: Transform a point by a 4×4 matrix
+//! - [`transform_vector`]: Transform a direction (ignores translation)
+//! - [`center`]: Compute centroid of points
+//!
+//! # Example
+//!
+//! ```
+//! use mathlib::{Matrix4f, Vector3f, make_rotation, matrix4_mul_vector3};
+//!
+//! let rotation = make_rotation(0.0, std::f32::consts::FRAC_PI_2, 0.0);
+//! let mut point = Vector3f::with_capacity(3);
+//! point.data_mut().copy_from_slice(&[1.0, 0.0, 0.0]);
+//! // Rotating (1, 0, 0) by 90° around Y gives approximately (0, 0, -1)
+//! ```
+
 use crate::matrix::Matrix;
 use crate::types::Storage;
 use crate::vector::Vector;

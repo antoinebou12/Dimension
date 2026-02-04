@@ -76,7 +76,7 @@ pub fn dbscan(data: &Matrix<f64>, eps: f64, min_pts: usize) -> DbscanResult {
 fn compute_neighbors(data: &Matrix<f64>, n_samples: usize, eps_sq: f64) -> Vec<Vec<usize>> {
     #[cfg(all(feature = "parallel", not(target_arch = "wasm32")))]
     {
-        use rayon::prelude::*;
+        use par_iter::prelude::*;
         (0..n_samples)
             .into_par_iter()
             .map(|i| {

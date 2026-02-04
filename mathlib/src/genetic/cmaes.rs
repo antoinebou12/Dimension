@@ -173,9 +173,10 @@ impl CmaEs {
     }
 
     /// Run optimization: minimize `objective`. Returns best solution and fitness.
+    /// When the `parallel` feature is enabled, `F` must implement `Sync` (e.g. function pointers and `Sync` closures).
     pub fn optimize<F>(&mut self, objective: F) -> CmaEsResult
     where
-        F: Fn(&[f64]) -> f64,
+        F: Fn(&[f64]) -> f64 + Sync,
     {
         let dim = self.n;
         let max_generations = self.max_generations;
@@ -372,11 +373,11 @@ fn sqrt_sum_sq(x: &[f64]) -> f64 {
 /// Evaluate objective on each candidate; returns (index, fitness) for each.
 fn evaluate_fitness<F>(candidates: &[Vec<f64>], objective: &F) -> Vec<(usize, f64)>
 where
-    F: Fn(&[f64]) -> f64,
+    F: Fn(&[f64]) -> f64 + Sync,
 {
     #[cfg(all(feature = "parallel", not(target_arch = "wasm32")))]
     {
-        use rayon::prelude::*;
+        use par_iter::prelude::*;
         (0..candidates.len())
             .into_par_iter()
             .map(|i| (i, objective(&candidates[i])))

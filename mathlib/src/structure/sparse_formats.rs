@@ -438,7 +438,8 @@ where
         + From<u8>
         + std::ops::Add<Output = T>
         + std::ops::AddAssign
-        + Mul<Output = T>,
+        + Mul<Output = T>
+        + 'static,
 {
     fn from_triplets(rows: usize, cols: usize, triplets: &[Triplet<T>]) -> Self {
         // Use default block size of 2x2
@@ -594,7 +595,8 @@ where
         + From<u8>
         + std::ops::Add<Output = T>
         + std::ops::AddAssign
-        + Mul<Output = T>,
+        + Mul<Output = T>
+        + 'static,
 {
     fn from_triplets(rows: usize, cols: usize, triplets: &[Triplet<T>]) -> Self {
         // Convert from CRS and reorder rows by nnz count

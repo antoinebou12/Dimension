@@ -287,14 +287,129 @@ where
     }
 }
 
-/// Bulk cost evaluation: sequential or parallel (rayon when feature "parallel", not on wasm32).
+/// PSO with a cost function that does not need to be `Sync` (e.g. JS callbacks in wasm).
+/// Uses sequential cost evaluation only. Prefer [`pso`] when the cost is `Sync` for possible parallel speedup.
+#[must_use]
+pub fn pso_sequential<F>(
+    bounds: (Vec<f64>, Vec<f64>),
+    num_particles: usize,
+    cost: F,
+    max_iters: u32,
+    options: Option<PsoOptions>,
+) -> PsoResult
+where
+    F: Fn(&[f64]) -> f64,
+{
+    let (low, high) = bounds;
+    let dim = low.len();
+    assert_eq!(high.len(), dim);
+    assert!(num_particles >= 1);
+    assert!(dim >= 1);
+
+    let opts = options.unwrap_or_default();
+    let mut rng = XorShift64::new(seed_from_bounds(&low, &high, num_particles));
+
+    let mut delta = vec![0.0_f64; dim];
+    for i in 0..dim {
+        delta[i] = high[i] - low[i];
+    }
+    let mut delta_neg = vec![0.0_f64; dim];
+    for i in 0..dim {
+        delta_neg[i] = -delta[i];
+    }
+
+    let mut particles: Vec<Particle> = (0..num_particles)
+        .map(|_| {
+            let mut position = vec![0.0_f64; dim];
+            let mut velocity = vec![0.0_f64; dim];
+            rng.uniform_in_bounds(&low, &high, &mut position);
+            rng.uniform_in_bounds(&delta_neg, &delta, &mut velocity);
+            let c = cost(&position);
+            Particle {
+                best_position: position.clone(),
+                best_cost: c,
+                position,
+                velocity,
+                cost: c,
+            }
+        })
+        .collect();
+
+    particles.sort_by(|a, b| {
+        a.cost
+            .partial_cmp(&b.cost)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let mut best_position = particles[0].best_position.clone();
+    let mut best_cost = particles[0].best_cost;
+    let mut iter = 0u32;
+
+    let mut diff = vec![0.0_f64; dim];
+    let mut scaled = vec![0.0_f64; dim];
+    let mut new_vel = vec![0.0_f64; dim];
+    let mut new_pos = vec![0.0_f64; dim];
+
+    while iter < max_iters {
+        for p in &mut particles {
+            scalar_mul_f64(opts.inertia, &p.velocity, &mut new_vel);
+            sub_f64(&p.best_position, &p.position, &mut diff);
+            for i in 0..dim {
+                scaled[i] = diff[i] * rng.uniform01();
+            }
+            scalar_mul_f64(opts.cognitive, &scaled, &mut diff);
+            add_f64(&new_vel, &diff, &mut scaled);
+            new_vel.copy_from_slice(&scaled);
+            sub_f64(&best_position, &p.position, &mut diff);
+            for i in 0..dim {
+                scaled[i] = diff[i] * rng.uniform01();
+            }
+            scalar_mul_f64(opts.social, &scaled, &mut diff);
+            add_f64(&new_vel, &diff, &mut scaled);
+            new_vel.copy_from_slice(&scaled);
+            p.velocity.copy_from_slice(&new_vel);
+            add_f64(&p.position, &p.velocity, &mut new_pos);
+            clamp_f64(&new_pos, &low, &high, &mut p.position);
+        }
+
+        let positions_vec: Vec<Vec<f64>> = particles.iter().map(|p| p.position.clone()).collect();
+        let costs: Vec<f64> = positions_vec.iter().map(|p| cost(p.as_slice())).collect();
+
+        for (p, c) in particles.iter_mut().zip(costs) {
+            p.cost = c;
+            if c < p.best_cost {
+                p.best_position.copy_from_slice(&p.position);
+                p.best_cost = c;
+                if c < best_cost {
+                    best_cost = c;
+                    best_position.copy_from_slice(&p.position);
+                }
+            }
+        }
+
+        particles.sort_by(|a, b| {
+            a.cost
+                .partial_cmp(&b.cost)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
+        iter += 1;
+    }
+
+    PsoResult {
+        best_position,
+        best_cost,
+        iterations: iter,
+    }
+}
+
+/// Bulk cost evaluation: sequential or parallel (chili when feature "parallel", not on wasm32).
 fn bulk_cost<F>(positions: &[Vec<f64>], cost: &F) -> Vec<f64>
 where
     F: Fn(&[f64]) -> f64 + Sync,
 {
     #[cfg(all(feature = "parallel", not(target_arch = "wasm32")))]
     {
-        use rayon::prelude::*;
+        use par_iter::prelude::*;
         positions.par_iter().map(|p| cost(p.as_slice())).collect()
     }
     #[cfg(not(all(feature = "parallel", not(target_arch = "wasm32"))))]

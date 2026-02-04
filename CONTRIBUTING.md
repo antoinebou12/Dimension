@@ -51,7 +51,7 @@ Release builds use `debug = true` and `strip = false` so sampling and allocation
 
 * Keep PRs focused; prefer several small PRs over one large one when possible.
 * Update docs (e.g. `docs/DOCS.md` or doc comments) if you change public APIs or behavior.
-* CI must pass (see `.github/workflows/ci.yml`). For coverage and optional tools (e.g. Codecov, typos), see [docs/dev-tools.md](docs/dev-tools.md).
+* CI must pass (see `.github/workflows/ci.yml`). To reproduce coverage locally, run `just coverage` or `just coverage-xml` from the repo root. For coverage, Codecov, typos, and other optional tools, see [docs/dev-tools.md](docs/dev-tools.md).
 
 ## Security
 

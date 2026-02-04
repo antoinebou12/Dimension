@@ -18,4 +18,4 @@ pub use gradient_descent::{
 };
 pub use linesearch::{LineSearchOptions, armijo, backtracking, wolfe};
 pub use muon::muon_step;
-pub use pso::{PsoOptions, PsoResult, pso};
+pub use pso::{PsoOptions, PsoResult, pso, pso_sequential};

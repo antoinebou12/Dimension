@@ -1,66 +1,91 @@
 //! Main benchmark harness for mathlib.
 //!
-//! **Linear algebra**: construction, matvec, access, scaling, lu, chol, solve, qz, schur, pca.
-//! **Math / CG**: math3d, quaternion_trig (quaternion + trig), easing, cg, clustering, svm (linear, rbf), distance, graph (dijkstra, astar, dstar), pso.
+//! Domain-organized: linear, ml, optimisation, graph, tree, cg, noise, transforms.
 
 #![allow(clippy::duplicate_mod)]
 
 use criterion::criterion_main;
 
-#[cfg(feature = "genetic")]
-#[path = "cmaes.rs"]
-mod cmaes;
-
-#[path = "access.rs"]
-mod access;
-#[path = "cg.rs"]
-mod cg;
-#[path = "chol.rs"]
-mod chol;
-#[path = "clustering.rs"]
-mod clustering;
 #[path = "common.rs"]
 mod common;
-#[path = "argmin/conjugate_gradient.rs"]
-mod conjugate_gradient;
-#[path = "construction.rs"]
+
+// linear
+#[path = "linear/access.rs"]
+mod access;
+#[path = "linear/chol.rs"]
+mod chol;
+#[path = "linear/construction.rs"]
 mod construction;
-#[path = "distance.rs"]
-mod distance;
-#[path = "easing.rs"]
-mod easing;
-#[path = "argmin/gauss_newton.rs"]
-mod gauss_newton;
-#[path = "argmin/gradient_descent.rs"]
-mod gradient_descent;
-#[path = "graph.rs"]
-mod graph;
-#[path = "argmin/linesearch.rs"]
-mod linesearch;
-#[path = "lu.rs"]
+#[path = "linear/lu.rs"]
 mod lu;
-#[path = "math3d.rs"]
-mod math3d;
-#[path = "matvec.rs"]
+#[path = "linear/matvec.rs"]
 mod matvec;
-#[path = "argmin/muon.rs"]
-mod muon;
-#[path = "decomposition/pca.rs"]
+#[path = "linear/pca.rs"]
 mod pca;
-#[path = "argmin/pso.rs"]
-mod pso;
-#[path = "quaternion_trig.rs"]
-mod quaternion_trig;
-#[path = "qz.rs"]
+#[path = "linear/qz.rs"]
 mod qz;
-#[path = "scaling.rs"]
+#[path = "linear/scaling.rs"]
 mod scaling;
-#[path = "schur.rs"]
+#[path = "linear/schur.rs"]
 mod schur;
-#[path = "solve.rs"]
+#[path = "linear/simplex.rs"]
+mod simplex;
+#[path = "linear/solve.rs"]
 mod solve;
-#[path = "svm.rs"]
+
+// ml
+#[path = "ml/clustering.rs"]
+mod clustering;
+#[path = "ml/distance.rs"]
+mod distance;
+#[path = "ml/svm.rs"]
 mod svm;
+
+// optimisation
+#[path = "optimisation/argmin/conjugate_gradient.rs"]
+mod conjugate_gradient;
+#[path = "optimisation/argmin/gauss_newton.rs"]
+mod gauss_newton;
+#[path = "optimisation/argmin/gradient_descent.rs"]
+mod gradient_descent;
+#[path = "optimisation/argmin/linesearch.rs"]
+mod linesearch;
+#[path = "optimisation/argmin/muon.rs"]
+mod muon;
+#[path = "optimisation/argmin/pso.rs"]
+mod pso;
+
+#[cfg(feature = "genetic")]
+#[path = "optimisation/cmaes.rs"]
+mod cmaes;
+
+// cg
+#[path = "cg/cg.rs"]
+mod cg;
+#[path = "cg/easing.rs"]
+mod easing;
+#[path = "cg/math3d.rs"]
+mod math3d;
+#[path = "cg/quaternion_trig.rs"]
+mod quaternion_trig;
+
+// noise
+#[path = "noise/noise.rs"]
+mod noise;
+
+mod graph;
+mod tree;
+
+#[path = "transforms/convolution.rs"]
+mod transforms_convolution;
+#[path = "transforms/dct.rs"]
+mod transforms_dct;
+#[path = "transforms/fft.rs"]
+mod transforms_fft;
+#[path = "transforms/wavelets.rs"]
+mod transforms_wavelets;
+#[path = "transforms/windows.rs"]
+mod transforms_windows;
 
 #[cfg(not(feature = "genetic"))]
 criterion_main!(
@@ -68,6 +93,7 @@ criterion_main!(
     matvec::benches,
     access::benches,
     scaling::benches,
+    simplex::benches,
     lu::benches,
     chol::benches,
     solve::benches,
@@ -83,11 +109,18 @@ criterion_main!(
     conjugate_gradient::benches,
     gauss_newton::benches,
     muon::benches,
+    noise::benches,
     graph::benches,
+    tree::benches,
     distance::benches,
     easing::benches,
     quaternion_trig::benches,
-    svm::benches
+    svm::benches,
+    transforms_fft::benches,
+    transforms_dct::benches,
+    transforms_wavelets::benches,
+    transforms_convolution::benches,
+    transforms_windows::benches
 );
 
 #[cfg(feature = "genetic")]
@@ -96,6 +129,7 @@ criterion_main!(
     matvec::benches,
     access::benches,
     scaling::benches,
+    simplex::benches,
     lu::benches,
     chol::benches,
     solve::benches,
@@ -111,10 +145,17 @@ criterion_main!(
     conjugate_gradient::benches,
     gauss_newton::benches,
     muon::benches,
+    noise::benches,
     cmaes::benches,
     graph::benches,
+    tree::benches,
     distance::benches,
     easing::benches,
     quaternion_trig::benches,
-    svm::benches
+    svm::benches,
+    transforms_fft::benches,
+    transforms_dct::benches,
+    transforms_wavelets::benches,
+    transforms_convolution::benches,
+    transforms_windows::benches
 );

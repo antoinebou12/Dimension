@@ -39,7 +39,7 @@ fn astar_parallel<F>(graph: &Graph, start: usize, goal: usize, h: &F) -> AStarRe
 where
     F: Fn(usize, usize) -> Weight,
 {
-    use rayon::prelude::*;
+    use par_iter::prelude::*;
     let n = graph.num_nodes();
     assert!(start < n && goal < n);
 

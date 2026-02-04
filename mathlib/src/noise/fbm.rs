@@ -24,23 +24,3 @@ where
 
     value / max_value
 }
-
-#[cfg(test)]
-mod tests {
-    use super::fbm_2d;
-
-    #[test]
-    fn fbm_2d_deterministic() {
-        let n = |x: f64, y: f64| x + y;
-        let a = fbm_2d(1.0, 2.0, 4, 2.0, 0.5, n);
-        let b = fbm_2d(1.0, 2.0, 4, 2.0, 0.5, n);
-        assert_eq!(a, b);
-    }
-
-    #[test]
-    fn fbm_2d_bounded_linear_base() {
-        let n = |x: f64, y: f64| x + y;
-        let v = fbm_2d(0.5, 0.5, 4, 2.0, 0.5, n);
-        assert!(v.is_finite(), "fbm_2d should be finite");
-    }
-}

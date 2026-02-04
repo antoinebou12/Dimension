@@ -1,3 +1,40 @@
+//! Singular Value Decomposition (SVD).
+//!
+//! SVD decomposes a matrix A (m×n) into: **A = U Σ V^T** where:
+//! - **U** (m×m or m×k): Left singular vectors (orthonormal columns)
+//! - **Σ** (diagonal): Singular values in descending order
+//! - **V** (n×n or n×k): Right singular vectors (orthonormal columns)
+//!
+//! # Types
+//!
+//! - [`Svd`]: Full SVD with mutable decomposition via `decompose()`
+//! - [`SvdEcon`]: Economical SVD via [`svd_econ`] (k = min(m, n) components)
+//!
+//! # Algorithm
+//!
+//! Uses the Golub-Reinsch algorithm with Householder bidiagonalization
+//! followed by implicit QR iteration.
+//!
+//! # Example
+//!
+//! ```
+//! use mathlib::{Matrix, svd_econ, Storage};
+//!
+//! let mut a = Matrix::<f64>::with_storage(3, 2, Storage::Column);
+//! a.data_mut().copy_from_slice(&[1.0, 0.0, 0.0, 0.0, 2.0, 0.0]);
+//! let svd = svd_econ(&a);
+//! let u = svd.u();       // 3×2 matrix
+//! let sigma = svd.sigma(); // 2-element vector
+//! let v = svd.v();       // 2×2 matrix
+//! ```
+//!
+//! # Applications
+//!
+//! - **Pseudoinverse**: Compute Moore-Penrose inverse
+//! - **Low-rank approximation**: Truncate to k largest singular values
+//! - **PCA**: Principal components are columns of V
+//! - **Least squares**: Solve overdetermined systems
+
 use crate::matrix::Matrix;
 use crate::types::Storage;
 use crate::vector::Vector;

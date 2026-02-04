@@ -3,55 +3,37 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>mathlib WASM — Vector add demo</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; }
-    pre { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto; }
-    .error { color: #c00; }
-  </style>
-</head>
-<body>
-  <h1>mathlib WASM — Vector add</h1>
-  <p>Two vectors are added in WebAssembly; result is shown below.</p>
-  <pre id="out">Loading…</pre>
-
-  <script type="module">
-    // Build: from mathlib/ run: wasm-pack build --target web --features wasm
-    // Serve: from mathlib/ run: npx serve .  then open http://localhost:3000/wasm-demo/
-    const out = document.getElementById('out');
-    const needHttp = 'This page must be served over HTTP. Do not open the HTML file directly (file://).\n\n' +
-      'From the mathlib folder run:  npx serve .\n' +
-      'Then open in the browser:     http://localhost:3000/wasm-demo/';
-
-    const needBuild = 'Cannot load pkg/mathlib.js — the WASM package is missing.\n\n' +
-      'Build first (from repo root):  just wasm-build\n\n' +
-      'Or from mathlib:  wasm-pack build --target web --features wasm  then  cp -r pkg wasm-demo/\n\n' +
-      'Then refresh this page.';
-
-    if (window.location.protocol === 'file:') {
-      out.className = 'error';
-      out.textContent = needHttp;
-    } else {
-      try {
-        const { default: init, WasmVector } = await import('./pkg/mathlib.js');
-        await init();
-
-        const a = WasmVector.fromArray([1, 2, 3]);
-        const b = WasmVector.fromArray([4, 5, 6]);
-        const c = a.add(b);
-        const result = c.toArray();
-
-        out.textContent = `a = [1, 2, 3]\nb = [4, 5, 6]\na + b = [${result.join(', ')}]`;
-      } catch (e) {
-        out.className = 'error';
-        const msg = (e.message || '').toLowerCase();
-        if (msg.includes('fetch') || msg.includes('import')) {
-          out.textContent = needBuild + '\n\n(Original error: ' + e.message + ')';
-        } else {
-          out.textContent = 'Error: ' + e.message;
-        }
-      }
+  <title>mathlib WASM — Demos</title>
+  <link rel="stylesheet" href="demo.css">
+  <script>
+    // Ensure trailing slash so relative links (linear/, ml/, etc.) resolve correctly
+    if (!window.location.pathname.endsWith('/')) {
+      window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || ''));
     }
   </script>
+</head>
+<body>
+  <h1>mathlib WASM — Demos</h1>
+  <p class="subtitle">Vectors, matrices, clustering, solvers, pathfinding, and more — all in WebAssembly.</p>
+
+  <nav class="demo-nav" aria-label="Demo sections">
+    <div class="demo-nav-title">Sections</div>
+    <div class="demo-nav-links">
+      <a href="linear/">Linear algebra</a>
+      <a href="ml/">ML (K-means, PCA, SVM, DBSCAN)</a>
+      <a href="optimization/">Optimization (Simplex, Line search, PSO)</a>
+      <a href="graph/">Graph (pathfinding, coloring, tree)</a>
+      <a href="distance/">Distance</a>
+      <a href="noise/">Noise</a>
+      <a href="transforms/">Transforms (FFT, DCT, wavelets)</a>
+      <a href="camera/">Camera</a>
+      <a href="viz/">Viz (heightmap)</a>
+    </div>
+  </nav>
+
+  <section class="section">
+    <p>Select a section above to run domain-specific demos. Each page loads the WASM module on demand.</p>
+    <p>Build from repo root: <code>just wasm-build</code> (or <code>just wasm-build-gpu</code> for GPU). Serve: <code>npx serve .</code> then open <code>/wasm-demo/</code> (use the URL shown by your server).</p>
+  </section>
 </body>
 </html>

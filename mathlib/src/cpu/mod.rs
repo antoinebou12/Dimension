@@ -1,4 +1,4 @@
-//! CPU execution backends: sequential (default), optional parallel (rayon), optional SIMD (wide).
+//! CPU execution backends: sequential (default), optional parallel (par-iter with chili), optional SIMD (wide).
 //!
 //! Backend selection: when multiple features are enabled, prefer SIMD over parallel over sequential.
 //! Used by `Vector::dot_f64`, scalar `*` `Vector<f64>`, and by code that calls the free functions

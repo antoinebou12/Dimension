@@ -40,6 +40,69 @@ jobs:
       - name: Test
         run: cargo test
 
+      - name: Build examples
+        run: cargo build --examples
+
+  test-features:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mathlib
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            mathlib/target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-features-${{ runner.os }}-${{ hashFiles('mathlib/Cargo.lock') }}
+          restore-keys: |
+            cargo-features-${{ runner.os }}-
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Test with parallel feature
+        run: cargo test --features parallel
+
+      - name: Test with full feature
+        run: cargo test --features full
+
+  test-gpu:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mathlib
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            mathlib/target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-gpu-${{ runner.os }}-${{ hashFiles('mathlib/Cargo.lock') }}
+          restore-keys: |
+            cargo-gpu-${{ runner.os }}-
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Test GPU
+        run: cargo test --features gpu --test gpu
+
+      - name: Build GPU examples
+        run: cargo build --examples --features gpu
+
   typos:
     runs-on: ubuntu-latest
     steps:
@@ -97,8 +160,9 @@ jobs:
       - name: Install tarpaulin
         run: cargo install cargo-tarpaulin --locked
 
+      # Reproduce locally: just coverage-xml (from repo root)
       - name: Run coverage
-        run: cargo tarpaulin --out Xml --out Html --output-dir coverage --timeout 300
+        run: cargo tarpaulin --features parallel --out Xml --out Html --output-dir coverage --timeout 300
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
@@ -113,3 +177,67 @@ jobs:
           files: mathlib/coverage/cobertura.xml
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
+
+  wasm:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mathlib
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            mathlib/target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-wasm-${{ runner.os }}-${{ hashFiles('mathlib/Cargo.lock') }}
+          restore-keys: |
+            cargo-wasm-${{ runner.os }}-
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Check WASM build (default features)
+        run: cargo build --target wasm32-unknown-unknown
+
+      - name: Check WASM build (wasm feature)
+        run: cargo check --target wasm32-unknown-unknown --features wasm
+
+  wasm-gpu:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mathlib
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            mathlib/target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-wasm-gpu-${{ runner.os }}-${{ hashFiles('mathlib/Cargo.lock') }}
+          restore-keys: |
+            cargo-wasm-gpu-${{ runner.os }}-
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
+
+      - name: Build WASM with GPU
+        run: wasm-pack build --target web --features "wasm gpu"

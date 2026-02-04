@@ -1,6 +1,11 @@
-//! Vertex coloring: bipartite check and greedy coloring.
+//! Vertex coloring: bipartite check, greedy coloring, and `DSatur`.
 //!
 //! Graph is treated as undirected for these algorithms (neighbors in both directions).
+//!
+//! - **Greedy**: Process nodes 0..n, assign smallest valid color. Fast, but may use more colors.
+//! - **`DSatur`**: Pick uncolored node with highest saturation (distinct colors among neighbors);
+//!   assign smallest valid color. Often uses fewer colors than greedy.
+//! - **Bipartite**: Returns 2-coloring if no odd cycle, `None` otherwise.
 
 use std::collections::VecDeque;
 
@@ -59,4 +64,80 @@ pub fn greedy_vertex_coloring(graph: &Graph) -> Vec<usize> {
         colors[u] = c;
     }
     colors
+}
+
+/// Returns a valid vertex coloring using the `DSatur` heuristic.
+///
+/// Repeatedly picks the uncolored node with highest *saturation* (number of distinct colors
+/// among its colored neighbors); assigns the smallest valid color. Ties broken by degree
+/// (higher first), then by node index.
+///
+/// Often yields fewer colors than [`greedy_vertex_coloring`]. Time complexity O(V²) in the
+/// worst case.
+///
+/// # Example
+///
+/// ```ignore
+/// let mut g = Graph::new(4);
+/// g.add_edge_undirected(0, 1, 1.0);
+/// g.add_edge_undirected(1, 2, 1.0);
+/// g.add_edge_undirected(2, 3, 1.0);
+/// g.add_edge_undirected(0, 2, 1.0);
+/// let colors = dsatur_coloring(&g);
+/// assert_eq!(colors.len(), 4);
+/// for u in 0..4 {
+///     for &(v, _) in g.neighbors(u) { assert_ne!(colors[u], colors[v]); }
+/// }
+/// ```
+#[must_use]
+pub fn dsatur_coloring(graph: &Graph) -> Vec<usize> {
+    use std::collections::HashSet;
+    let n = graph.num_nodes();
+    debug!(num_nodes = n, "dsatur_coloring");
+    let mut colors = vec![None; n];
+    let mut colored_count = 0;
+    while colored_count < n {
+        let mut best = None; // (saturation, degree, node)
+        for u in 0..n {
+            if colors[u].is_some() {
+                continue;
+            }
+            let mut used = HashSet::new();
+            for &(v, _) in graph.neighbors(u) {
+                if let Some(c) = colors[v] {
+                    used.insert(c);
+                }
+            }
+            for &(v, _) in graph.in_neighbors(u) {
+                if let Some(c) = colors[v] {
+                    used.insert(c);
+                }
+            }
+            let saturation = used.len();
+            let degree = graph.neighbors(u).len() + graph.in_neighbors(u).len();
+            let candidate = (saturation, degree, u);
+            if best.is_none_or(|b| candidate > b) {
+                best = Some(candidate);
+            }
+        }
+        let u = best.unwrap().2;
+        let mut used = vec![false; n];
+        for &(v, _) in graph.neighbors(u) {
+            if let Some(c) = colors[v] {
+                used[c] = true;
+            }
+        }
+        for &(v, _) in graph.in_neighbors(u) {
+            if let Some(c) = colors[v] {
+                used[c] = true;
+            }
+        }
+        let mut c = 0;
+        while c < n && used[c] {
+            c += 1;
+        }
+        colors[u] = Some(c);
+        colored_count += 1;
+    }
+    colors.into_iter().map(|c| c.unwrap()).collect()
 }

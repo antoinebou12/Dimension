@@ -104,3 +104,6 @@ dist/
 
 # cargo mutants
 **/mutants.out*/
+.claude
+.cursor
+.cursorrules

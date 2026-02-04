@@ -183,6 +183,21 @@ impl<T: Default + Clone> SparseMatrixCRS<T> {
         self.cols
     }
 
+    /// Row pointer array (CRS format). Length `rows + 1`; row `i` has nonzeros in `[row_ptr[i], row_ptr[i+1])`.
+    pub fn row_ptr(&self) -> &[u32] {
+        self.base.outer()
+    }
+
+    /// Column indices for each nonzero (CRS format).
+    pub fn col_ind(&self) -> &[u32] {
+        self.base.inner()
+    }
+
+    /// Nonzero values (CRS format).
+    pub fn values(&self) -> &[T] {
+        self.base.values()
+    }
+
     pub fn get(&self, i: usize, j: usize) -> T
     where
         T: Copy + Default,
@@ -349,13 +364,23 @@ impl<
         + std::ops::Add<Output = T>
         + std::ops::AddAssign
         + std::ops::Add
-        + Mul<Output = T>,
+        + Mul<Output = T>
+        + 'static,
 > Mul<&Vector<T>> for &SparseMatrixCRS<T>
 {
     type Output = Vector<T>;
 
     fn mul(self, v: &Vector<T>) -> Vector<T> {
         assert!(self.cols() == v.rows());
+        #[cfg(feature = "gpu")]
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+            let a: &SparseMatrixCRS<f32> =
+                unsafe { &*(self as *const SparseMatrixCRS<T> as *const SparseMatrixCRS<f32>) };
+            let b: &Vector<f32> = unsafe { &*(v as *const Vector<T> as *const Vector<f32>) };
+            if let Some(gpu_out) = crate::gpu::try_spmv_f32(a, b) {
+                return unsafe { std::mem::transmute(gpu_out) };
+            }
+        }
         let mut out = Vector::with_capacity(self.rows());
         out.set_zero();
         let start = self.base.outer();
@@ -378,7 +403,8 @@ where
         + From<u8>
         + std::ops::Add<Output = T>
         + std::ops::AddAssign
-        + Mul<Output = T>,
+        + Mul<Output = T>
+        + 'static,
 {
     fn from_triplets(rows: usize, cols: usize, triplets: &[Triplet<T>]) -> Self {
         let mut mat = SparseMatrixCRS::with_dimensions(rows, cols);
@@ -450,7 +476,7 @@ where
 
     pub fn from_sparse<S: SparseStorage<T>>(other: &S) -> Self
     where
-        T: Copy + Default,
+        T: Copy + Default + 'static,
     {
         let cap = other.rows() * other.cols();
         let mut triplets = Vec::with_capacity(cap);

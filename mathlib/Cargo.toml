@@ -23,27 +23,38 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = []
 serde = ["dep:serde"]
-parallel = ["dep:rayon"]
+parallel = ["dep:par-iter", "dep:par-core", "par-core/chili"]
 simd = ["dep:wide"]
 full = ["parallel", "simd"]
 wasm = ["dep:wasm-bindgen", "dep:js-sys"]
 genetic = ["dep:rand", "dep:rand_distr"]
+gpu = ["dep:wgpu", "dep:pollster", "dep:wasm-bindgen-futures"]
 
 [dependencies]
 tracing = "0.1"
 serde = { version = "1", optional = true, features = ["derive"] }
-rayon = { version = "1", optional = true }
+par-iter = { version = "2.0", optional = true, default-features = false }
+par-core = { version = "2.0", optional = true, default-features = false }
 wide = { version = "0.7", optional = true, default-features = false }
 wasm-bindgen = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
 rand = { version = "0.8", optional = true }
 rand_distr = { version = "0.4", optional = true }
+wgpu = { version = "28", optional = true }
+pollster = { version = "0.3", optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
 
 [package.metadata.docs.rs]
 all-features = true
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz"]
+
+[package.metadata.wasm-pack.profile.release-wasm]
+wasm-opt = ["-Oz"]
 
 [profile.release]
 opt-level = 3
@@ -58,6 +69,11 @@ inherits = "release"
 debug = true
 strip = false
 
+[profile.release-wasm]
+inherits = "release"
+debug = false
+strip = true
+
 [profile.dev]
 opt-level = 0
 debug = true
@@ -71,14 +87,182 @@ image = "0.25"
 serde_json = "1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
+# Examples by domain (linear, ml, wasm, gpu, optimisation, math, graph, transforms, viz)
 [[example]]
-name = "cmaes"
-required-features = ["genetic"]
-
+name = "matrix"
+path = "examples/linear/matrix.rs"
+[[example]]
+name = "vector"
+path = "examples/linear/vector.rs"
+[[example]]
+name = "solve"
+path = "examples/linear/solve.rs"
+[[example]]
+name = "svd"
+path = "examples/linear/svd.rs"
+[[example]]
+name = "pca"
+path = "examples/linear/pca.rs"
+[[example]]
+name = "mvp_rotation_inverse_transpose"
+path = "examples/cg/mvp_rotation_inverse_transpose.rs"
+[[example]]
+name = "kmeans"
+path = "examples/ml/kmeans.rs"
+[[example]]
+name = "dbscan_3d"
+path = "examples/ml/dbscan_3d.rs"
+[[example]]
+name = "svm"
+path = "examples/ml/svm.rs"
+[[example]]
+name = "svm_rbf"
+path = "examples/ml/svm_rbf.rs"
 [[example]]
 name = "wasm"
+path = "examples/wasm/wasm.rs"
 required-features = ["wasm"]
+[[example]]
+name = "wasm_clustering"
+path = "examples/wasm/wasm_clustering.rs"
+required-features = ["wasm"]
+[[example]]
+name = "wasm_graph"
+path = "examples/wasm/wasm_graph.rs"
+required-features = ["wasm"]
+[[example]]
+name = "wasm_graph_coloring"
+path = "examples/wasm/wasm_graph_coloring.rs"
+required-features = ["wasm"]
+[[example]]
+name = "wasm_graph_tree"
+path = "examples/wasm/wasm_graph_tree.rs"
+required-features = ["wasm"]
+[[example]]
+name = "wasm_noise"
+path = "examples/wasm/wasm_noise.rs"
+required-features = ["wasm"]
+[[example]]
+name = "wasm_optim"
+path = "examples/wasm/wasm_optim.rs"
+required-features = ["wasm"]
+[[example]]
+name = "wasm_transforms"
+path = "examples/wasm/wasm_transforms.rs"
+required-features = ["wasm"]
+[[example]]
+name = "gpu_large_matrix"
+path = "examples/gpu/gpu_large_matrix.rs"
+required-features = ["gpu"]
+[[example]]
+name = "argmin"
+path = "examples/optimisation/argmin.rs"
+[[example]]
+name = "cmaes"
+path = "examples/optimisation/cmaes.rs"
+required-features = ["genetic"]
+[[example]]
+name = "linesearch"
+path = "examples/optimisation/linesearch.rs"
+[[example]]
+name = "pso"
+path = "examples/optimisation/pso.rs"
+[[example]]
+name = "parallel_demo"
+path = "examples/optimisation/parallel_demo.rs"
+[[example]]
+name = "easing"
+path = "examples/cg/easing.rs"
+[[example]]
+name = "graph"
+path = "examples/graph/graph.rs"
+[[example]]
+name = "tree_bfs_dfs"
+path = "examples/tree/tree_bfs_dfs.rs"
+[[example]]
+name = "transforms"
+path = "examples/transforms/transforms.rs"
+[[example]]
+name = "waves_heightmap_png"
+path = "examples/viz/waves_heightmap_png.rs"
+[[example]]
+name = "waves_heightmap_pointcloud"
+path = "examples/viz/waves_heightmap_pointcloud.rs"
 
 [[bench]]
 name = "benchmarks"
 harness = false
+
+[[bench]]
+name = "gpu"
+harness = false
+path = "benches/gpu_bench.rs"
+required-features = ["gpu"]
+
+[[bench]]
+name = "parallel_comparison"
+harness = false
+path = "benches/parallel_comparison.rs"
+
+# Domain-organized: linear, structure, vector, ml, optimisation, graph, tree, cg, noise, transforms, colormap, stats, tensor, hash, serialization, parallel, performance, integration, wasm, gpu.
+[[test]]
+name = "cg"
+path = "tests/cg/main.rs"
+[[test]]
+name = "colormap"
+path = "tests/colormap/main.rs"
+[[test]]
+name = "graph"
+path = "tests/graph/main.rs"
+[[test]]
+name = "gpu"
+path = "tests/gpu/main.rs"
+required-features = ["gpu"]
+[[test]]
+name = "hash"
+path = "tests/hash/main.rs"
+[[test]]
+name = "integration"
+path = "tests/integration/main.rs"
+[[test]]
+name = "linear"
+path = "tests/linear/main.rs"
+[[test]]
+name = "ml"
+path = "tests/ml/main.rs"
+[[test]]
+name = "noise"
+path = "tests/noise/main.rs"
+[[test]]
+name = "optimisation"
+path = "tests/optimisation/main.rs"
+[[test]]
+name = "parallel"
+path = "tests/parallel/main.rs"
+[[test]]
+name = "performance"
+path = "tests/performance/main.rs"
+[[test]]
+name = "serialization"
+path = "tests/serialization/main.rs"
+[[test]]
+name = "stats"
+path = "tests/stats/main.rs"
+[[test]]
+name = "structure"
+path = "tests/structure/main.rs"
+[[test]]
+name = "tensor"
+path = "tests/tensor/main.rs"
+[[test]]
+name = "transforms"
+path = "tests/transforms/main.rs"
+[[test]]
+name = "tree"
+path = "tests/tree/main.rs"
+[[test]]
+name = "vector"
+path = "tests/vector/main.rs"
+[[test]]
+name = "wasm"
+path = "tests/wasm/main.rs"

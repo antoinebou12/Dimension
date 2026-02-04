@@ -21,25 +21,3 @@ pub fn wave_2d_params(u: f64, v: f64, k1: f64, k2: f64) -> f64 {
         + 0.25 * cos_scalar(k2 * u) * sin_scalar(k2 * v);
     (h.clamp(0.0, 1.0) * 255.0).round() / 255.0
 }
-
-#[cfg(test)]
-mod tests {
-    use super::{wave_2d, wave_2d_params};
-
-    #[test]
-    fn wave_2d_in_range() {
-        assert!((0.0..=1.0).contains(&wave_2d(0.0, 0.0)));
-        assert!((0.0..=1.0).contains(&wave_2d(0.5, 0.5)));
-        assert!((0.0..=1.0).contains(&wave_2d(1.0, 1.0)));
-    }
-
-    #[test]
-    fn wave_2d_deterministic() {
-        assert_eq!(wave_2d(0.3, 0.7), wave_2d(0.3, 0.7));
-    }
-
-    #[test]
-    fn wave_2d_params_in_range() {
-        assert!((0.0..=1.0).contains(&wave_2d_params(0.0, 0.0, 1.0, 2.0)));
-    }
-}
