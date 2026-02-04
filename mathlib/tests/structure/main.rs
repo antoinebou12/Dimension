@@ -1,0 +1,8 @@
+//! Integration tests for structure: dense storage, matrix, operators, sparse matrix, submatrix, det.
+
+mod dense_storage;
+mod det;
+mod matrix;
+mod operators;
+mod sparse_matrix;
+mod submatrix;
