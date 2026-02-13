@@ -13,7 +13,7 @@ fn perlin_2d_bounded() {
     for (x, y) in [(0.0, 0.0), (1.5, 2.5), (10.0, 10.0)] {
         let v = perlin_2d(x, y);
         assert!(
-            v >= -1.5 && v <= 1.5,
+            (-1.5..=1.5).contains(&v),
             "perlin_2d({}, {}) = {} out of range",
             x,
             y,

@@ -10,6 +10,7 @@ mod connectivity;
 mod dijkstra;
 mod disjoint;
 mod dstar;
+mod matrix;
 mod tree;
 mod types;
 
@@ -88,6 +89,55 @@ fn astar_grid_optimal_path() {
     assert_eq!(res.path[0], start);
     assert_eq!(res.path[res.path.len() - 1], goal);
     assert!((res.dist - 4.0).abs() < 1e-10);
+}
+
+#[test]
+fn from_grid_2d_astar_manhattan() {
+    let rows = 10;
+    let cols = 12;
+    let g = Graph::from_grid_2d(rows, cols);
+    let start = 0;
+    let goal = rows * cols - 1;
+    let h = |u: usize, g_goal: usize| {
+        let ur = (u / cols) as f64;
+        let uc = (u % cols) as f64;
+        let gr = (g_goal / cols) as f64;
+        let gc = (g_goal % cols) as f64;
+        (ur - gr).abs() + (uc - gc).abs()
+    };
+    let res = astar_pathfinding(&g, start, goal, h);
+    assert!(!res.path.is_empty(), "path should be non-empty");
+    assert_eq!(res.path[0], start);
+    assert_eq!(res.path[res.path.len() - 1], goal);
+    // Manhattan distance from (0,0) to (rows-1, cols-1) with unit steps
+    let expected_dist = (rows - 1) as f64 + (cols - 1) as f64;
+    assert!(
+        (res.dist - expected_dist).abs() < 1e-10,
+        "dist {} expected {}",
+        res.dist,
+        expected_dist
+    );
+    // Path should be monotone in row+col (each step increases row or col)
+    for i in 0..res.path.len().saturating_sub(1) {
+        let u = res.path[i];
+        let v = res.path[i + 1];
+        let diff = (v as i64) - (u as i64);
+        assert!(
+            diff == 1 || diff == cols as i64,
+            "path step {} -> {} should be right or down",
+            u,
+            v
+        );
+    }
+}
+
+#[test]
+fn from_grid_2d_edge_weights() {
+    // 2 rows, 3 cols: horizontal 2*(3-1)=4, vertical (2-1)*3=3, total 7 undirected edges.
+    let weights: Vec<f64> = (0..7).map(|i| (i + 1) as f64).collect();
+    let g = Graph::from_grid_2d_edge_weights(2, 3, &weights);
+    assert_eq!(g.num_nodes(), 6);
+    assert_eq!(g.num_edges(), 14); // 7 undirected -> 14 directed
 }
 
 #[test]

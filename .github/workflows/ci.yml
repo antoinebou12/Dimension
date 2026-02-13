@@ -43,6 +43,33 @@ jobs:
       - name: Build examples
         run: cargo build --examples
 
+  test-parse:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: parse
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            parse/target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: cargo-parse-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'parse/Cargo.toml') }}
+          restore-keys: |
+            cargo-parse-${{ runner.os }}-
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Test parse (all formats)
+        run: cargo test --features "json,bjson,toon,xml,obj,mtl,bvh,gltf,ply,image,archive"
+
   test-features:
     runs-on: ubuntu-latest
     defaults:
@@ -162,7 +189,7 @@ jobs:
 
       # Reproduce locally: just coverage-xml (from repo root)
       - name: Run coverage
-        run: cargo tarpaulin --features parallel --out Xml --out Html --output-dir coverage --timeout 300
+        run: cargo tarpaulin --features "parallel genetic" --out Xml --out Html --output-dir coverage --timeout 300
 
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4

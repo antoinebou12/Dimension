@@ -1,6 +1,7 @@
-//! Graph benchmarks: pathfinding (Dijkstra, A*, D* Lite) and coloring.
+//! Graph benchmarks: pathfinding (Dijkstra, A*, D* Lite), coloring, and matrix construction.
 
 mod coloring;
+mod matrix;
 mod pathfinding;
 
 use criterion::criterion_group;
@@ -63,5 +64,7 @@ criterion_group!(
     pathfinding::bench_dijkstra,
     pathfinding::bench_astar,
     pathfinding::bench_dstar,
-    coloring::bench_coloring
+    coloring::bench_coloring,
+    matrix::bench_graph_matrix,
+    matrix::bench_tree_matrix
 );

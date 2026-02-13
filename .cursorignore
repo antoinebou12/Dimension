@@ -1,0 +1,61 @@
+# Rust / Cargo build artifacts
+target/
+**/target/
+target_bench/
+**/target_bench/
+*.rlib
+*.rmeta
+*.rbc
+incremental/
+**/incremental/
+.fingerprint/
+**/.fingerprint/
+deps/
+**/deps/
+build/
+**/build/
+expand/
+
+# WASM build output
+mathlib/pkg/
+mathlib/wasm-demo/pkg/
+**/*.wasm
+
+# Coverage
+coverage/
+**/coverage/
+*.gcno
+*.gcda
+*.gcov
+lcov.info
+tarpaulin-report.*
+*.profraw
+*.profdata
+
+# Node
+node_modules/
+
+# E2E / Playwright
+e2e/test-results/
+e2e/playwright-report/
+e2e/blob-report/
+e2e/playwright/.cache/
+
+# Python
+__pycache__/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Cargo mutants
+**/mutants.out*/
+
+# IDE / editor (already in .gitignore; exclude from indexing)
+.vscode/
+.idea/
+
+# Large generated or binary assets (keep indexed if needed for docs)
+*.png
+*.ply
+*.pdb

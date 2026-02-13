@@ -1,0 +1,37 @@
+[package]
+name = "geometry-demo"
+version = "0.1.0"
+edition = "2021"
+authors = ["Dimension"]
+description = "Geometry processing demo: voxel, CSG, remesh (winit + WASM)"
+readme = "README.md"
+license = "MIT"
+repository = "https://github.com/dimension/dimension"
+keywords = ["geometry", "demo", "wgpu", "winit", "wasm"]
+categories = ["graphics", "wasm"]
+
+[dependencies]
+geometry = { path = ".." }
+render = { path = "../../render" }
+mathlib = { path = "../../mathlib" }
+collision = { path = "../../collision" }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "DomTokenList", "PointerEvent", "WheelEvent", "EventTarget", "Performance"] }
+js-sys = "0.3"
+console_error_panic_hook = "0.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+raw-window-handle = "0.6"
+winit = "0.30"
+forte = "1.0.0-alpha"
+
+[[example]]
+name = "geometry_native"
+path = "examples/geometry_native.rs"
+
+[[example]]
+name = "geometry_wasm"
+path = "examples/geometry_wasm.rs"

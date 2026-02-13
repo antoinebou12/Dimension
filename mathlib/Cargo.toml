@@ -10,6 +10,7 @@ categories = ["science", "mathematics", "wasm"]
 documentation = "https://docs.rs/mathlib"
 license = "MIT"
 edition = "2024"
+rust-version = "1.93"
 
 [badges]
 maintenance = { status = "actively-developed" }
@@ -26,9 +27,9 @@ serde = ["dep:serde"]
 parallel = ["dep:par-iter", "dep:par-core", "par-core/chili"]
 simd = ["dep:wide"]
 full = ["parallel", "simd"]
-wasm = ["dep:wasm-bindgen", "dep:js-sys"]
+wasm = ["dep:wasm-bindgen", "dep:wasm-bindgen-shared", "dep:js-sys", "dep:wasm-bindgen-futures"]
 genetic = ["dep:rand", "dep:rand_distr"]
-gpu = ["dep:wgpu", "dep:pollster", "dep:wasm-bindgen-futures"]
+gpu = ["dep:wgpu", "dep:wasm-bindgen-futures", "dep:futures"]
 
 [dependencies]
 tracing = "0.1"
@@ -37,24 +38,27 @@ par-iter = { version = "2.0", optional = true, default-features = false }
 par-core = { version = "2.0", optional = true, default-features = false }
 wide = { version = "0.7", optional = true, default-features = false }
 wasm-bindgen = { version = "0.2", optional = true }
+wasm-bindgen-shared = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
 rand = { version = "0.8", optional = true }
 rand_distr = { version = "0.4", optional = true }
 wgpu = { version = "28", optional = true }
-pollster = { version = "0.3", optional = true }
 wasm-bindgen-futures = { version = "0.4", optional = true }
+futures = { version = "0.3", optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+forte = "1.0.0-alpha"
 
 [package.metadata.docs.rs]
 all-features = true
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = ["-Oz"]
-
-[package.metadata.wasm-pack.profile.release-wasm]
-wasm-opt = ["-Oz"]
+# Disable wasm-opt when system binaryen is too old (e.g. "invalid code after misc prefix").
+# Set to ["-Oz"] to enable if your wasm-opt supports the emitted WASM.
+wasm-opt = false
 
 [profile.release]
 opt-level = 3
@@ -155,6 +159,10 @@ name = "gpu_large_matrix"
 path = "examples/gpu/gpu_large_matrix.rs"
 required-features = ["gpu"]
 [[example]]
+name = "wasm_gpu"
+path = "examples/wasm/wasm_gpu.rs"
+required-features = ["wasm", "gpu"]
+[[example]]
 name = "argmin"
 path = "examples/optimisation/argmin.rs"
 [[example]]
@@ -171,8 +179,14 @@ path = "examples/optimisation/pso.rs"
 name = "parallel_demo"
 path = "examples/optimisation/parallel_demo.rs"
 [[example]]
+name = "dual_quaternion"
+path = "examples/cg/dual_quaternion.rs"
+[[example]]
 name = "easing"
 path = "examples/cg/easing.rs"
+[[example]]
+name = "curve"
+path = "examples/cg/curve.rs"
 [[example]]
 name = "graph"
 path = "examples/graph/graph.rs"
@@ -183,11 +197,17 @@ path = "examples/tree/tree_bfs_dfs.rs"
 name = "transforms"
 path = "examples/transforms/transforms.rs"
 [[example]]
+name = "monte_carlo_pi_integral"
+path = "examples/monte_carlo/pi_and_integral.rs"
+[[example]]
 name = "waves_heightmap_png"
 path = "examples/viz/waves_heightmap_png.rs"
 [[example]]
 name = "waves_heightmap_pointcloud"
 path = "examples/viz/waves_heightmap_pointcloud.rs"
+[[example]]
+name = "monte_carlo_pi_scatter"
+path = "examples/viz/monte_carlo_pi_scatter.rs"
 
 [[bench]]
 name = "benchmarks"
@@ -230,6 +250,9 @@ path = "tests/linear/main.rs"
 [[test]]
 name = "ml"
 path = "tests/ml/main.rs"
+[[test]]
+name = "monte_carlo"
+path = "tests/monte_carlo/main.rs"
 [[test]]
 name = "noise"
 path = "tests/noise/main.rs"

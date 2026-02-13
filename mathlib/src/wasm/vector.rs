@@ -124,3 +124,14 @@ impl WasmVector {
         Ok(euclidean(&self.inner, &other.inner))
     }
 }
+
+/// Dot product of two f32 vectors (uses GPU when available and above threshold).
+#[wasm_bindgen(js_name = dotF32)]
+pub fn dot_f32(a: &[f32], b: &[f32]) -> Result<f32, JsError> {
+    if a.len() != b.len() {
+        return Err(JsError::new("Vector lengths must match for dot product"));
+    }
+    let va = Vector::<f32>::from_slice(a);
+    let vb = Vector::<f32>::from_slice(b);
+    Ok(va.dot(&vb))
+}

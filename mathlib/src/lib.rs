@@ -1,5 +1,7 @@
 //! mathlib — Linear algebra: dense and sparse matrices, vectors, SVD, 3D math.
 //!
+//! Version: 0.1.0
+//!
 //! See the repository `docs/DOCS.md` for architecture and usage.
 //!
 //! # Logging
@@ -38,6 +40,7 @@
 #![allow(missing_docs)]
 
 pub mod cpu;
+pub mod executor;
 pub mod lane;
 pub mod structure;
 
@@ -56,21 +59,25 @@ pub mod structure;
 pub mod prelude {
     pub use crate::cg::{
         Perspective3, from_euler_angles, from_homogeneous, from_scaled_axis, look_at_lh,
-        look_at_rh, new_nonuniform_scaling, new_orthographic, new_perspective,
-        new_rotation_wrt_point, new_scaling, new_translation, transform_point, vector3,
-        vector4_from_point, vector4_from_vector,
+        look_at_rh, matrix4_extract_rotation_quat, new_nonuniform_scaling, new_orthographic,
+        new_perspective, new_perspective_wgpu, new_rotation_wrt_point, new_scaling,
+        new_translation, transform_point, vector3, vector4_from_point, vector4_from_vector,
     };
     pub use crate::chol::{Cholesky, chol};
     pub use crate::cube::Cube;
+    pub use crate::dual_quaternion::DualQuat4f;
     pub use crate::easing::{ease_in_out_cubic, linear};
     pub use crate::lu::Lu;
+    pub use crate::math::twist::{clamp_twist, pose_twist_error};
     pub use crate::math3d::{
-        Matrix3f, Matrix4f, Point3, Vector3f, Vector4f, center, from_homogeneous_point,
-        from_homogeneous_vector, make_rotation, matrix3f_inverse, matrix4_mul_vector3,
-        matrix4f_inverse, point_to_homogeneous, transform_vector, vector_to_homogeneous,
+        Matrix3f, Matrix4f, OrthonormalBasis, Point3, Vector3f, Vector4f, center,
+        euler_angles_close_to, from_homogeneous_point, from_homogeneous_vector, make_rotation,
+        matrix3f_inverse, matrix4_mul_vector3, matrix4f_inverse, point_to_homogeneous,
+        rotation_matrix_to_euler_xyz, transform_vector, vector_to_homogeneous, vector3_cross,
+        wrap_angle_to_pi,
     };
     pub use crate::matrix::Matrix;
-    pub use crate::solve::solve;
+    pub use crate::solve::{damped_least_squares, solve};
     pub use crate::stats::covariance;
     pub use crate::structure::{COLUMN_STORAGE, ROW_STORAGE, Storage};
     pub use crate::vector::Vector;
@@ -79,13 +86,14 @@ pub mod prelude {
 }
 
 pub use structure::{
-    COLUMN_STORAGE, CubeBase, CubeSlice, DenseStorage, DenseStorageDynamic, Dynamic, Fill,
-    MatrixBase, ROW_STORAGE, SparseMatrix, SparseMatrixBCRS, SparseMatrixBase, SparseMatrixCCS,
-    SparseMatrixCDS, SparseMatrixCRS, SparseMatrixJDS, SparseMatrixSKS, SparseStorage, Storage,
-    SubMatrix, Triplet,
+    COLUMN_STORAGE, CubeBase, CubeSlice, DenseStorage, DenseStorageDynamic, DenseStorageTrait,
+    Dynamic, Fill, MatrixBase, Quadruplet, ROW_STORAGE, SparseCube, SparseCubeBase, SparseMatrix,
+    SparseMatrixBCRS, SparseMatrixBase, SparseMatrixCCS, SparseMatrixCDS, SparseMatrixCRS,
+    SparseMatrixJDS, SparseMatrixSKS, SparseStorage, Storage, SubMatrix, Triplet,
 };
 pub use structure::{
-    cube_base, cube_slice, dense_storage, matrix_base, sparse, sparse_formats, submatrix, types,
+    cube_base, cube_slice, dense_storage, matrix_base, sparse, sparse_cube, sparse_formats,
+    submatrix, types,
 };
 
 pub mod clustering;
@@ -99,12 +107,13 @@ pub mod hash;
 pub mod linear;
 pub mod math;
 pub mod noise;
-pub use math::{cg, easing, math3d, quaternion, trig};
+pub use math::{cg, curve, dual_quaternion, easing, math3d, math3d_raw, quaternion, trig};
 pub mod argmin;
 pub mod decomposition;
 #[cfg(feature = "gpu")]
 pub mod gpu;
 pub mod matrix;
+pub mod monte_carlo;
 pub mod operators;
 pub mod simplex;
 pub mod stats;
@@ -118,16 +127,18 @@ pub use argmin::{
     CgError, GaussNewtonOptions, GaussNewtonResult, GradientDescentOptions, GradientDescentResult,
     LineSearchOptions, LineSearchVariant, NonlinearCgOptions, NonlinearCgResult, PsoOptions,
     PsoResult, armijo, backtracking, gauss_newton, gradient_descent, muon_step, nonlinear_cg, pso,
-    solve_cg, wolfe,
+    solve_cg, solve_cg_sparse, wolfe,
 };
 pub use cg::{
     Perspective3, append_nonuniform_scaling, append_nonuniform_scaling_mut, append_scaling,
     append_scaling_mut, append_translation, append_translation_mut, from_euler_angles,
-    from_homogeneous, from_scaled_axis, look_at_lh, look_at_rh, model_view_projection,
-    new_nonuniform_scaling, new_orthographic, new_perspective, new_rotation_wrt_point, new_scaling,
-    new_translation, prepend_nonuniform_scaling, prepend_nonuniform_scaling_mut, prepend_scaling,
-    prepend_scaling_mut, prepend_translation, prepend_translation_mut, screen_to_view_ray,
-    transform_point, vector3, vector4_from_point, vector4_from_vector,
+    from_homogeneous, from_scaled_axis, look_at_lh, look_at_rh, matrix4_extract_rotation_quat,
+    matrix4f_identity, matrix4f_to_array, matrix4f_translation, model_view_projection,
+    new_nonuniform_scaling, new_orthographic, new_perspective, new_perspective_wgpu,
+    new_rotation_wrt_point, new_scaling, new_translation, prepend_nonuniform_scaling,
+    prepend_nonuniform_scaling_mut, prepend_scaling, prepend_scaling_mut, prepend_translation,
+    prepend_translation_mut, screen_to_view_ray, transform_point, vector3, vector4_from_point,
+    vector4_from_vector,
 };
 pub use chol::{CholError, Cholesky, chol};
 pub use clustering::{DbscanResult, KmeansResult, NOISE, dbscan, kmeans};
@@ -139,6 +150,7 @@ pub use distance::{
     manhattan, manhattan_rows, minkowski, minkowski_rows, squared_euclidean,
     squared_euclidean_rows,
 };
+pub use dual_quaternion::DualQuat4f;
 #[cfg(feature = "genetic")]
 pub use genetic::{CmaEs, CmaEsBuilder, CmaEsResult};
 pub use graph::disjoint::UnionFind;
@@ -149,22 +161,29 @@ pub use graph::{
     articulation_points, astar, bfs, bridges, connected_components,
     connected_components_undirected, dfs_postorder, dfs_postorder_forest, dfs_preorder,
     dfs_preorder_forest, dijkstra, dsatur_coloring, dstar_lite, greedy_vertex_coloring,
-    is_bipartite, reverse_graph,
+    is_bipartite, path_to_traversal_mapping, reverse_graph,
 };
 pub use hash::HashableElement;
-pub use lane::{LaneCount, LaneScalar, SimdLane, as_f64x4_chunks, as_f64x4_chunks_mut};
+pub use lane::{
+    LaneCount, LaneScalar, SimdLane, as_f32x4_chunks, as_f32x4_chunks_mut, as_f64x4_chunks,
+    as_f64x4_chunks_mut,
+};
 pub use lu::{Lu, LuError, det};
+pub use math::twist::{clamp_twist, pose_twist_error};
 pub use math3d::{
-    Matrix3f, Matrix4f, Point3, Vector3f, Vector4f, center, from_homogeneous_point,
-    from_homogeneous_vector, make_rotation, matrix3f_inverse, matrix4_mul_vector3,
-    matrix4f_inverse, point_to_homogeneous, transform_vector, vector_to_homogeneous,
+    Matrix3f, Matrix4f, OrthonormalBasis, Point3, Vector3f, Vector4f, center,
+    euler_angles_close_to, from_homogeneous_point, from_homogeneous_vector, make_rotation,
+    matrix3f_inverse, matrix4_mul_vector3, matrix4f_inverse, point_to_homogeneous,
+    rotation_matrix_to_euler_xyz, transform_vector, vector_to_homogeneous, vector3_cross,
+    wrap_angle_to_pi,
 };
 pub use matrix::Matrix;
+pub use monte_carlo::{estimate_pi, integrate_1d};
 pub use quaternion::Quat4f;
 pub use qz::{Qz, QzError, qz};
 pub use schur::{Schur, SchurError, schur};
 pub use simplex::{SimplexError, SimplexResult, SimplexStatus, simplex_solve};
-pub use solve::{SolveError, solve};
+pub use solve::{SolveError, damped_least_squares, solve};
 pub use stats::covariance;
 pub use svm::{SvmError, SvmOptions, SvmRbfResult, SvmResult, svm, svm_rbf};
 pub use transforms::{
@@ -178,9 +197,16 @@ pub use trig::{
 };
 pub use vector::{Float, RealNumber, Vector};
 
+#[cfg(feature = "gpu")]
+pub use executor::{AutoExecutor, GpuExecutor};
+pub use executor::{CpuExecutor, Executor, ExecutorThresholds};
+#[cfg(feature = "gpu")]
+pub use gpu::{GpuConfig, PowerPreference};
+
 pub use colormap::{
     Hsv, Rgb, Rgba, height_to_rgb, height_to_rgba, hex_to_rgb, hex_to_rgba, hsv_to_rgb, rgb_to_hex,
-    rgb_to_hsv, rgb_to_rgba, rgba_to_hex, rgba_to_rgb,
+    rgb_to_hsv, rgb_to_rgba, rgba_to_hex, rgba_to_rgb, scalar_to_rgb_inferno, scalar_to_rgb_magma,
+    scalar_to_rgb_plasma, scalar_to_rgb_preset, scalar_to_rgb_viridis,
 };
 pub use easing::{
     bspline, ease_in_back, ease_in_bounce, ease_in_circ, ease_in_cubic, ease_in_elastic,
@@ -189,6 +215,9 @@ pub use easing::{
     ease_in_out_sine, ease_in_quad, ease_in_quart, ease_in_quint, ease_in_sine, ease_out_back,
     ease_out_bounce, ease_out_circ, ease_out_cubic, ease_out_elastic, ease_out_expo, ease_out_quad,
     ease_out_quart, ease_out_quint, ease_out_sine, hermite, lerp, linear,
+};
+pub use math::rbf::{
+    RbfEasing, RbfVariant, rbf_kernel, rbf_kernel_batch, rbf_kernel_eased, rbf_kernel_normalized,
 };
 pub use noise::{fbm_2d, perlin_2d, wave_2d, wave_2d_params};
 

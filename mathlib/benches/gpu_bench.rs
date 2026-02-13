@@ -1,5 +1,14 @@
 //! GPU vs CPU benchmarks for matmul, dot, norm, scale, mul, axpy, abs, sqrt, div, spmv.
-//! Run with: cargo bench --features gpu --bench gpu
+//!
+//! Run with: `cargo bench --features gpu --bench gpu`
+//!
+//! # Threshold guidance
+//!
+//! - **gpu_matmul** and **gpu_matvec** measure the full pipeline: upload → dispatch → readback.
+//!   Compare with **cpu_matmul** / **cpu_matvec** for the same sizes (64, 128, 256, 512, 1024).
+//! - GPU typically wins when M*K*N (matmul) or rows*cols (matvec) is above ~2M; tune
+//!   `ExecutorThresholds::matmul_elements_min` and `matvec_elements_min` from your report.
+//! - For "dispatch only" (tensors already on GPU), use persistent GPU buffers (future GpuTensor2D).
 
 #![cfg(feature = "gpu")]
 
@@ -19,14 +28,15 @@ fn generate_sparse_f32(n: usize, density: f64) -> Vec<Triplet<f32>> {
 }
 
 fn bench_gpu_matmul_dot_norm(c: &mut Criterion) {
-    let ok = mathlib::gpu::init_blocking();
+    let ok = mathlib::gpu::init_blocking(None);
     if !ok {
         eprintln!("GPU init failed, skipping GPU benchmarks");
         return;
     }
 
     let mut group = c.benchmark_group("gpu_matmul");
-    for n in [64, 256, 512, 1024, 2048, 4096] {
+    group.sample_size(20);
+    for n in [64, 128, 256, 512, 1024] {
         let mut a = Matrix::<f32>::with_storage(n, n, Storage::Column);
         for i in 0..n * n {
             a.data_mut()[i] = (i % 100) as f32 * 0.01;
@@ -68,7 +78,7 @@ fn bench_gpu_matmul_dot_norm(c: &mut Criterion) {
     group.finish();
 
     let mut group = c.benchmark_group("gpu_matvec");
-    for n in [256, 1024, 4096, 16384] {
+    for n in [64, 128, 256, 512, 1024] {
         let mut a = Matrix::<f32>::with_storage(n, n, Storage::Column);
         let mut v = Vector::<f32>::with_capacity(n);
         for i in 0..n * n {
@@ -199,7 +209,7 @@ fn bench_gpu_matmul_dot_norm(c: &mut Criterion) {
 
 fn bench_cpu_matmul_dot_norm(c: &mut Criterion) {
     let mut group = c.benchmark_group("cpu_matmul");
-    for n in [64, 256, 512, 1024, 2048, 4096] {
+    for n in [64, 128, 256, 512, 1024] {
         let mut a = Matrix::<f32>::with_storage(n, n, Storage::Column);
         for i in 0..n * n {
             a.data_mut()[i] = (i % 100) as f32 * 0.01;
@@ -215,7 +225,7 @@ fn bench_cpu_matmul_dot_norm(c: &mut Criterion) {
     group.finish();
 
     let mut group = c.benchmark_group("cpu_matvec");
-    for n in [256, 1024, 4096, 16384] {
+    for n in [64, 128, 256, 512, 1024] {
         let mut a = Matrix::<f32>::with_storage(n, n, Storage::Column);
         let mut v = Vector::<f32>::with_capacity(n);
         for i in 0..n * n {

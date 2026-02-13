@@ -1,0 +1,36 @@
+[package]
+name = "kinematics-demo"
+version = "0.1.0"
+edition = "2021"
+authors = ["Dimension"]
+description = "3D demo of kinematics: 3-joint arm with IK (winit + WASM)"
+license = "MIT"
+repository = "https://github.com/dimension/dimension"
+keywords = ["kinematics", "ik", "demo", "wgpu", "winit", "wasm"]
+categories = ["graphics", "games", "wasm"]
+
+[dependencies]
+kinematics = { path = ".." }
+render = { path = "../../render" }
+mathlib = { path = "../../mathlib" }
+rand = "0.8"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "DomTokenList", "PointerEvent", "WheelEvent", "EventTarget", "Performance", "console", "KeyboardEvent"] }
+js-sys = "0.3"
+console_error_panic_hook = "0.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+raw-window-handle = "0.6"
+winit = "0.30"
+forte = "1.0.0-alpha"
+
+[[example]]
+name = "kinematics_native"
+path = "examples/kinematics_native.rs"
+
+[[example]]
+name = "kinematics_wasm"
+path = "examples/kinematics_wasm.rs"

@@ -3,9 +3,11 @@
 //! - **types**: [`Rgb`], [`Rgba`], [`Hsv`].
 //! - **convert**: [`rgba_to_rgb`], [`rgb_to_rgba`], [`rgb_to_hsv`], [`hsv_to_rgb`], [`rgb_to_hex`], [`hex_to_rgb`], [`rgba_to_hex`], [`hex_to_rgba`].
 //! - **palette**: [`height_to_rgb`], [`height_to_rgba`] (elevation-like gradient).
+//! - **presets**: [`scalar_to_rgb_viridis`], [`scalar_to_rgb_magma`], [`scalar_to_rgb_inferno`], [`scalar_to_rgb_plasma`], [`scalar_to_rgb_preset`].
 
 pub mod convert;
 pub mod palette;
+pub mod presets;
 pub mod types;
 
 pub use convert::{
@@ -13,4 +15,8 @@ pub use convert::{
     rgba_to_rgb,
 };
 pub use palette::{height_to_rgb, height_to_rgba};
+pub use presets::{
+    scalar_to_rgb_inferno, scalar_to_rgb_magma, scalar_to_rgb_plasma, scalar_to_rgb_preset,
+    scalar_to_rgb_viridis,
+};
 pub use types::{Hsv, Rgb, Rgba};

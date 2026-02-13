@@ -1,0 +1,78 @@
+[package]
+name = "geometry"
+version = "0.1.0"
+edition = "2021"
+authors = ["Dimension"]
+description = "Mesh processing: voxelization, tetrahedralization, CSG, remeshing, Laplacian smoothing"
+license = "MIT"
+repository = "https://github.com/dimension/dimension"
+documentation = "https://docs.rs/geometry"
+readme = "README.md"
+keywords = ["mesh", "voxel", "tetrahedral", "csg", "remesh", "smoothing"]
+categories = ["graphics", "mathematics"]
+rust-version = "1.93"
+
+[lib]
+name = "geometry"
+path = "src/lib.rs"
+
+[features]
+default = []
+simd = ["mathlib/simd", "collision/simd"]
+parallel = ["mathlib/parallel", "dep:par-core", "dep:par-iter"]
+wasm = ["dep:wasm-bindgen", "mathlib/wasm"]
+gpu = ["dep:wgpu"]
+parse = ["dep:parse"]
+
+[dependencies]
+mathlib = { path = "../mathlib", default-features = false }
+collision = { path = "../collision", default-features = false }
+par-core = { version = "2.0", optional = true, default-features = false, features = ["chili"] }
+par-iter = { version = "2.0", optional = true, default-features = false }
+wasm-bindgen = { version = "0.2", optional = true }
+wgpu = { version = "28", optional = true }
+parse = { path = "../parse", optional = true, default-features = false }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "geometry"
+harness = false
+path = "benches/geometry.rs"
+
+[[test]]
+name = "geometry"
+path = "tests/geometry.rs"
+
+[[test]]
+name = "voxel"
+path = "tests/voxel.rs"
+
+[[test]]
+name = "tet"
+path = "tests/tet.rs"
+
+[[test]]
+name = "csg"
+path = "tests/csg.rs"
+
+[[test]]
+name = "remesh"
+path = "tests/remesh.rs"
+
+[[test]]
+name = "smooth"
+path = "tests/smooth.rs"
+
+[[example]]
+name = "voxelize"
+path = "examples/voxelize.rs"
+
+[[example]]
+name = "csg_demo"
+path = "examples/csg_demo.rs"
+
+[[example]]
+name = "remesh_demo"
+path = "examples/remesh_demo.rs"

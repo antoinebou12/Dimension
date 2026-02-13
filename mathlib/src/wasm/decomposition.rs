@@ -6,6 +6,8 @@ use crate::lu::Lu;
 use crate::{Cholesky, Matrix, Storage, Vector};
 
 use super::matrix::WasmMatrix;
+#[cfg(feature = "gpu")]
+use super::matrix::WasmMatrix32;
 use super::vector::WasmVector;
 
 /// Result of PCA: mean, components, and explained variance.
@@ -90,6 +92,51 @@ impl WasmPca {
             }
         }
         Ok(WasmMatrix { inner: result })
+    }
+
+    /// Project f32 data onto principal components using GPU matmul. Returns a Promise that resolves
+    /// to the projected matrix (samples × components) or null if GPU is not available or fails.
+    /// Call after initGpuAsync(). Falls back to sync transform() with f64 data if result is null.
+    #[cfg(feature = "gpu")]
+    #[wasm_bindgen(js_name = transformF32GpuAsync)]
+    pub fn transform_f32_gpu_async(&self, data: &WasmMatrix32) -> js_sys::Promise {
+        let n_samples = data.rows();
+        let n_features = data.cols();
+        if n_features != self.mean.rows() || self.components.rows() != self.mean.rows() {
+            return js_sys::Promise::reject(
+                &JsError::new(&format!(
+                    "Data has {} features but PCA expects {}",
+                    n_features,
+                    self.mean.rows()
+                ))
+                .into(),
+            );
+        }
+        let n_comp = self.components.cols();
+        let mean_f32: Vec<f32> = (0..self.mean.rows())
+            .map(|j| self.mean.get(j) as f32)
+            .collect();
+        let mut components_f32 =
+            Matrix::with_storage(self.components.rows(), n_comp, Storage::Column);
+        for i in 0..self.components.rows() {
+            for j in 0..n_comp {
+                components_f32.set(i, j, self.components.get(i, j) as f32);
+            }
+        }
+        let data_inner = data.clone_inner();
+        wasm_bindgen_futures::future_to_promise(async move {
+            let mut centered = Matrix::with_storage(n_samples, n_features, Storage::Column);
+            for i in 0..n_samples {
+                for j in 0..n_features {
+                    centered.set(i, j, data_inner.get(i, j) - mean_f32[j]);
+                }
+            }
+            let result = crate::gpu::try_matmul_f32_async(&centered, &components_f32).await;
+            Ok(match result {
+                Some(m) => JsValue::from(WasmMatrix32::from_inner(m)),
+                None => JsValue::NULL,
+            })
+        })
     }
 }
 

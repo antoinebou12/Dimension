@@ -1,0 +1,5 @@
+# comment
+newmtl mat1
+Ka 1 0 0
+Kd 0.8 0.2 0.2
+Ns 128

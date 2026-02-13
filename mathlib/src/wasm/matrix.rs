@@ -1,10 +1,11 @@
 //! WasmMatrix, WasmMatrix32, and WasmSvd for JavaScript.
 
+use js_sys::Function;
 use wasm_bindgen::prelude::*;
 
 use crate::decomposition::svd::svd_econ;
 use crate::math3d::{matrix4_mul_vector3, matrix4f_inverse, transform_vector};
-use crate::{Matrix, Storage, Vector, solve};
+use crate::{Matrix, Storage, Vector, damped_least_squares, solve};
 
 use super::vector::WasmVector;
 
@@ -155,6 +156,19 @@ impl WasmMatrix {
         Ok(WasmVector { inner: x })
     }
 
+    /// Damped least-squares: minimize ‖Ax − b‖² + λ²‖x‖² for (generally rectangular) A.
+    /// Returns x or an error if the normal-equations system is singular.
+    #[wasm_bindgen(js_name = dampedLeastSquares)]
+    pub fn damped_least_squares(
+        &self,
+        b: &WasmVector,
+        lambda_sq: f64,
+    ) -> Result<WasmVector, JsError> {
+        let x = damped_least_squares(&self.inner, &b.inner, lambda_sq)
+            .map_err(|e| JsError::new(&e.to_string()))?;
+        Ok(WasmVector { inner: x })
+    }
+
     /// Economical SVD: returns U, V, and singular values sigma (min(m,n) components).
     #[wasm_bindgen(js_name = svdEcon)]
     pub fn svd_econ(&self) -> WasmSvd {
@@ -164,6 +178,21 @@ impl WasmMatrix {
             v: econ.v().clone(),
             sigma: econ.sigma().clone(),
         }
+    }
+
+    /// Async economical SVD. Returns a Promise that resolves to U, V, and sigma. Runs the same
+    /// CPU SVD; use for loading states. For very large matrices, run sync svdEcon() in a Web Worker.
+    #[wasm_bindgen(js_name = svdEconAsync)]
+    pub fn svd_econ_async(&self) -> js_sys::Promise {
+        let inner = self.inner.clone();
+        wasm_bindgen_futures::future_to_promise(async move {
+            let econ = svd_econ(&inner);
+            Ok(JsValue::from(WasmSvd {
+                u: econ.u().clone(),
+                v: econ.v().clone(),
+                sigma: econ.sigma().clone(),
+            }))
+        })
     }
 }
 
@@ -212,6 +241,14 @@ impl WasmMatrix32 {
     /// Build from inner matrix (for use by wasm submodules).
     pub(crate) fn from_inner(inner: Matrix<f32>) -> Self {
         Self { inner }
+    }
+
+    /// Clone inner matrix (for async GPU matmul so we do not hold refs across await).
+    /// Used by `gpu::matmul_f32_gpu_async`, `gpu::matvec_f32_gpu_async`, and
+    /// `decomposition::WasmPca::transform_f32_gpu_async` when the `gpu` feature is enabled.
+    #[cfg_attr(not(feature = "gpu"), allow(dead_code))]
+    pub(crate) fn clone_inner(&self) -> Matrix<f32> {
+        self.inner.clone()
     }
 }
 
@@ -333,6 +370,25 @@ impl WasmMatrix32 {
         Ok(vec![out.get(0), out.get(1), out.get(2)])
     }
 
+    /// Matrix addition (element-wise). Same dimensions required.
+    #[wasm_bindgen(js_name = add)]
+    pub fn add(&self, other: &WasmMatrix32) -> Result<WasmMatrix32, JsError> {
+        if self.rows() != other.rows() || self.cols() != other.cols() {
+            return Err(JsError::new("Matrix dimensions must match for addition"));
+        }
+        Ok(Self {
+            inner: &self.inner + &other.inner,
+        })
+    }
+
+    /// Matrix scaling: returns scalar * this.
+    #[wasm_bindgen(js_name = scale)]
+    pub fn scale(&self, scalar: f32) -> WasmMatrix32 {
+        Self {
+            inner: scalar * &self.inner,
+        }
+    }
+
     /// Matrix multiplication.
     #[wasm_bindgen(js_name = mul)]
     pub fn mul(&self, other: &WasmMatrix32) -> Result<WasmMatrix32, JsError> {
@@ -348,6 +404,21 @@ impl WasmMatrix32 {
         Ok(Self {
             inner: &self.inner * &other.inner,
         })
+    }
+
+    /// Matrix-vector product y = A × x. x must have length cols(); returns vector of length rows().
+    #[wasm_bindgen(js_name = mulVectorF32)]
+    pub fn mul_vector_f32(&self, x: &[f32]) -> Result<Vec<f32>, JsError> {
+        if x.len() != self.cols() {
+            return Err(JsError::new(&format!(
+                "Vector length {} must equal matrix cols {}",
+                x.len(),
+                self.cols()
+            )));
+        }
+        let v = crate::Vector::from_slice(x);
+        let y = &self.inner * &v;
+        Ok(y.data().to_vec())
     }
 
     /// Matrix multiplication on CPU only (for fair CPU vs GPU comparison in demos).
@@ -379,6 +450,49 @@ impl WasmMatrix32 {
                 out.set(i, j, sum);
             }
         }
+        Ok(Self { inner: out })
+    }
+
+    /// CPU matmul with optional progress callback. Calls `progressCallback(progress)` with
+    /// progress in [0, 1] during the loop. Use from JS to report progress (e.g. in a worker).
+    #[wasm_bindgen(js_name = matmulF32CpuWithProgress)]
+    pub fn matmul_f32_cpu_with_progress(
+        &self,
+        other: &WasmMatrix32,
+        progress_callback: &Function,
+    ) -> Result<WasmMatrix32, JsError> {
+        if self.cols() != other.rows() {
+            return Err(JsError::new(&format!(
+                "Cannot multiply {}x{} by {}x{}",
+                self.rows(),
+                self.cols(),
+                other.rows(),
+                other.cols()
+            )));
+        }
+        let a = &self.inner;
+        let b = &other.inner;
+        let m = a.rows();
+        let k = a.cols();
+        let n = b.cols();
+        let mut out = Matrix::with_storage(m, n, Storage::Column);
+        out.set_zero();
+        let total = m;
+        let _ = progress_callback.call1(&JsValue::NULL, &JsValue::from(0.0_f64));
+        for (i_idx, i) in (0..m).enumerate() {
+            for j in 0..n {
+                let mut sum = 0f32;
+                for kk in 0..k {
+                    sum += a.get(i, kk) * b.get(kk, j);
+                }
+                out.set(i, j, sum);
+            }
+            if (i_idx + 1) % 64 == 0 || i_idx + 1 == total {
+                let p = (i_idx + 1) as f64 / total as f64;
+                let _ = progress_callback.call1(&JsValue::NULL, &JsValue::from(p));
+            }
+        }
+        let _ = progress_callback.call1(&JsValue::NULL, &JsValue::from(1.0_f64));
         Ok(Self { inner: out })
     }
 }

@@ -1,6 +1,6 @@
 //! Tree structure integration tests.
 
-use mathlib::{Graph, Tree, bfs, dfs_postorder, dfs_preorder};
+use mathlib::{Graph, Tree, bfs, dfs_postorder, dfs_preorder, path_to_traversal_mapping};
 
 fn build_undirected(n: usize, edges: &[(usize, usize)]) -> Graph {
     let mut g = Graph::new(n);
@@ -53,4 +53,98 @@ fn tree_from_bfs_spanning_tree_star() {
     let tree: Tree<()> = Tree::from_bfs_spanning_tree(&g, 0);
     assert_eq!(tree.bfs_order(), vec![0, 1, 2, 3, 4]);
     assert_eq!(tree.dfs_postorder(), vec![1, 2, 3, 4, 0]);
+}
+
+#[test]
+fn tree_remove_child() {
+    let mut tree: Tree<()> = Tree::new(0);
+    tree.add_child(0, 1);
+    tree.add_child(0, 2);
+    tree.add_child(1, 3);
+    tree.remove_child(0, 1);
+    assert_eq!(tree.nodes[0].children, vec![2]);
+    assert_eq!(tree.nodes[1].parent, None);
+    assert_eq!(tree.nodes[1].children, vec![3]);
+    // Subtree 1->3 is detached; DFS from root only visits 0, 2
+    assert_eq!(tree.dfs_preorder(), vec![0, 2]);
+}
+
+#[test]
+fn tree_reparent() {
+    let mut tree: Tree<()> = Tree::new(0);
+    tree.add_child(0, 1);
+    tree.add_child(0, 2);
+    tree.add_child(1, 3);
+    tree.reparent(3, 0);
+    assert_eq!(tree.nodes[0].children, vec![1, 2, 3]);
+    assert_eq!(tree.nodes[1].children, vec![]);
+    assert_eq!(tree.nodes[3].parent, Some(0));
+    assert_eq!(tree.dfs_preorder(), vec![0, 1, 2, 3]);
+}
+
+#[test]
+#[should_panic(expected = "cannot remove root")]
+fn tree_remove_child_root_panics() {
+    let mut tree: Tree<()> = Tree::new(0);
+    tree.add_child(0, 1);
+    tree.remove_child(0, 0);
+}
+
+#[test]
+#[should_panic(expected = "reparent would create cycle")]
+fn tree_reparent_cycle() {
+    let mut tree: Tree<()> = Tree::new(0);
+    tree.add_child(0, 1);
+    tree.add_child(1, 2);
+    tree.reparent(0, 2);
+}
+
+#[test]
+fn tree_path_from_root() {
+    let mut tree: Tree<()> = Tree::new(0);
+    tree.add_child(0, 1);
+    tree.add_child(0, 2);
+    tree.add_child(1, 3);
+    assert_eq!(tree.path_from_root(0), vec![0]);
+    assert_eq!(tree.path_from_root(1), vec![0, 1]);
+    assert_eq!(tree.path_from_root(2), vec![0, 2]);
+    assert_eq!(tree.path_from_root(3), vec![0, 1, 3]);
+    assert!(tree.path_from_root(99).is_empty());
+}
+
+#[test]
+fn path_to_traversal_mapping_simple() {
+    // Node 0: 1 DOF at offset 0; node 1: 0 DOF; node 2: 1 DOF at offset 1
+    let path = [0, 2];
+    let traversal_order = [0, 1, 2];
+    let node_size = |i: usize| -> usize { if i == 1 { 0 } else { 1 } };
+    let mapping = path_to_traversal_mapping(&path, &traversal_order, node_size);
+    assert_eq!(mapping, vec![0, 1]);
+}
+
+#[test]
+fn path_to_traversal_mapping_branched() {
+    // Tree: root(0) -> child(1), child(2); each node has 1 DOF
+    let path = [0, 2];
+    let traversal_order = [0, 1, 2];
+    let node_size = |_| 1;
+    let mapping = path_to_traversal_mapping(&path, &traversal_order, node_size);
+    assert_eq!(mapping, vec![0, 2]);
+}
+
+#[test]
+fn path_to_traversal_mapping_multi_dof() {
+    // Node 0: 1 DOF at 0; node 1: 0 DOF; node 2: 3 DOF at 1,2,3
+    let path = [0, 2];
+    let traversal_order = [0, 1, 2];
+    let node_size = |i: usize| -> usize {
+        match i {
+            0 => 1,
+            1 => 0,
+            2 => 3,
+            _ => 0,
+        }
+    };
+    let mapping = path_to_traversal_mapping(&path, &traversal_order, node_size);
+    assert_eq!(mapping, vec![0, 1, 2, 3]);
 }

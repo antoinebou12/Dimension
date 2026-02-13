@@ -1,0 +1,56 @@
+[package]
+name = "render-demo"
+version = "0.1.0"
+edition = "2021"
+authors = ["Dimension"]
+description = "2D/3D render demo: cube, tetrahedron, cylinder, gizmo, curves (winit + WASM)"
+license = "MIT"
+repository = "https://github.com/dimension/dimension"
+keywords = ["render", "demo", "wgpu", "winit", "wasm"]
+categories = ["graphics", "wasm"]
+
+[dependencies]
+collision = { path = "../../collision" }
+render = { path = "..", features = ["material"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "CanvasRenderingContext2d", "console", "PointerEvent", "WheelEvent", "EventTarget", "DomRect", "Performance", "KeyboardEvent"] }
+js-sys = "0.3"
+console_error_panic_hook = "0.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+raw-window-handle = "0.6"
+winit = "0.30"
+forte = "1.0.0-alpha"
+pollster = { version = "0.2", optional = true }
+
+[features]
+default = []
+sdl3 = ["render/sdl3", "dep:pollster"]
+
+[[example]]
+name = "render_native"
+path = "examples/render_native.rs"
+
+[[example]]
+name = "render_wasm"
+path = "examples/render_wasm.rs"
+
+[[example]]
+name = "curves_native"
+path = "examples/curves_native.rs"
+
+[[example]]
+name = "curves_wasm"
+path = "examples/curves_wasm.rs"
+
+[[example]]
+name = "sdl3_quad"
+path = "examples/sdl3_quad.rs"
+required-features = ["sdl3"]
+
+[[example]]
+name = "aabb2d_native"
+path = "examples/aabb2d_native.rs"

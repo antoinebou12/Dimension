@@ -1,4 +1,5 @@
 use mathlib::{Complex64, TransformsError, fft_forward, fft_forward_real, fft_inverse};
+use std::error::Error;
 
 #[test]
 fn fft_roundtrip_complex() {
@@ -65,4 +66,18 @@ fn fft_empty_input() {
     let x: Vec<Complex64> = vec![];
     let err = fft_forward(&x).unwrap_err();
     assert_eq!(err, TransformsError::EmptyInput);
+}
+
+#[test]
+fn transforms_error_display_and_source() {
+    let err1 = TransformsError::LengthNotPowerOfTwo(100);
+    let s1 = format!("{}", err1);
+    assert!(s1.contains("100"));
+    assert!(s1.contains("power of two"));
+    assert!(err1.source().is_none());
+
+    let err2 = TransformsError::EmptyInput;
+    let s2 = format!("{}", err2);
+    assert!(s2.contains("empty"));
+    assert!(err2.source().is_none());
 }

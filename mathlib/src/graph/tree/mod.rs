@@ -12,4 +12,4 @@ mod structure;
 
 pub use bfs::{BfsResult, bfs};
 pub use dfs::{dfs_postorder, dfs_postorder_forest, dfs_preorder, dfs_preorder_forest};
-pub use structure::{Node, Tree};
+pub use structure::{Node, Tree, path_to_traversal_mapping};

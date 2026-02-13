@@ -1,15 +1,45 @@
 {
   "name": "Dimension (mathlib)",
   "image": "mcr.microsoft.com/devcontainers/rust:1-1-bookworm",
+  "remoteUser": "vscode",
 
-  "postCreateCommand": "cd mathlib && cargo build",
+  "mounts": [
+    "source=dimension-cargo,target=/home/vscode/.cargo,type=volume",
+    "source=dimension-rust-target,target=/home/vscode/.cargo/target,type=volume"
+  ],
+
+  "containerEnv": {
+    "PATH": "/home/vscode/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+    "CARGO_TARGET_DIR": "/home/vscode/.cargo/target"
+  },
+
+  "forwardPorts": [3000, 4173],
+  "portsAttributes": {
+    "3000": {
+      "label": "Dev server (npx serve)",
+      "onAutoForward": "notify"
+    },
+    "4173": {
+      "label": "Vite preview",
+      "onAutoForward": "silent"
+    }
+  },
+
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {},
+    "ghcr.io/devcontainers/features/git:1": {}
+  },
+
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
   "postStartCommand": "git config --global --add safe.directory .",
 
   "customizations": {
     "vscode": {
       "extensions": [
         "rust-lang.rust-analyzer",
-        "tamasfe.even-better-toml"
+        "tamasfe.even-better-toml",
+        "serayuzgur.crates",
+        "vadimcn.vscode-lldb"
       ],
       "settings": {
         "rust-analyzer.cargo.buildScripts.enable": true,
@@ -19,8 +49,5 @@
         "[rust].editor.defaultFormatter": "rust-lang.rust-analyzer"
       }
     }
-  },
-
-  "remoteUser": "vscode",
-  "features": {}
+  }
 }

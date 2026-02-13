@@ -115,7 +115,8 @@ where
         + From<u8>
         + std::ops::Add<Output = T>
         + std::ops::AddAssign
-        + Mul<Output = T>,
+        + Mul<Output = T>
+        + 'static,
 {
     fn from_triplets(rows: usize, cols: usize, triplets: &[Triplet<T>]) -> Self {
         let mut mat = SparseMatrixCCS::with_dimensions(rows, cols);
@@ -141,6 +142,15 @@ where
 
     fn mul_vector(&self, x: &Vector<T>) -> Vector<T> {
         assert!(self.cols() == x.rows());
+        #[cfg(feature = "gpu")]
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+            let ccs: &SparseMatrixCCS<f32> =
+                unsafe { &*(self as *const SparseMatrixCCS<T> as *const SparseMatrixCCS<f32>) };
+            let x_f32: &Vector<f32> = unsafe { &*(x as *const Vector<T> as *const Vector<f32>) };
+            if let Some(gpu_out) = crate::gpu::try_spmv_ccs_f32(ccs, x_f32) {
+                return unsafe { std::mem::transmute(gpu_out) };
+            }
+        }
         let mut out = Vector::with_capacity(self.rows());
         out.set_zero();
         let col_ptr = self.col_pointers.data();

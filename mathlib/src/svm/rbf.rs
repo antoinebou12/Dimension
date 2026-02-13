@@ -1,10 +1,11 @@
 //! RBF (Radial Basis Function) kernel SVM for binary classification.
 //!
-//! Kernel K(a, b) = exp(-γ ‖a - b‖²). Stores support vectors and dual coefficients;
-//! prediction is sign(Σ `α_i` `y_i` `K(sv_i, x)` + b).
+//! Kernel K(a, b) = exp(-γ ‖a - b‖²) via [`crate::math::rbf::rbf_kernel`]. Stores support vectors
+//! and dual coefficients; prediction is sign(Σ `α_i` `y_i` `K(sv_i, x)` + b).
 
 use super::linear::{SvmError, SvmOptions};
 use crate::distance::squared_euclidean_rows;
+use crate::math::rbf::rbf_kernel;
 use crate::matrix::Matrix;
 use tracing::debug;
 
@@ -78,7 +79,7 @@ impl SvmRbfResult {
                 let d = self.support_vectors.get(sv, c) - xc;
                 dist_sq += d * d;
             }
-            sum += self.alpha_y[sv] * (-self.gamma * dist_sq).exp();
+            sum += self.alpha_y[sv] * rbf_kernel(dist_sq, self.gamma);
         }
         sum
     }
@@ -94,7 +95,7 @@ impl SvmRbfResult {
                 let d = self.support_vectors.get(sv, c) - x.get(row, c);
                 dist_sq += d * d;
             }
-            sum += self.alpha_y[sv] * (-self.gamma * dist_sq).exp();
+            sum += self.alpha_y[sv] * rbf_kernel(dist_sq, self.gamma);
         }
         sum
     }
@@ -143,7 +144,7 @@ pub fn svm_rbf(
     for i in 0..n {
         for j in 0..n {
             let dist_sq = squared_euclidean_rows(x, i, j);
-            k[i * n + j] = (-gamma * dist_sq).exp();
+            k[i * n + j] = rbf_kernel(dist_sq, gamma);
         }
     }
 
@@ -283,9 +284,9 @@ mod tests {
         x.set(1, 1, 1.0);
         let d00 = squared_euclidean_rows(&x, 0, 0);
         let d11 = squared_euclidean_rows(&x, 1, 1);
-        assert_eq!(d00, 0.0);
-        assert_eq!(d11, 0.0);
-        let k00 = (-0.5_f64 * d00).exp();
+        assert!(d00.abs() < 1e-10);
+        assert!(d11.abs() < 1e-10);
+        let k00 = rbf_kernel(d00, 0.5);
         assert!((k00 - 1.0).abs() < 1e-10);
     }
 
@@ -294,7 +295,9 @@ mod tests {
         let mut x = Matrix::with_storage(3, 2, Storage::Column);
         for i in 0..3 {
             for j in 0..2 {
-                x.set(i, j, (i as f64) + (j as f64) * 0.5);
+                #[allow(clippy::cast_precision_loss)]
+                let val = (i as f64) + (j as f64) * 0.5;
+                x.set(i, j, val);
             }
         }
         for i in 0..3 {
@@ -325,10 +328,12 @@ mod tests {
         assert!(result.n_support_vectors() >= 1);
         let pred = result.predict(&x);
         for (i, &label) in y.iter().enumerate() {
-            assert_eq!(
-                pred[i], label,
+            assert!(
+                (pred[i] - label).abs() < 1e-10,
                 "sample {} predicted {} expected {}",
-                i, pred[i], label
+                i,
+                pred[i],
+                label
             );
         }
     }

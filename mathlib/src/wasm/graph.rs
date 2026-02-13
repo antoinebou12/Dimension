@@ -55,6 +55,45 @@ impl WasmGraph {
         Ok(WasmGraph { inner: g })
     }
 
+    /// Build an undirected 4-connected grid graph with `rows * cols` nodes (unit weight).
+    /// Node index = `r * cols + c`. Use with [`astarGrid`](Self::astarGrid) for fast pathfinding.
+    #[wasm_bindgen(js_name = fromGrid2d)]
+    pub fn from_grid_2d(rows: usize, cols: usize) -> Result<WasmGraph, JsError> {
+        if rows == 0 || cols == 0 {
+            return Err(JsError::new("rows and cols must be positive"));
+        }
+        let inner = Graph::from_grid_2d(rows, cols);
+        Ok(WasmGraph { inner })
+    }
+
+    /// Build an undirected 4-connected grid graph with per-edge weights.
+    /// `weights` order: horizontal edges row-by-row (`rows * (cols - 1)`), then vertical
+    /// edges column-by-column (`(rows - 1) * cols`). Length must equal
+    /// `2 * rows * cols - rows - cols`. Use with [`astarGrid`](Self::astarGrid) for pathfinding.
+    #[wasm_bindgen(js_name = fromGrid2dEdgeWeights)]
+    pub fn from_grid_2d_edge_weights(
+        rows: usize,
+        cols: usize,
+        weights: &[f64],
+    ) -> Result<WasmGraph, JsError> {
+        if rows == 0 || cols == 0 {
+            return Err(JsError::new("rows and cols must be positive"));
+        }
+        let expected = 2 * rows * cols - rows - cols;
+        if weights.len() != expected {
+            return Err(JsError::new(&format!(
+                "weights length {} must equal 2*rows*cols - rows - cols = {}",
+                weights.len(),
+                expected
+            )));
+        }
+        if weights.iter().any(|&w| w < 0.0) {
+            return Err(JsError::new("edge weights must be non-negative"));
+        }
+        let inner = Graph::from_grid_2d_edge_weights(rows, cols, weights);
+        Ok(WasmGraph { inner })
+    }
+
     /// Add a directed edge from `u` to `v` with weight `w`.
     #[wasm_bindgen(js_name = addEdge)]
     pub fn add_edge(&mut self, u: usize, v: usize, w: f64) -> Result<(), JsError> {
@@ -116,6 +155,34 @@ impl WasmGraph {
             return Err(JsError::new(&format!("Start/goal out of range [0, {})", n)));
         }
         let result = astar(&self.inner, start, goal, |_, _| 0.0);
+        Ok(WasmAstarResult {
+            path: result.path,
+            dist: result.dist,
+            prev: result.prev,
+        })
+    }
+
+    /// Run A* from `start` to `goal` with Manhattan heuristic for a grid (node index = row*cols + col).
+    /// Use on a graph built with [`fromGrid2d`](Self::fromGrid2d). Much faster than Dijkstra when only one path is needed.
+    #[wasm_bindgen(js_name = astarGrid)]
+    pub fn astar_grid(
+        &self,
+        _rows: usize,
+        cols: usize,
+        start: usize,
+        goal: usize,
+    ) -> Result<WasmAstarResult, JsError> {
+        let n = self.inner.num_nodes();
+        if start >= n || goal >= n {
+            return Err(JsError::new(&format!("Start/goal out of range [0, {})", n)));
+        }
+        let result = astar(&self.inner, start, goal, |u, g| {
+            let ur = (u / cols) as f64;
+            let uc = (u % cols) as f64;
+            let gr = (g / cols) as f64;
+            let gc = (g % cols) as f64;
+            (ur - gr).abs() + (uc - gc).abs()
+        });
         Ok(WasmAstarResult {
             path: result.path,
             dist: result.dist,

@@ -3,6 +3,7 @@
 //! Set `RUST_LOG=mathlib=debug` to see iteration logs.
 
 use crate::matrix::Matrix;
+use crate::structure::SparseMatrixCRS;
 use crate::vector::Vector;
 use std::fmt;
 use tracing::debug;
@@ -85,6 +86,66 @@ pub fn solve_cg(
         r_dot_r = r_new_dot_r_new;
         p = &r + &(beta * &p);
         debug!(iter, r_dot_r = %r_dot_r, "solve_cg");
+        iter += 1;
+    }
+    Err(CgError::MaxItersExceeded)
+}
+
+/// Linear conjugate gradient for sparse Ax = b with A symmetric positive definite.
+///
+/// Uses only matrix-vector products (`SpMV`), so it avoids converting the sparse matrix
+/// to dense and is suitable for large sparse SPD systems where Cholesky would exhibit fill-in.
+///
+/// # Errors
+///
+/// Returns `CgError::NotSquare` if `a` is not square, `CgError::DimensionMismatch`
+/// if dimensions do not match, `CgError::MaxItersExceeded` if not converged within `max_iters`.
+#[must_use = "this `Result` may be an `Err` that should be handled"]
+pub fn solve_cg_sparse(
+    a: &SparseMatrixCRS<f64>,
+    b: &Vector<f64>,
+    tol: f64,
+    max_iters: usize,
+) -> Result<Vector<f64>, CgError> {
+    let n = a.rows();
+    if a.cols() != n {
+        return Err(CgError::NotSquare);
+    }
+    if b.rows() != n {
+        return Err(CgError::DimensionMismatch);
+    }
+    let tol_sq = tol * tol;
+
+    let mut x = Vector::with_capacity(n);
+    x.resize(n);
+    x.set_zero();
+
+    let ax = a * &x;
+    let mut r = b - &ax;
+    let mut p = r.clone();
+    let mut r_dot_r = crate::cpu::dot_f64(r.data(), r.data());
+
+    let mut iter = 0_usize;
+    while iter < max_iters {
+        if r_dot_r <= tol_sq {
+            debug!(iter, "solve_cg_sparse converged");
+            return Ok(x);
+        }
+        let ap = a * &p;
+        let p_ap = crate::cpu::dot_f64(p.data(), ap.data());
+        if p_ap <= 0.0 {
+            return Err(CgError::MaxItersExceeded);
+        }
+        let alpha = r_dot_r / p_ap;
+        let alpha_p = alpha * &p;
+        x = &x + &alpha_p;
+        let step_ap = alpha * &ap;
+        r = &r - &step_ap;
+        let r_new_dot_r_new = crate::cpu::dot_f64(r.data(), r.data());
+        let beta = r_new_dot_r_new / r_dot_r;
+        r_dot_r = r_new_dot_r_new;
+        p = &r + &(beta * &p);
+        debug!(iter, r_dot_r = %r_dot_r, "solve_cg_sparse");
         iter += 1;
     }
     Err(CgError::MaxItersExceeded)

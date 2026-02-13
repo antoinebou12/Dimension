@@ -1,0 +1,3 @@
+[workspace]
+members = ["mathlib", "render", "parse", "kinematics", "kinematics/demo", "render/demo", "collision", "network", "physics", "physics/demo", "geometry", "geometry/demo"]
+resolver = "2"

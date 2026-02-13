@@ -1,6 +1,6 @@
 //! Vector: matrix with one column (rows x 1).
 //!
-//! Mirrors C++ Vector.h: dot product, norm, resize.
+//! Provides dot product, norm, and resize.
 
 use crate::matrix_base::MatrixBase;
 use std::fmt;
@@ -93,40 +93,75 @@ impl<T: Clone + Default> Vector<T> {
         self.base.data_mut()[i] = value;
     }
 
+    /// Dot product of `self` with `other`.
+    ///
+    /// For f32: uses GPU when length >= [`crate::gpu::MIN_LEN_GPU_DOT`] and GPU is available;
+    /// otherwise uses CPU (SIMD when `simd` feature on). Use [`crate::AutoExecutor`] for custom thresholds.
+    /// For f64: uses CPU (SIMD when `simd` feature on).
     pub fn dot(&self, other: &Vector<T>) -> T
     where
         T: Copy + Default + std::ops::AddAssign + std::ops::Mul<Output = T> + Float + 'static,
     {
         assert_eq!(self.rows(), other.rows());
         #[cfg(feature = "gpu")]
-        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
+            && self.rows() >= crate::gpu::MIN_LEN_GPU_DOT
+        {
             let a: &Vector<f32> = unsafe { &*(self as *const Vector<T> as *const Vector<f32>) };
             let b: &Vector<f32> = unsafe { &*(other as *const Vector<T> as *const Vector<f32>) };
             if let Some(gpu_dot) = crate::gpu::try_dot_f32(a, b) {
                 return unsafe { std::mem::transmute_copy(&gpu_dot) };
             }
         }
-        let n = self.rows();
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+            let a = self.data();
+            let b = other.data();
+            // SAFETY: TypeId check ensures T is f32; the slice points to valid f32 data.
+            let a_f32: &[f32] =
+                unsafe { std::slice::from_raw_parts(a.as_ptr().cast::<f32>(), a.len()) };
+            // SAFETY: TypeId check ensures T is f32; the slice points to valid f32 data.
+            let b_f32: &[f32] =
+                unsafe { std::slice::from_raw_parts(b.as_ptr().cast::<f32>(), b.len()) };
+            let result = crate::cpu::dot_f32(a_f32, b_f32);
+            // SAFETY: result is f32; transmute_copy produces T which is f32 by TypeId check.
+            return unsafe { std::mem::transmute_copy(&result) };
+        }
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f64>() {
+            let a = self.data();
+            let b = other.data();
+            // SAFETY: TypeId check ensures T is f64; the slice points to valid f64 data.
+            let a_f64: &[f64] =
+                unsafe { std::slice::from_raw_parts(a.as_ptr().cast::<f64>(), a.len()) };
+            // SAFETY: TypeId check ensures T is f64; the slice points to valid f64 data.
+            let b_f64: &[f64] =
+                unsafe { std::slice::from_raw_parts(b.as_ptr().cast::<f64>(), b.len()) };
+            let result = crate::cpu::dot_f64(a_f64, b_f64);
+            // SAFETY: result is f64; transmute_copy produces T which is f64 by TypeId check.
+            return unsafe { std::mem::transmute_copy(&result) };
+        }
         let mut sum = T::default();
-        for i in 0..n {
+        for i in 0..self.rows() {
             sum += self.get(i) * other.get(i);
         }
         sum
     }
 
+    /// Euclidean norm. Uses GPU when length >= [`crate::gpu::MIN_LEN_GPU_DOT`] and GPU is available.
     pub fn norm(&self) -> T
     where
         T: Copy + Default + std::ops::AddAssign + std::ops::Mul<Output = T> + Float + 'static,
     {
         #[cfg(feature = "gpu")]
-        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>() {
+        if std::any::TypeId::of::<T>() == std::any::TypeId::of::<f32>()
+            && self.rows() >= crate::gpu::MIN_LEN_GPU_DOT
+        {
             let v: &Vector<f32> = unsafe { &*(self as *const Vector<T> as *const Vector<f32>) };
             if let Some(gpu_norm) = crate::gpu::try_norm_f32(v) {
                 return unsafe { std::mem::transmute_copy(&gpu_norm) };
             }
         }
-        let n = self.dot(self);
-        n.sqrt()
+        let dot_val = self.dot(self);
+        dot_val.sqrt()
     }
 
     /// Component-wise map.

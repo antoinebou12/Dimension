@@ -123,17 +123,17 @@ fn example_easing() {
         let l = linear(t);
         let c = ease_in_out_cubic(t);
         let b = ease_out_bounce(t);
-        assert!(l >= 0.0 && l <= 1.0);
-        assert!(c >= 0.0 && c <= 1.0);
-        assert!(b >= 0.0 && b <= 1.0);
+        assert!((0.0..=1.0).contains(&l));
+        assert!((0.0..=1.0).contains(&c));
+        assert!((0.0..=1.0).contains(&b));
     }
     for &t in &ts {
         let v = lerp(0.0, 10.0, t);
-        assert!(v >= 0.0 && v <= 10.0);
+        assert!((0.0..=10.0).contains(&v));
     }
     for &t in &ts {
         let h = hermite(0.0, 1.0, 0.0, 0.0, t);
-        assert!(h >= 0.0 && h <= 1.0);
+        assert!((0.0..=1.0).contains(&h));
     }
     let pts = [0.0_f64, 1.0, 2.0, 3.0];
     for &t in &ts {

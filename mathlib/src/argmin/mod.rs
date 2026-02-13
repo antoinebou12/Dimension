@@ -10,7 +10,7 @@ pub mod muon;
 pub mod pso;
 
 pub use conjugate_gradient::{
-    CgError, NonlinearCgOptions, NonlinearCgResult, nonlinear_cg, solve_cg,
+    CgError, NonlinearCgOptions, NonlinearCgResult, nonlinear_cg, solve_cg, solve_cg_sparse,
 };
 pub use gauss_newton::{GaussNewtonOptions, GaussNewtonResult, gauss_newton};
 pub use gradient_descent::{

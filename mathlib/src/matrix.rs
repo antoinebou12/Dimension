@@ -51,6 +51,12 @@ impl<T> Matrix<T> {
         self.base.cols()
     }
 
+    /// Storage order: column-major or row-major.
+    #[inline]
+    pub fn storage(&self) -> Storage {
+        self.storage
+    }
+
     #[inline]
     pub fn data(&self) -> &[T] {
         self.base.data()

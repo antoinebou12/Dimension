@@ -6,6 +6,9 @@
 [files]
 extend-exclude = [
     ".git/",
+    "**/wasm-demo/pkg/",  # wasm-bindgen generated JS (hash suffixes trigger false positives)
+    "website/**/pkg/",
+    "**/pkg/",
 ]
 ignore-hidden = false
 
@@ -22,5 +25,13 @@ rady = "rady"
 
 # Case insensitive, matches inside word.
 [default.extend-words]
+ba = "ba"
 bellow = "below"
 toi = "toi"
+
+# WGSL shaders (render/shaders/*.wgsl)
+[type.wgsl]
+extend-glob = ["*.wgsl"]
+
+[type.wgsl.extend-identifiers]
+pn = "pn"

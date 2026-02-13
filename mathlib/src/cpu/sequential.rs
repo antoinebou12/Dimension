@@ -56,3 +56,57 @@ pub fn squared_diff_sum_f64(a: &[f64], b: &[f64]) -> f64 {
         })
         .sum()
 }
+
+/// Sequential dot product for f32 slices.
+#[inline]
+pub fn dot_f32(a: &[f32], b: &[f32]) -> f32 {
+    assert_eq!(a.len(), b.len());
+    a.iter().zip(b.iter()).map(|(x, y)| x * y).sum()
+}
+
+/// Sequential scalar multiply for f32: out[i] = s * x[i].
+#[inline]
+pub fn scalar_mul_f32(s: f32, x: &[f32], out: &mut [f32]) {
+    assert_eq!(x.len(), out.len());
+    for (o, &v) in out.iter_mut().zip(x.iter()) {
+        *o = s * v;
+    }
+}
+
+/// Sequential sum of squared differences for f32: `sum_i` (a[i] - b[i])^2.
+#[inline]
+pub fn squared_diff_sum_f32(a: &[f32], b: &[f32]) -> f32 {
+    assert_eq!(a.len(), b.len());
+    a.iter()
+        .zip(b.iter())
+        .map(|(&x, &y)| {
+            let d = x - y;
+            d * d
+        })
+        .sum()
+}
+
+/// Sequential element-wise add for f32: out[i] = a[i] + b[i].
+#[inline]
+pub fn add_f32(a: &[f32], b: &[f32], out: &mut [f32]) {
+    assert_eq!(a.len(), b.len());
+    assert_eq!(a.len(), out.len());
+    for ((o, &x), &y) in out.iter_mut().zip(a.iter()).zip(b.iter()) {
+        *o = x + y;
+    }
+}
+
+/// Sequential matrix-vector product for column-major f32: y = A * x.
+#[inline]
+pub fn matvec_col_major_f32(m: usize, n: usize, a: &[f32], x: &[f32], y: &mut [f32]) {
+    assert_eq!(a.len(), m * n);
+    assert_eq!(x.len(), n);
+    assert_eq!(y.len(), m);
+    y[..m].fill(0.0);
+    for j in 0..n {
+        let xj = x[j];
+        for i in 0..m {
+            y[i] += a[j * m + i] * xj;
+        }
+    }
+}

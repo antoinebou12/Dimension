@@ -1,6 +1,9 @@
 //! Main benchmark harness for mathlib.
 //!
 //! Domain-organized: linear, ml, optimisation, graph, tree, cg, noise, transforms.
+//!
+//! GPU vs CPU benchmarks (matmul, matvec, dot, etc.) and threshold guidance:
+//! `cargo bench --features gpu --bench gpu`.
 
 #![allow(clippy::duplicate_mod)]
 
@@ -32,6 +35,8 @@ mod schur;
 mod simplex;
 #[path = "linear/solve.rs"]
 mod solve;
+#[path = "linear/submatrix.rs"]
+mod submatrix;
 
 // ml
 #[path = "ml/clustering.rs"]
@@ -62,6 +67,10 @@ mod cmaes;
 // cg
 #[path = "cg/cg.rs"]
 mod cg;
+#[path = "cg/curve.rs"]
+mod curve;
+#[path = "cg/dual_quaternion.rs"]
+mod dual_quaternion;
 #[path = "cg/easing.rs"]
 mod easing;
 #[path = "cg/math3d.rs"]
@@ -72,6 +81,10 @@ mod quaternion_trig;
 // noise
 #[path = "noise/noise.rs"]
 mod noise;
+
+// monte_carlo
+#[path = "monte_carlo/monte_carlo.rs"]
+mod monte_carlo;
 
 mod graph;
 mod tree;
@@ -99,6 +112,7 @@ criterion_main!(
     solve::benches,
     qz::benches,
     schur::benches,
+    submatrix::benches,
     pca::benches,
     math3d::benches,
     cg::benches,
@@ -110,10 +124,13 @@ criterion_main!(
     gauss_newton::benches,
     muon::benches,
     noise::benches,
+    monte_carlo::benches,
     graph::benches,
     tree::benches,
     distance::benches,
     easing::benches,
+    curve::benches,
+    dual_quaternion::benches,
     quaternion_trig::benches,
     svm::benches,
     transforms_fft::benches,
@@ -135,6 +152,7 @@ criterion_main!(
     solve::benches,
     qz::benches,
     schur::benches,
+    submatrix::benches,
     pca::benches,
     math3d::benches,
     cg::benches,
@@ -151,6 +169,8 @@ criterion_main!(
     tree::benches,
     distance::benches,
     easing::benches,
+    curve::benches,
+    dual_quaternion::benches,
     quaternion_trig::benches,
     svm::benches,
     transforms_fft::benches,

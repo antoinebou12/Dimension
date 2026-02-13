@@ -105,6 +105,67 @@ impl<T: Default> Tree<T> {
         child_node.parent = Some(parent);
     }
 
+    /// Removes `child` from `parent`'s children. The child's parent is set to `None`;
+    /// descendants of `child` remain attached (subtree is detached, not deleted).
+    ///
+    /// # Panics
+    /// Panics if `child == self.root` (root cannot be removed).
+    pub fn remove_child(&mut self, parent: usize, child: usize) {
+        assert!(child != self.root, "cannot remove root");
+        if let Some(p) = self.nodes.get_mut(parent) {
+            p.children.retain(|&c| c != child);
+        }
+        if let Some(c) = self.nodes.get_mut(child)
+            && c.parent == Some(parent)
+        {
+            c.parent = None;
+        }
+    }
+
+    /// Moves `node` to be a child of `new_parent`. Removes `node` from its current
+    /// parent's children, then adds it to `new_parent`'s children and updates
+    /// `node.parent`.
+    ///
+    /// # Panics
+    /// Panics if `new_parent` is a descendant of `node` (would create a cycle).
+    pub fn reparent(&mut self, node: usize, new_parent: usize) {
+        assert!(
+            !self.is_descendant_of(new_parent, node),
+            "reparent would create cycle: new_parent is descendant of node"
+        );
+        if let Some(old_parent) = self.nodes.get(node).and_then(|n| n.parent) {
+            if old_parent == new_parent {
+                return;
+            }
+            if let Some(p) = self.nodes.get_mut(old_parent) {
+                p.children.retain(|&c| c != node);
+            }
+        }
+        self.ensure_node(new_parent).children.push(node);
+        self.ensure_node(node).parent = Some(new_parent);
+    }
+
+    /// Returns whether `descendant` is in the subtree rooted at `ancestor` (or is `ancestor`).
+    fn is_descendant_of(&self, descendant: usize, ancestor: usize) -> bool {
+        if descendant == ancestor {
+            return true;
+        }
+        let mut cur = descendant;
+        while let Some(node) = self.nodes.get(cur) {
+            let Some(p) = node.parent else {
+                return false;
+            };
+            if p == cur {
+                return false;
+            }
+            cur = p;
+            if cur == ancestor {
+                return true;
+            }
+        }
+        false
+    }
+
     /// Builds a BFS spanning tree from `graph` starting at `source`.
     ///
     /// Treats the graph as undirected. Includes all nodes reachable from `source`.
@@ -223,4 +284,52 @@ impl<T: Default> Tree<T> {
     pub fn num_nodes(&self) -> usize {
         self.nodes.len()
     }
+}
+
+impl<T> Tree<T> {
+    /// Returns the path from root to `node` (root first). Empty if `node` is out of range.
+    #[must_use]
+    pub fn path_from_root(&self, node: usize) -> Vec<usize> {
+        let mut path = Vec::new();
+        let mut cur = node;
+        while let Some(n) = self.nodes.get(cur) {
+            path.push(cur);
+            match n.parent {
+                Some(p) => cur = p,
+                None => break,
+            }
+        }
+        path.reverse();
+        path
+    }
+}
+
+/// Maps path indices to flat offsets in a traversal order.
+///
+/// Given a `path` (e.g. root-to-end-effector), a `traversal_order` (e.g. DFS preorder),
+/// and a `node_size` function (e.g. DOF count), returns a vec of flat indices such that
+/// for each path node, the mapping contains `node_size(node)` consecutive offsets.
+#[must_use]
+pub fn path_to_traversal_mapping(
+    path: &[usize],
+    traversal_order: &[usize],
+    node_size: impl Fn(usize) -> usize,
+) -> Vec<usize> {
+    let mut offsets = std::collections::HashMap::with_capacity(traversal_order.len());
+    let mut offset = 0;
+    for &idx in traversal_order {
+        offsets.insert(idx, offset);
+        offset += node_size(idx);
+    }
+
+    let mut mapping = Vec::new();
+    for &idx in path {
+        let size = node_size(idx);
+        if let Some(&base) = offsets.get(&idx) {
+            for d in 0..size {
+                mapping.push(base + d);
+            }
+        }
+    }
+    mapping
 }

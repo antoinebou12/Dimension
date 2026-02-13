@@ -16,7 +16,7 @@ fn main() {
     println!("GPU large matrix example (size = {})", n);
     println!("  Set MATHLIB_GPU_SIZE to override (e.g. 512, 2048).");
 
-    let ok = mathlib::gpu::init_blocking();
+    let ok = mathlib::gpu::init_blocking(None);
     if !ok {
         println!("\nGPU init failed — no WebGPU/Vulkan/Metal/D3D adapter. Using CPU fallback.");
     } else {

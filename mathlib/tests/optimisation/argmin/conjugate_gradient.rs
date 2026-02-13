@@ -1,8 +1,8 @@
 //! Integration tests for conjugate gradient.
 
-use mathlib::structure::Storage;
-use mathlib::{Matrix, Vector};
-use mathlib::{NonlinearCgOptions, nonlinear_cg, solve_cg};
+use mathlib::structure::{SparseStorage, Storage, Triplet};
+use mathlib::{Matrix, SparseMatrixCRS, Vector};
+use mathlib::{NonlinearCgOptions, nonlinear_cg, solve_cg, solve_cg_sparse};
 
 fn make_vector(data: &[f64]) -> Vector<f64> {
     let mut v = Vector::with_capacity(data.len());
@@ -31,6 +31,31 @@ fn solve_cg_integration() {
     let r = &b - &ax;
     let r_norm_sq = r.data().iter().map(|v| v * v).sum::<f64>();
     assert!(r_norm_sq < 1e-20);
+}
+
+fn make_spd_2x2_sparse() -> SparseMatrixCRS<f64> {
+    let triplets = [
+        Triplet::new(4.0_f64, 0, 0),
+        Triplet::new(1.0_f64, 0, 1),
+        Triplet::new(1.0_f64, 1, 0),
+        Triplet::new(3.0_f64, 1, 1),
+    ];
+    SparseStorage::from_triplets(2, 2, &triplets)
+}
+
+#[test]
+fn solve_cg_sparse_integration() {
+    let a = make_spd_2x2_sparse();
+    let b = make_vector(&[1.0, 2.0]);
+    let x = solve_cg_sparse(&a, &b, 1e-12, 20).unwrap();
+    let ax = &a * &x;
+    let r = &b - &ax;
+    let r_norm_sq = r.data().iter().map(|v| v * v).sum::<f64>();
+    assert!(
+        r_norm_sq < 1e-20,
+        "residual norm squared {} should be < 1e-20",
+        r_norm_sq
+    );
 }
 
 #[test]

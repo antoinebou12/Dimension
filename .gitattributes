@@ -1,0 +1,11 @@
+# Line endings
+* text=auto eol=lf
+
+# Language stats (Linguist)
+*.rs linguist-language=Rust
+*.wgsl linguist-language=WGSL
+
+# Exclude from export (e.g. release tarballs)
+mathlib/target/ export-ignore
+mathlib/coverage/ export-ignore
+render/target/ export-ignore

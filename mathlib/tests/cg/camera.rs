@@ -2,9 +2,9 @@
 
 use mathlib::{
     Perspective3, Vector3f, from_euler_angles, from_homogeneous, from_scaled_axis, look_at_rh,
-    model_view_projection, new_nonuniform_scaling, new_orthographic, new_perspective,
-    new_rotation_wrt_point, new_scaling, new_translation, transform_point, transform_vector,
-    vector3, vector4_from_point,
+    matrix4f_translation, model_view_projection, new_nonuniform_scaling, new_orthographic,
+    new_perspective, new_rotation_wrt_point, new_scaling, new_translation, transform_point,
+    transform_vector, vector3, vector4_from_point,
 };
 
 fn assert_near(a: f32, b: f32, tol: f32) {
@@ -47,6 +47,14 @@ fn cg_new_translation() {
     assert_vec3_near(&out, &vector3(11.0, 22.0, 33.0), 1e-5);
     // Vector (direction) should not be translated
     assert_vec3_near(&transform_vector(&m, &p), &p, 1e-5);
+}
+
+#[test]
+fn cg_matrix4f_translation() {
+    let t = vector3(1.5, -2.3, 4.7);
+    let m = new_translation(&t);
+    let extracted = matrix4f_translation(&m);
+    assert_vec3_near(&extracted, &t, 1e-5);
 }
 
 #[test]

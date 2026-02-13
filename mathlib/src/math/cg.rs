@@ -3,7 +3,10 @@
 //! Inspired by nalgebra's CG support. All matrices are column-major; use [`Matrix::as_slice`]
 //! for shader uploads.
 
-use super::math3d::{Matrix4f, Vector3f, Vector4f, make_rotation, matrix4f_inverse};
+use super::math3d::{
+    Matrix3f, Matrix4f, Vector3f, Vector4f, make_rotation, matrix4f_inverse, vector3_cross,
+};
+use crate::quaternion::Quat4f;
 use crate::types::Storage;
 
 // --- Homogeneous 4×4 construction (column-major) ---
@@ -113,6 +116,21 @@ pub fn from_euler_angles(roll: f32, pitch: f32, yaw: f32) -> Matrix4f {
     m
 }
 
+/// Extracts the rotation from a 4×4 transform matrix as a unit quaternion.
+///
+/// Uses the upper-left 3×3 block; useful for kinematics/render when converting
+/// a world transform matrix to a quaternion for display (avoids gimbal lock from Euler).
+#[must_use]
+pub fn matrix4_extract_rotation_quat(m: &Matrix4f) -> Quat4f {
+    let mut r3 = Matrix3f::with_storage(3, 3, Storage::Column);
+    for i in 0..3 {
+        for j in 0..3 {
+            r3.set(i, j, m.get(i, j));
+        }
+    }
+    Quat4f::from_rotation_matrix3(&r3)
+}
+
 /// Orthographic projection matrix (column-major). Maps [left,right]×[bottom,top]×[near,far] to NDC.
 #[must_use]
 pub fn new_orthographic(
@@ -139,6 +157,7 @@ pub fn new_orthographic(
 }
 
 /// Perspective projection matrix (column-major). `aspect = width/height`, `fov_y_rad` vertical FOV in radians, `near` and `far` positive.
+/// Maps depth to OpenGL NDC range [-1, 1].
 #[must_use]
 pub fn new_perspective(aspect: f32, fov_y_rad: f32, near: f32, far: f32) -> Matrix4f {
     let mut m = Matrix4f::with_storage(4, 4, Storage::Column);
@@ -151,6 +170,24 @@ pub fn new_perspective(aspect: f32, fov_y_rad: f32, near: f32, far: f32) -> Matr
     m.set(1, 1, sy);
     m.set(2, 2, (far + near) / nf);
     m.set(2, 3, (2.0 * far * near) / nf);
+    m.set(3, 2, -1.0);
+    m
+}
+
+/// Perspective projection matrix for WebGPU/Vulkan (column-major). Maps depth to NDC range [0, 1].
+/// Use this when rendering with wgpu or WebGPU.
+#[must_use]
+pub fn new_perspective_wgpu(aspect: f32, fov_y_rad: f32, near: f32, far: f32) -> Matrix4f {
+    let mut m = Matrix4f::with_storage(4, 4, Storage::Column);
+    m.set_zero();
+    let t = (fov_y_rad * 0.5).tan();
+    let sy = 1.0 / t;
+    let sx = sy / aspect;
+    let nf = near - far;
+    m.set(0, 0, sx);
+    m.set(1, 1, sy);
+    m.set(2, 2, far / nf);
+    m.set(2, 3, (far * near) / nf);
     m.set(3, 2, -1.0);
     m
 }
@@ -175,17 +212,17 @@ fn look_at_impl(eye: &Vector3f, target: &Vector3f, up: &Vector3f, right_handed: 
     );
     let f = normalize_vec3(&f);
     let s = if right_handed {
-        cross_vec3(&f, up)
+        vector3_cross(&f, up)
     } else {
         let neg_f = neg_vec3(&f);
-        cross_vec3(&neg_f, up)
+        vector3_cross(&neg_f, up)
     };
     let s = normalize_vec3(&s);
     let u = if right_handed {
-        cross_vec3(&s, &f)
+        vector3_cross(&s, &f)
     } else {
         let neg_s = neg_vec3(&s);
-        cross_vec3(&neg_s, &f)
+        vector3_cross(&neg_s, &f)
     };
     let mut m = Matrix4f::with_storage(4, 4, Storage::Column);
     m.set_zero();
@@ -296,6 +333,12 @@ pub fn transform_point(m: &Matrix4f, p: &Vector3f) -> Vector3f {
     from_homogeneous(&out4).unwrap_or_else(|| vector3(out4.get(0), out4.get(1), out4.get(2)))
 }
 
+/// Extracts the translation vector from a 4×4 affine matrix (column 3, rows 0–2).
+#[must_use]
+pub fn matrix4f_translation(m: &Matrix4f) -> Vector3f {
+    vector3(m.get(0, 3), m.get(1, 3), m.get(2, 3))
+}
+
 // --- Homogeneous helpers ---
 
 /// Build a 3D vector (x, y, z).
@@ -348,6 +391,23 @@ pub fn from_homogeneous(v: &Vector4f) -> Option<Vector3f> {
 pub fn model_view_projection(model: &Matrix4f, view: &Matrix4f, projection: &Matrix4f) -> Matrix4f {
     let mv = view * model;
     projection * &mv
+}
+
+/// Copy 4×4 matrix to array (column-major) for shader uniform upload.
+#[must_use]
+pub fn matrix4f_to_array(m: &Matrix4f) -> [f32; 16] {
+    let s = m.data();
+    let mut arr = [0.0f32; 16];
+    arr.copy_from_slice(s);
+    arr
+}
+
+/// 4×4 identity matrix (column-major).
+#[must_use]
+pub fn matrix4f_identity() -> Matrix4f {
+    let mut m = Matrix4f::with_storage(4, 4, Storage::Column);
+    m.set_identity();
+    m
 }
 
 // --- Perspective3 and unproject ---
@@ -422,14 +482,6 @@ pub fn screen_to_view_ray(
 }
 
 // --- Internal helpers ---
-
-fn cross_vec3(a: &Vector3f, b: &Vector3f) -> Vector3f {
-    vector3(
-        a.get(1) * b.get(2) - a.get(2) * b.get(1),
-        a.get(2) * b.get(0) - a.get(0) * b.get(2),
-        a.get(0) * b.get(1) - a.get(1) * b.get(0),
-    )
-}
 
 fn neg_vec3(v: &Vector3f) -> Vector3f {
     vector3(-v.get(0), -v.get(1), -v.get(2))

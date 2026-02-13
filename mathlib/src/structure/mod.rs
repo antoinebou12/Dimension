@@ -5,15 +5,17 @@ pub mod cube_slice;
 pub mod dense_storage;
 pub mod matrix_base;
 pub mod sparse;
+pub mod sparse_cube;
 pub mod sparse_formats;
 pub mod submatrix;
 pub mod types;
 
 pub use cube_base::CubeBase;
 pub use cube_slice::CubeSlice;
-pub use dense_storage::{DenseStorage, DenseStorageDynamic};
+pub use dense_storage::{DenseStorage, DenseStorageDynamic, DenseStorageTrait};
 pub use matrix_base::MatrixBase;
 pub use sparse::{SparseMatrix, SparseMatrixBase, SparseMatrixCRS, SparseStorage};
+pub use sparse_cube::{Quadruplet, SparseCube, SparseCubeBase};
 pub use sparse_formats::{
     SparseMatrixBCRS, SparseMatrixCCS, SparseMatrixCDS, SparseMatrixJDS, SparseMatrixSKS,
 };

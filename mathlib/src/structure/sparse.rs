@@ -1,5 +1,9 @@
 #![allow(clippy::cast_possible_truncation)]
 
+//! CRS sparse matrix format and [`SparseStorage`] trait.
+//!
+//! Direct solvers ([`Cholesky`](crate::chol::Cholesky), [`Lu`](crate::lu::Lu), [`solve`](crate::linear::solve::solve)) operate on dense matrices only. For sparse A with O(n) nonzeros, use iterative solvers such as [`solve_cg_sparse`](crate::argmin::solve_cg_sparse) to avoid fill-in.
+
 use super::dense_storage::DenseStorageDynamic;
 use super::types::Triplet;
 use crate::vector::Vector;

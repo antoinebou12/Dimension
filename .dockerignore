@@ -1,0 +1,16 @@
+# Used when building website Docker image: docker build -f website/Dockerfile .
+.git
+target
+**/target
+*.rs.bk
+.env
+.env.*
+node_modules
+**/node_modules
+.serve.pid
+**/.serve.pid
+mathlib/coverage
+coverage
+**/coverage
+.cursor
+*.log

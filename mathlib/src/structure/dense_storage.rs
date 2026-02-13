@@ -1,6 +1,20 @@
 use std::fmt;
 use std::ops::{Index, IndexMut};
 
+/// Common trait for dense storage backends (fixed-size array or dynamic Vec).
+pub trait DenseStorageTrait<T> {
+    /// Returns the number of elements.
+    fn size(&self) -> usize;
+    /// Returns a slice of the stored data.
+    fn data(&self) -> &[T];
+    /// Returns a mutable slice of the stored data.
+    fn data_mut(&mut self) -> &mut [T];
+    /// Sets all elements to zero (via `T::from(0)`).
+    fn set_zero(&mut self)
+    where
+        T: Copy + From<u8>;
+}
+
 #[derive(Clone, Debug)]
 pub struct DenseStorage<T, const N: usize> {
     data: [T; N],
@@ -70,6 +84,29 @@ impl<T, const N: usize> DenseStorage<T, N> {
     #[inline]
     pub fn data_mut(&mut self) -> &mut [T] {
         &mut self.data
+    }
+}
+
+impl<T: Copy + From<u8>, const N: usize> DenseStorageTrait<T> for DenseStorage<T, N> {
+    #[inline]
+    fn size(&self) -> usize {
+        N
+    }
+
+    #[inline]
+    fn data(&self) -> &[T] {
+        &self.data
+    }
+
+    #[inline]
+    fn data_mut(&mut self) -> &mut [T] {
+        &mut self.data
+    }
+
+    fn set_zero(&mut self) {
+        for x in &mut self.data {
+            *x = T::from(0);
+        }
     }
 }
 
@@ -194,6 +231,29 @@ impl<T> DenseStorageDynamic<T> {
     #[inline]
     pub fn data_mut(&mut self) -> &mut [T] {
         &mut self.data
+    }
+}
+
+impl<T: Copy + From<u8>> DenseStorageTrait<T> for DenseStorageDynamic<T> {
+    #[inline]
+    fn size(&self) -> usize {
+        self.data.len()
+    }
+
+    #[inline]
+    fn data(&self) -> &[T] {
+        &self.data
+    }
+
+    #[inline]
+    fn data_mut(&mut self) -> &mut [T] {
+        &mut self.data
+    }
+
+    fn set_zero(&mut self) {
+        for x in &mut self.data {
+            *x = T::from(0);
+        }
     }
 }
 

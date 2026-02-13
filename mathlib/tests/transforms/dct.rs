@@ -22,11 +22,8 @@ fn dct_constant_signal() {
     let x = vec![3.0; n];
     let fwd = dct2_forward(&x).unwrap();
     assert!((fwd[0] - 3.0 * (n as f64).sqrt()).abs() < 1e-10);
-    for i in 1..n {
-        assert!(
-            fwd[i].abs() < 1e-10,
-            "DCT of constant should be zero for k>0"
-        );
+    for v in fwd.iter().skip(1) {
+        assert!(v.abs() < 1e-10, "DCT of constant should be zero for k>0");
     }
 }
 

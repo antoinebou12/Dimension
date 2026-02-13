@@ -1,2 +1,4 @@
 too-many-arguments-threshold = 8
 type-complexity-threshold = 675
+# Allow larger error types (e.g. complex solver/decomposition errors)
+large-error-threshold = 192

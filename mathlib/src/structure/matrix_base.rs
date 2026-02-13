@@ -1,4 +1,5 @@
 use super::dense_storage::DenseStorageDynamic;
+use super::types::Fill;
 use std::fmt;
 
 /// Base type for dense matrix storage (rows, cols, flat data).
@@ -55,6 +56,31 @@ impl<T: Clone + Default> MatrixBase<T> {
             rows,
             cols,
         }
+    }
+
+    /// Construct with dimensions and initial fill (Zeros, Ones, or None).
+    pub fn with_dimensions_fill(rows: usize, cols: usize, fill: Fill) -> Self
+    where
+        T: Copy + From<u8>,
+    {
+        let n = rows * cols;
+        let mut storage = DenseStorageDynamic::with_capacity(n);
+        storage.resize(n);
+        let mut base = Self {
+            storage,
+            rows,
+            cols,
+        };
+        match fill {
+            Fill::Zeros => base.set_zero(),
+            Fill::Ones => {
+                for x in base.storage.data_mut() {
+                    *x = T::from(1_u8);
+                }
+            }
+            Fill::None => {}
+        }
+        base
     }
 
     /// Resizes the matrix to the given dimensions.
@@ -171,6 +197,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::structure::types::Fill;
 
     #[test]
     fn test_matrix_base_new() {
@@ -186,6 +213,16 @@ mod tests {
         assert_eq!(m.rows(), 3);
         assert_eq!(m.cols(), 4);
         assert_eq!(m.size(), 12);
+    }
+
+    #[test]
+    fn test_matrix_base_with_dimensions_fill() {
+        let m_zeros: MatrixBase<f64> = MatrixBase::with_dimensions_fill(2, 2, Fill::Zeros);
+        assert_eq!(m_zeros.rows(), 2);
+        assert_eq!(m_zeros.cols(), 2);
+        assert!((m_zeros.data()[0] - 0.0).abs() < 1e-10);
+        let m_ones: MatrixBase<f64> = MatrixBase::with_dimensions_fill(2, 2, Fill::Ones);
+        assert!((m_ones.data()[0] - 1.0).abs() < 1e-10);
     }
 
     #[test]

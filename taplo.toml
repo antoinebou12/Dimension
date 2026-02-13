@@ -1,0 +1,43 @@
+# Taplo config for consistent TOML formatting
+# https://taplo.tamasfe.dev/configuration/
+
+include = ["**/*.toml"]
+exclude = ["target/**", "node_modules/**", "**/pkg/**"]
+
+[formatting]
+indent_string = "    "  # match Rust/std TOML style (4 spaces)
+column_width = 100
+
+# Cargo.toml: compact arrays and inline tables
+[[rule]]
+include = ["**/Cargo.toml"]
+[rule.formatting]
+array_auto_expand = false
+inline_table_expand = false
+
+# Cargo.toml dependencies: sort keys for consistency
+[[rule]]
+include = ["**/Cargo.toml"]
+keys = ["dependencies", "*-dependencies", "workspace"]
+[rule.formatting]
+reorder_keys = true
+align_comments = true
+
+# Cargo.toml package/workspace.package: keep order (version, name, etc.)
+[[rule]]
+include = ["**/Cargo.toml"]
+keys = ["package", "workspace.package"]
+[rule.formatting]
+reorder_keys = false
+align_comments = true
+
+# Cargo.toml features: sort array values
+[[rule]]
+include = ["**/Cargo.toml"]
+keys = ["features"]
+[rule.formatting]
+reorder_arrays = true
+
+# Optional: JSON Schema validation for Cargo.toml (enables IDE completion/validation)
+# [schema]
+# path = "https://json.schemastore.org/cargo.json"

@@ -1,4 +1,4 @@
-use mathlib::{Quat4f, Vector3f};
+use mathlib::{Quat4f, Vector3f, matrix4_extract_rotation_quat};
 
 fn vector3(x: f32, y: f32, z: f32) -> Vector3f {
     let mut v = Vector3f::with_capacity(3);
@@ -68,4 +68,28 @@ fn quat_to_rotation_matrix4_has_identity_bottom_right() {
     assert!(m.get(0, 3).abs() < 1e-6);
     assert!(m.get(1, 3).abs() < 1e-6);
     assert!(m.get(2, 3).abs() < 1e-6);
+}
+
+#[test]
+fn quat_from_euler_roundtrip() {
+    let (r, p, y) = (0.1, 0.2, 0.3);
+    let q = Quat4f::from_euler_angles(r, p, y);
+    let (r2, p2, y2) = q.to_euler_angles();
+    assert!((r - r2).abs() < 1e-4);
+    assert!((p - p2).abs() < 1e-4);
+    assert!((y - y2).abs() < 1e-4);
+}
+
+#[test]
+fn matrix4_extract_rotation_quat_roundtrip() {
+    let axis = vector3(0.0, 1.0, 0.0);
+    let q = Quat4f::from_axis_angle(&axis, 0.5);
+    let m = q.to_rotation_matrix4();
+    let extracted = matrix4_extract_rotation_quat(&m);
+    // q and -q represent the same rotation; allow either
+    let dot = q.w * extracted.w + q.x * extracted.x + q.y * extracted.y + q.z * extracted.z;
+    assert!(
+        dot.abs() > 1.0 - 1e-5,
+        "extracted quat should match original (or -original)"
+    );
 }

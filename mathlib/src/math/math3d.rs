@@ -24,6 +24,7 @@
 //! - [`matrix4_mul_vector3`]: Transform a point by a 4×4 matrix
 //! - [`transform_vector`]: Transform a direction (ignores translation)
 //! - [`center`]: Compute centroid of points
+//! - [`OrthonormalBasis`]: Build an orthonormal frame from a vector (e.g. normal)
 //!
 //! # Example
 //!
@@ -240,11 +241,10 @@ pub fn matrix3f_inverse(m: &Matrix3f) -> Matrix3f {
 pub fn matrix4_mul_vector3(m: &Matrix4f, v: &Vector3f) -> Vector3f {
     assert!(v.rows() == 3);
     let mut out = Vector3f::with_capacity(3);
-    out.set_zero();
-    for j in 0..3 {
-        for i in 0..3 {
-            out.set(i, out.get(i) + m.get(i, j) * v.get(j));
-        }
+    let v_data = v.data();
+    for i in 0..3 {
+        let row_i = [m.get(i, 0), m.get(i, 1), m.get(i, 2)];
+        out.set(i, crate::cpu::dot_f32(&row_i, v_data));
     }
     out.set(0, out.get(0) + m.get(0, 3));
     out.set(1, out.get(1) + m.get(1, 3));
@@ -257,16 +257,186 @@ pub fn matrix4_mul_vector3(m: &Matrix4f, v: &Vector3f) -> Vector3f {
 pub fn transform_vector(m: &Matrix4f, v: &Vector3f) -> Vector3f {
     assert!(v.rows() == 3);
     let mut out = Vector3f::with_capacity(3);
-    out.set_zero();
-    for j in 0..3 {
-        for i in 0..3 {
-            out.set(i, out.get(i) + m.get(i, j) * v.get(j));
-        }
+    let v_data = v.data();
+    for i in 0..3 {
+        let row_i = [m.get(i, 0), m.get(i, 1), m.get(i, 2)];
+        out.set(i, crate::cpu::dot_f32(&row_i, v_data));
     }
     out
 }
 
+/// Cross product of two 3D vectors: a × b.
+///
+/// # Examples
+///
+/// ```
+/// # use mathlib::math3d::{Vector3f, vector3_cross};
+/// # use mathlib::cg::vector3;
+/// let a = vector3(1.0, 0.0, 0.0);
+/// let b = vector3(0.0, 1.0, 0.0);
+/// let c = vector3_cross(&a, &b);
+/// assert!((c.get(2) - 1.0).abs() < 1e-5); // a × b = (0, 0, 1)
+/// ```
+#[must_use]
+pub fn vector3_cross(a: &Vector3f, b: &Vector3f) -> Vector3f {
+    let mut out = Vector3f::with_capacity(3);
+    out.set(0, a.get(1) * b.get(2) - a.get(2) * b.get(1));
+    out.set(1, a.get(2) * b.get(0) - a.get(0) * b.get(2));
+    out.set(2, a.get(0) * b.get(1) - a.get(1) * b.get(0));
+    out
+}
+
+// --- Orthonormal basis -------------------------------------------------------
+
+/// Trait for computing an orthonormal basis from a single vector.
+///
+/// Given a vector (typically a unit normal), this yields vectors that together
+/// form an orthonormal frame. Useful for building tangent frames, TBN matrices,
+/// or any basis where one axis is given.
+///
+/// # Panics
+///
+/// Implementations may panic if the vector has the wrong length (e.g. [`Vector3f`]
+/// must have 3 elements).
+///
+/// # Examples
+///
+/// ```
+/// # use mathlib::math3d::{Vector3f, OrthonormalBasis};
+/// # use mathlib::cg::vector3;
+/// let n = vector3(0.0, 1.0, 0.0); // unit Y
+/// let [t, b] = n.clone().orthonormal_basis();
+/// // t, b are unit and orthogonal to n and to each other
+/// assert!((t.norm() - 1.0).abs() < 1e-5);
+/// assert!((b.norm() - 1.0).abs() < 1e-5);
+/// assert!(t.dot(&n).abs() < 1e-5);
+/// assert!(b.dot(&n).abs() < 1e-5);
+/// assert!(t.dot(&b).abs() < 1e-5);
+/// ```
+pub trait OrthonormalBasis: Sized {
+    /// Type of the array of orthonormal vectors that complete the basis with `self`.
+    type Basis;
+
+    /// Returns the vectors that, together with `self`, form an orthonormal basis.
+    ///
+    /// For a unit input, the returned vectors are unit and mutually orthogonal.
+    #[must_use]
+    fn orthonormal_basis(self) -> Self::Basis;
+
+    /// Returns a single vector orthogonal to `self` with unit length (when `self` is unit).
+    #[must_use]
+    fn orthonormal_vector(self) -> Self;
+}
+
+impl OrthonormalBasis for Vector3f {
+    type Basis = [Vector3f; 2];
+
+    // Branchless construction from Pixar: https://graphics.pixar.com/library/OrthonormalB/paper.pdf
+    fn orthonormal_basis(self) -> [Vector3f; 2] {
+        assert!(self.rows() == 3, "Vector3f must have 3 elements");
+        let x = self.get(0);
+        let y = self.get(1);
+        let z = self.get(2);
+        let sign = f32::copysign(1.0, z);
+        let a = -1.0 / (sign + z);
+        let b = x * y * a;
+
+        let mut t = Vector3f::with_capacity(3);
+        t.set(0, 1.0 + sign * x * x * a);
+        t.set(1, sign * b);
+        t.set(2, -sign * x);
+
+        let mut b_vec = Vector3f::with_capacity(3);
+        b_vec.set(0, b);
+        b_vec.set(1, sign + y * y * a);
+        b_vec.set(2, -y);
+
+        [t, b_vec]
+    }
+
+    fn orthonormal_vector(self) -> Vector3f {
+        assert!(self.rows() == 3, "Vector3f must have 3 elements");
+        let x = self.get(0);
+        let y = self.get(1);
+        let z = self.get(2);
+        let sign = f32::copysign(1.0, z);
+        let a = -1.0 / (sign + z);
+        let b = x * y * a;
+        let mut out = Vector3f::with_capacity(3);
+        out.set(0, b);
+        out.set(1, sign + y * y * a);
+        out.set(2, -y);
+        out
+    }
+}
+
+/// Wraps an angle in radians to the range `(-π, π]`.
+#[must_use]
+pub fn wrap_angle_to_pi(angle: f32) -> f32 {
+    use std::f32::consts::PI;
+    let two_pi = 2.0 * PI;
+    let mut a = angle % two_pi;
+    if a > PI {
+        a -= two_pi;
+    } else if a <= -PI {
+        a += two_pi;
+    }
+    a
+}
+
+/// Extracts Euler angles (roll, pitch, yaw) in radians from a 3×3 rotation matrix.
+///
+/// Assumes composition R = Rz * Ry * Rx (XYZ order), matching [`make_rotation`].
+/// Returns `(roll, pitch, yaw)` in radians.
+///
+/// # Panics
+///
+/// Panics if R is not a valid rotation matrix (orthonormal).
+#[must_use]
+pub fn rotation_matrix_to_euler_xyz(r: &Matrix3f) -> (f32, f32, f32) {
+    let sy = (r.get(0, 0) * r.get(0, 0) + r.get(1, 0) * r.get(1, 0)).sqrt();
+    let singular = sy < 1e-6;
+    let (roll, pitch, yaw) = if singular {
+        let roll = r.get(1, 2).atan2(r.get(2, 2));
+        let pitch = (-r.get(2, 0)).clamp(-1.0, 1.0).asin();
+        (roll, pitch, 0.0)
+    } else {
+        let roll = r.get(2, 1).atan2(r.get(2, 2));
+        let pitch = (-r.get(2, 0)).clamp(-1.0, 1.0).asin();
+        let yaw = r.get(1, 0).atan2(r.get(0, 0));
+        (roll, pitch, yaw)
+    };
+    (roll, pitch, yaw)
+}
+
+/// Returns Euler angles close to `reference` for stable reroot/IK.
+///
+/// Wraps each angle to stay near the reference (avoids 2π jumps).
+#[must_use]
+pub fn euler_angles_close_to(
+    euler: (f32, f32, f32),
+    reference: (f32, f32, f32),
+) -> (f32, f32, f32) {
+    use std::f32::consts::PI;
+    let wrap_near = |a: f32, r: f32| -> f32 {
+        let mut d = a - r;
+        while d > PI {
+            d -= 2.0 * PI;
+        }
+        while d < -PI {
+            d += 2.0 * PI;
+        }
+        r + d
+    };
+    (
+        wrap_near(euler.0, reference.0),
+        wrap_near(euler.1, reference.1),
+        wrap_near(euler.2, reference.2),
+    )
+}
+
 /// 3×3 rotation matrix from Euler angles (roll, pitch, yaw) in radians.
+/// Composition is R = Rz * Ry * Rx (XYZ order).
 pub fn make_rotation(x: f32, y: f32, z: f32) -> Matrix3f {
     let cx = x.cos();
     let sx = x.sin();

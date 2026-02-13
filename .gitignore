@@ -79,6 +79,12 @@ Desktop.ini
 # Node (e.g. npx serve, tooling)
 node_modules/
 npm-debug.log*
+
+# Playwright E2E
+e2e/test-results/
+e2e/playwright-report/
+e2e/blob-report/
+e2e/playwright/.cache/
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
@@ -107,3 +113,10 @@ dist/
 .claude
 .cursor
 .cursorrules
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/

@@ -1,6 +1,11 @@
+---
+description:
+alwaysApply: true
+---
+
 # Dimension — Project context for Claude and other AI assistants
 
-**Dimension** is the repository for **mathlib**, a Rust linear algebra library. All code lives in the **mathlib** crate. It provides dense and sparse matrices, vectors, SVD and other decompositions, 3D math, clustering, distance metrics, PCA, simplex (LP), camera/projection helpers, graph pathfinding (Dijkstra, A*, D* Lite, vertex coloring, tree BFS/DFS), and optional WASM/SIMD/parallel support.
+**Dimension** is the repository for **mathlib**, a Rust linear algebra library, plus **render**, **collision**, **physics**, **geometry**, and other crates. **mathlib** provides dense and sparse matrices, vectors, SVD and other decompositions, 3D math, clustering, distance metrics, PCA, simplex (LP), camera/projection helpers, graph pathfinding (Dijkstra, A*, D* Lite, vertex coloring, tree BFS/DFS), and optional WASM/SIMD/parallel support. **geometry** provides mesh processing: half-edge, voxelization, tetrahedralization, CSG, remeshing, smoothing (see [docs/geometry.md](docs/geometry.md)).
 
 ## Layout
 
@@ -10,6 +15,10 @@
 | `mathlib/tests/` | Integration tests. |
 | `mathlib/benches/` | Criterion benchmarks. |
 | `mathlib/examples/` | Example binaries. |
+| `render/src/` | Render crate: platform, scene, backend, engine. |
+| `render/examples/` | WASM and native demos. |
+| `render/benches/` | SIMD vs scalar matrix prep. |
+| `render/tests/` | Native and WASM tests. |
 
 ## Commands (from repo root)
 
@@ -21,11 +30,19 @@ cd mathlib && cargo doc --open
 
 Optional: use [just](https://github.com/casey/just) from the repo root — e.g. `just build`, `just test`, `just bench` (see [justfile](justfile)). For WASM: `just build-wasm`, `just test-wasm` (no `parallel` on `wasm32`).
 
+Render crate: `just build-render`, `just run-render`, `just build-render-wasm`, `just test-render`, `just bench-render`.
+
 ## Conventions
 
 - Follow [CONTRIBUTING.md](CONTRIBUTING.md): run `cargo fmt`, `cargo clippy`, and `cargo test` inside `mathlib/` before submitting changes.
+- For complex edits, use sequential thinking; refer to [AGENTS.md](AGENTS.md#workflow-for-complex-tasks) workflow.
 - Add or update tests when changing behavior; update docs (e.g. [docs/DOCS.md](docs/DOCS.md) or doc comments) when changing public APIs.
 - Solvers and decompositions return `Result`; indexing may panic in debug if out of bounds.
+
+## Tools
+
+- Use the **Rust skill** for Rust and documentation work (style, doc-*, api-*, err-*).
+- Use **Context7 MCP** for up-to-date dependency docs (e.g. Rust crates).
 
 ## Where to read
 
@@ -48,6 +65,7 @@ Optional: use [just](https://github.com/casey/just) from the repo root — e.g. 
 | `mathlib/src/decomposition/` | SVD, `svd_econ`, PCA. |
 | `mathlib/src/simplex/` | Linear programming: `simplex_solve`, `SimplexResult`, `SimplexError`. |
 | `mathlib/src/wasm/` | WASM bindings (feature `wasm`); matrices, vectors, SVD, camera, etc. |
+| `geometry/src/` | Mesh processing: TriMesh, half-edge, voxel, tet, CSG, remesh, smooth. See [docs/geometry.md](docs/geometry.md). |
 
 ## Features (summary)
 
@@ -57,4 +75,4 @@ Optional: use [just](https://github.com/casey/just) from the repo root — e.g. 
 - `wasm` — WebAssembly build; exposes `mathlib::wasm`.
 - `genetic` — CMA-ES (adds `rand`, `rand_distr`).
 
-See [AGENTS.md](AGENTS.md) for the full feature table and error types.
+**geometry** crate: `just build-geometry`, `just test-geometry`, `just run-geometry-demo`. See [docs/geometry.md](docs/geometry.md) and [AGENTS.md](AGENTS.md) for the full feature table and error types.

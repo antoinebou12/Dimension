@@ -171,6 +171,24 @@ fn operators_cube_sub() {
 }
 
 #[test]
+fn operators_scalar_mul_cube_f64() {
+    let a = make_cube(2, 2, 1, &[1.0, 2.0, 3.0, 4.0]);
+    let c = 2.0_f64 * &a;
+    assert!((c.get(0, 0, 0) - 2.0).abs() < 1e-10);
+    assert!((c.get(1, 1, 0) - 8.0).abs() < 1e-10);
+}
+
+#[test]
+fn operators_scalar_mul_cube_f32() {
+    let mut a: Cube<f32> = Cube::with_dimensions(2, 2, 1);
+    a.set(0, 0, 0, 1.0);
+    a.set(1, 1, 0, 4.0);
+    let c = 3.0_f32 * &a;
+    assert!((c.get(0, 0, 0) - 3.0).abs() < 1e-6);
+    assert!((c.get(1, 1, 0) - 12.0).abs() < 1e-6);
+}
+
+#[test]
 fn matrix_identity_scalar() {
     let mut a: Matrix<f64> = Matrix::with_dimensions(6, 6);
     a.set_identity();
@@ -231,4 +249,12 @@ fn vector_ops() {
     assert!((v2.get(0) - 0.4_f64).abs() < 1e-9);
     let v3: Vector<f64> = &v + &v2;
     assert!((v3.get(0) - 0.5_f64).abs() < 1e-9);
+}
+
+#[test]
+fn operators_vector_dot() {
+    let u = make_vector(&[1.0, 2.0, 3.0]);
+    let v = make_vector(&[4.0, 5.0, 6.0]);
+    let dot = u.dot(&v);
+    assert!((dot - 32.0_f64).abs() < 1e-10);
 }

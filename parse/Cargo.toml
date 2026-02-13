@@ -1,0 +1,139 @@
+[package]
+name = "parse"
+version = "0.1.0"
+edition = "2021"
+authors = ["Dimension"]
+description = "Multi-format parsers: JSON, BJSON, TOON, XML, OBJ, MTL, BVH, glTF, PLY, PNG, JPEG, ZIP, TAR"
+license = "MIT"
+repository = "https://github.com/dimension/dimension"
+documentation = "https://docs.rs/parse"
+readme = "README.md"
+keywords = ["parser", "json", "obj", "bvh", "gltf", "wasm"]
+categories = ["encoding", "wasm"]
+rust-version = "1.93"
+
+[lib]
+name = "parse"
+path = "src/lib.rs"
+
+[features]
+default = []
+# Data formats
+json = []
+bjson = []
+toon = []
+xml = ["dep:quick-xml"]
+# 3D formats
+obj = []
+mtl = []
+bvh = []
+gltf = ["dep:gltf"]
+ply = ["dep:ply-rs"]
+stl = []
+msh = []
+# Media / archives
+image = ["dep:minipng", "dep:jpeg-decoder"]
+archive = ["dep:zip", "dep:tar"]
+# Performance
+simd = ["dep:wide", "mathlib/simd"]
+parallel = ["dep:par-iter", "dep:par-core", "par-core/chili"]
+# Integration
+wasm = ["dep:wasm-bindgen"]
+serde = ["dep:serde"]
+
+[dependencies]
+mathlib = { path = "../mathlib", default-features = false }
+quick-xml = { version = "0.36", optional = true }
+gltf = { version = "1", optional = true }
+ply-rs = { version = "0.1", optional = true }
+minipng = { version = "0.1", optional = true }
+jpeg-decoder = { version = "0.3", optional = true }
+zip = { version = "2", optional = true }
+tar = { version = "0.4", optional = true }
+wide = { version = "0.7", optional = true, default-features = false }
+par-iter = { version = "2.0", optional = true, default-features = false }
+par-core = { version = "2.0", optional = true, default-features = false }
+wasm-bindgen = { version = "0.2", optional = true }
+serde = { version = "1", optional = true, features = ["derive"] }
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[test]]
+name = "json"
+path = "tests/json.rs"
+required-features = ["json"]
+
+[[test]]
+name = "bjson"
+path = "tests/bjson.rs"
+required-features = ["bjson"]
+
+[[test]]
+name = "xml"
+path = "tests/xml.rs"
+required-features = ["xml"]
+
+[[test]]
+name = "obj"
+path = "tests/obj.rs"
+required-features = ["obj"]
+
+[[test]]
+name = "bvh"
+path = "tests/bvh.rs"
+required-features = ["bvh"]
+
+[[test]]
+name = "integration"
+path = "tests/integration.rs"
+
+[[test]]
+name = "toon"
+path = "tests/toon.rs"
+required-features = ["toon"]
+
+[[test]]
+name = "mtl"
+path = "tests/mtl.rs"
+required-features = ["mtl"]
+
+[[test]]
+name = "gltf"
+path = "tests/gltf.rs"
+required-features = ["gltf"]
+
+[[test]]
+name = "ply"
+path = "tests/ply.rs"
+required-features = ["ply"]
+
+[[test]]
+name = "image"
+path = "tests/image.rs"
+required-features = ["image"]
+
+[[test]]
+name = "archive"
+path = "tests/archive.rs"
+required-features = ["archive"]
+
+[[test]]
+name = "stl"
+path = "tests/stl.rs"
+required-features = ["stl"]
+
+[[test]]
+name = "msh"
+path = "tests/msh.rs"
+required-features = ["msh"]
+
+[[example]]
+name = "parse_json"
+path = "examples/parse_json.rs"
+required-features = ["json"]
+
+[[bench]]
+name = "parse_bench"
+harness = false
+required-features = ["json"]

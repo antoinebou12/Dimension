@@ -1,0 +1,91 @@
+[package]
+name = "render"
+version = "0.1.0"
+edition = "2021"
+authors = ["Dimension"]
+description = "2D/3D rendering engine using wgpu and mathlib"
+license = "MIT"
+repository = "https://github.com/dimension/dimension"
+documentation = "https://docs.rs/render"
+readme = "README.md"
+keywords = ["wgpu", "rendering", "wasm", "2d", "3d"]
+categories = ["graphics", "wasm"]
+rust-version = "1.93"
+
+[dependencies]
+mathlib = { path = "../mathlib", default-features = false, features = ["simd"] }
+collision = { path = "../collision", default-features = false, features = ["simd"] }
+wgpu = "28"
+wgpu_text = "28"
+ab_glyph = "0.2"
+bytemuck = { version = "1", features = ["derive"] }
+serde = { version = "1", optional = true, features = ["derive"] }
+bincode = { version = "1", optional = true }
+parse = { path = "../parse", optional = true, features = ["image"] }
+image = { version = "0.25", optional = true }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2"
+wasm-bindgen-futures = "0.4"
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "CanvasRenderingContext2d", "console", "PointerEvent", "WheelEvent", "EventTarget", "DomRect", "Performance"] }
+js-sys = "0.3"
+console_error_panic_hook = "0.1"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+raw-window-handle = "0.6"
+winit = "0.30"
+forte = "1.0.0-alpha"
+sdl3 = { version = "0.17", optional = true, features = ["raw-window-handle"] }
+pollster = { version = "0.2", optional = true }
+
+[features]
+default = []
+serde = ["dep:serde", "dep:bincode", "mathlib/serde"]
+simd = ["mathlib/simd"]
+parallel = ["mathlib/parallel"]
+sdl3 = ["dep:sdl3", "dep:pollster"]
+material = ["dep:parse"]
+screenshot = ["dep:image"]
+
+[lib]
+name = "render"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]
+
+[dev-dependencies]
+# naga: wgpu's shader frontend (developed in gfx-rs/wgpu). Version must match wgpu.
+naga = "28"
+# Optional: version pinning / Cargo.lock. The justfile uses the wasm-bindgen binary from PATH (cargo install wasm-bindgen-cli).
+# default-features = false avoids rustls/ring so no clang is needed when building this dep.
+wasm-bindgen-cli = { version = "0.2", default-features = false }
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = "0.5"
+pollster = "0.2"
+
+
+[[bench]]
+name = "simd_vs_scalar"
+harness = false
+
+[[test]]
+name = "native"
+path = "tests/native.rs"
+
+[[test]]
+name = "shader"
+path = "tests/shader.rs"
+
+[[test]]
+name = "wasm"
+path = "tests/wasm.rs"
+
+[[test]]
+name = "serialization"
+path = "tests/serialization.rs"
+required-features = ["serde"]
+
+[[test]]
+name = "gizmo_pick_view_spring"
+path = "tests/gizmo_pick_view_spring.rs"

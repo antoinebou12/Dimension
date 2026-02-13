@@ -1,0 +1,60 @@
+[package]
+name = "kinematics"
+version = "0.1.0"
+authors = ["Dimension"]
+description = "Kinematic joints and forward/inverse kinematics using mathlib Tree"
+keywords = ["kinematics", "robotics", "ik", "forward-kinematics", "joints"]
+readme = "README.md"
+repository = "https://github.com/dimension/dimension"
+categories = ["science", "mathematics", "algorithms"]
+license = "MIT"
+edition = "2024"
+rust-version = "1.93"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = []
+# Parallel batch update (not on wasm32)
+parallel = ["mathlib/parallel"]
+# SIMD acceleration (works on wasm)
+simd = ["mathlib/simd"]
+# WASM bindings
+wasm = ["dep:wasm-bindgen", "mathlib/wasm"]
+
+[dependencies]
+mathlib = { path = "../mathlib" }
+wasm-bindgen = { version = "0.2", optional = true }
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "kinematics"
+harness = false
+path = "benches/kinematics.rs"
+
+[[test]]
+name = "kinematics"
+path = "tests/kinematics.rs"
+
+[[test]]
+name = "wasm"
+path = "tests/wasm.rs"
+required-features = ["wasm"]
+
+[[example]]
+name = "forward_kinematics"
+path = "examples/forward_kinematics.rs"
+
+[[example]]
+name = "jacobian_ik"
+path = "examples/jacobian_ik.rs"
+
+[[example]]
+name = "arm_2d"
+path = "examples/arm_2d.rs"

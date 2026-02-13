@@ -1,3 +1,9 @@
+//! Singular value decomposition (Numerical Recipes–style).
+//!
+//! [`Svd::decompose()`] runs four phases: (1) Householder reduction to bidiagonal form,
+//! (2) Accumulation of right-hand transformations (build V), (3) Accumulation of left-hand
+//! transformations (update U), (4) Reorder singular values descending and flip signs.
+
 use crate::matrix::Matrix;
 use crate::types::Storage;
 use crate::vector::Vector;
@@ -5,6 +11,42 @@ use std::fmt;
 
 fn sign_svd(a: f64, b: f64) -> f64 {
     if b > 0.0 { a.abs() } else { -a.abs() }
+}
+
+/// Dispatch add_f64 to simd, parallel, or sequential backend (same as operators/linesearch).
+#[inline]
+fn svd_add_f64(a: &[f64], b: &[f64], out: &mut [f64]) {
+    #[cfg(feature = "simd")]
+    return crate::cpu::simd::add_f64(a, b, out);
+    #[cfg(all(
+        feature = "parallel",
+        not(target_arch = "wasm32"),
+        not(feature = "simd")
+    ))]
+    return crate::cpu::parallel::par_add_f64(a, b, out);
+    #[cfg(not(any(
+        feature = "simd",
+        all(feature = "parallel", not(target_arch = "wasm32"))
+    )))]
+    crate::cpu::sequential::add_f64(a, b, out);
+}
+
+/// Dispatch scalar_mul_f64 to simd, parallel, or sequential backend.
+#[inline]
+fn svd_scalar_mul_f64(s: f64, x: &[f64], out: &mut [f64]) {
+    #[cfg(feature = "simd")]
+    return crate::cpu::simd::scalar_mul_f64(s, x, out);
+    #[cfg(all(
+        feature = "parallel",
+        not(target_arch = "wasm32"),
+        not(feature = "simd")
+    ))]
+    return crate::cpu::parallel::par_scalar_mul_f64(s, x, out);
+    #[cfg(not(any(
+        feature = "simd",
+        all(feature = "parallel", not(target_arch = "wasm32"))
+    )))]
+    crate::cpu::sequential::scalar_mul_f64(s, x, out);
 }
 
 #[derive(Clone, Debug)]
@@ -66,16 +108,34 @@ impl Svd {
         self.sigma()
     }
 
+    /// Decompose into U, V, and singular values. Phases: (1) Householder bidiagonal,
+    /// (2) Accumulate right (V), (3) Accumulate left (U), (4) Reorder.
     #[allow(clippy::too_many_lines)]
     pub fn decompose(&mut self) {
         let ncols = self.u.cols();
         let nrows = self.u.rows();
         let mut rv1 = Vector::with_capacity(ncols);
         rv1.set_zero();
+        let mut scratch = vec![0.0_f64; nrows];
+        self.phase1_householder_bidiagonal(&mut rv1, &mut scratch);
+        self.phase2_accumulate_right(&mut rv1);
+        self.phase3_accumulate_left();
+        self.reorder();
+    }
 
+    /// Phase 1: Householder reduction to bidiagonal form. Uses cpu::dot_f64 and
+    /// add/scalar_mul on column slices when available (simd/parallel features).
+    #[allow(clippy::too_many_lines)]
+    fn phase1_householder_bidiagonal(
+        &mut self,
+        rv1: &mut Vector<f64>,
+        scratch: &mut [f64],
+    ) {
+        let ncols = self.u.cols();
+        let nrows = self.u.rows();
         let mut g = 0.0f64;
         let mut scale = 0.0f64;
-        let mut anorm = 0.0f64;
+        let mut _anorm = 0.0f64;
 
         for i in 0..ncols {
             let l = i + 1;
@@ -97,14 +157,25 @@ impl Svd {
                     g = -sign_svd(s.sqrt(), f);
                     let h = f * g - s;
                     self.u.set(i, i, f - g);
+                    let len = nrows - i;
                     for j in l..ncols {
-                        s = 0.0;
-                        for k in i..nrows {
-                            s += self.u.get(k, i) * self.u.get(k, j);
-                        }
+                        let s = {
+                            let data = self.u.data();
+                            let col_i = &data[i * nrows + i..i * nrows + nrows];
+                            let col_j = &data[j * nrows + i..j * nrows + nrows];
+                            crate::cpu::dot_f64(col_i, col_j)
+                        };
                         let f = s / h;
-                        for k in i..nrows {
-                            self.u.set(k, j, self.u.get(k, j) + f * self.u.get(k, i));
+                        {
+                            let data = self.u.data();
+                            let col_i = &data[i * nrows + i..i * nrows + nrows];
+                            svd_scalar_mul_f64(f, col_i, &mut scratch[..len]);
+                        }
+                        {
+                            let data_mut = self.u.data_mut();
+                            let col_j_mut = &mut data_mut[j * nrows + i..j * nrows + nrows];
+                            svd_add_f64(col_j_mut, &scratch[..len], &mut scratch[..len]);
+                            col_j_mut.copy_from_slice(&scratch[..len]);
                         }
                     }
                     for k in i..nrows {
@@ -148,8 +219,14 @@ impl Svd {
                 }
             }
             let tmp = self.sigma.get(i).abs() + rv1.get(i).abs();
-            anorm = anorm.max(tmp);
+            _anorm = _anorm.max(tmp);
         }
+    }
+
+    /// Phase 2: Accumulation of right-hand transformations (build V).
+    fn phase2_accumulate_right(&mut self, rv1: &Vector<f64>) {
+        let ncols = self.u.cols();
+        let mut g = 0.0f64;
 
         for i in (0..ncols).rev() {
             let l = i + 1;
@@ -176,11 +253,17 @@ impl Svd {
             self.v.set(i, i, 1.0);
             g = rv1.get(i);
         }
+    }
 
+    /// Phase 3: Accumulation of left-hand transformations (update U).
+    fn phase3_accumulate_left(&mut self) {
+        let ncols = self.u.cols();
+        let nrows = self.u.rows();
         let min_rc = nrows.min(ncols);
+
         for i in (0..min_rc).rev() {
             let l = i + 1;
-            g = self.sigma.get(i);
+            let g = self.sigma.get(i);
             for j in l..ncols {
                 self.u.set(i, j, 0.0);
             }
@@ -206,13 +289,15 @@ impl Svd {
             }
             self.u.set(i, i, self.u.get(i, i) + 1.0);
         }
-
-        self.reorder();
     }
 
+    /// Phase 4: Reorder singular values descending and flip signs. Uses a single workspace.
     fn reorder(&mut self) {
         let ncols = self.u.cols();
         let nrows = self.u.rows();
+        let mut buf_u = vec![0.0_f64; nrows];
+        let mut buf_v = vec![0.0_f64; ncols];
+
         let mut inc = 1usize;
         while inc <= ncols {
             inc = inc * 3 + 1;
@@ -221,8 +306,12 @@ impl Svd {
             inc /= 3;
             for i in inc..ncols {
                 let sw = self.sigma.get(i);
-                let su: Vec<f64> = (0..nrows).map(|k| self.u.get(k, i)).collect();
-                let sv: Vec<f64> = (0..ncols).map(|k| self.v.get(k, i)).collect();
+                for k in 0..nrows {
+                    buf_u[k] = self.u.get(k, i);
+                }
+                for k in 0..ncols {
+                    buf_v[k] = self.v.get(k, i);
+                }
                 let mut j = i;
                 while j >= inc && self.sigma.get(j - inc) < sw {
                     self.sigma.set(j, self.sigma.get(j - inc));
@@ -238,10 +327,10 @@ impl Svd {
                     }
                 }
                 self.sigma.set(j, sw);
-                for (k, &v) in su.iter().enumerate() {
+                for (k, &v) in buf_u.iter().enumerate() {
                     self.u.set(k, j, v);
                 }
-                for (k, &v) in sv.iter().enumerate() {
+                for (k, &v) in buf_v.iter().enumerate() {
                     self.v.set(k, j, v);
                 }
             }

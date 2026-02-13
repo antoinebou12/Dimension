@@ -15,6 +15,7 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
         args: [--maxkb=1000]
+        exclude: ^(website/.*/pkg/|kinematics/demo/(pkg/|wasm-demo/pkg/)|render/demo/wasm-demo/pkg/|physics/demo/wasm-demo/pkg/)
       - id: check-merge-conflict
       - id: check-case-conflict
       - id: detect-private-key
@@ -26,6 +27,7 @@ repos:
     rev: v1.26.0
     hooks:
       - id: typos
+        args: [--force-exclude]
 
   # Rust: format and clippy (run from repo root; crate in mathlib/)
   - repo: local
@@ -42,7 +44,7 @@ repos:
         pass_filenames: false
       - id: cargo-coverage
         name: cargo tarpaulin (mathlib)
-        entry: bash -c "cd mathlib && cargo tarpaulin --features parallel --out Html --out Stdout --output-dir coverage --timeout 300"
+        entry: bash -c "cd mathlib && cargo tarpaulin --features \"parallel genetic\" --out Html --out Stdout --output-dir coverage --timeout 300"
         language: system
         pass_filenames: false
         stages: [pre-push]

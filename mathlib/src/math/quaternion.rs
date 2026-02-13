@@ -3,7 +3,7 @@
 //! Use `from_axis_angle` to build from axis and angle (radians), then `to_rotation_matrix3` or
 //! `to_rotation_matrix4` for matrix form.
 
-use super::math3d::{Matrix3f, Matrix4f, Vector3f};
+use super::math3d::{Matrix3f, Matrix4f, Vector3f, make_rotation, rotation_matrix_to_euler_xyz};
 use crate::types::Storage;
 use std::ops::Mul;
 
@@ -31,6 +31,64 @@ impl Quat4f {
             y: 0.0,
             z: 0.0,
         }
+    }
+
+    /// Build unit quaternion from Euler angles (roll, pitch, yaw) in radians, XYZ order.
+    ///
+    /// Matches [`make_rotation`](crate::math3d::make_rotation) composition.
+    #[must_use]
+    pub fn from_euler_angles(roll: f32, pitch: f32, yaw: f32) -> Self {
+        let r = make_rotation(roll, pitch, yaw);
+        Self::from_rotation_matrix3(&r)
+    }
+
+    /// Build unit quaternion from a 3×3 rotation matrix.
+    #[must_use]
+    pub fn from_rotation_matrix3(r: &Matrix3f) -> Self {
+        let m00 = r.get(0, 0);
+        let m11 = r.get(1, 1);
+        let m22 = r.get(2, 2);
+        let trace = m00 + m11 + m22;
+        let (w, x, y, z) = if trace > 0.0 {
+            let s = 0.5 / (trace + 1.0).sqrt();
+            (
+                0.25 / s,
+                (r.get(2, 1) - r.get(1, 2)) * s,
+                (r.get(0, 2) - r.get(2, 0)) * s,
+                (r.get(1, 0) - r.get(0, 1)) * s,
+            )
+        } else if m00 > m11 && m00 > m22 {
+            let s = 2.0 * (1.0 + m00 - m11 - m22).sqrt();
+            (
+                (r.get(2, 1) - r.get(1, 2)) / s,
+                0.25 * s,
+                (r.get(0, 1) + r.get(1, 0)) / s,
+                (r.get(0, 2) + r.get(2, 0)) / s,
+            )
+        } else if m11 > m22 {
+            let s = 2.0 * (1.0 + m11 - m00 - m22).sqrt();
+            (
+                (r.get(0, 2) - r.get(2, 0)) / s,
+                (r.get(0, 1) + r.get(1, 0)) / s,
+                0.25 * s,
+                (r.get(1, 2) + r.get(2, 1)) / s,
+            )
+        } else {
+            let s = 2.0 * (1.0 + m22 - m00 - m11).sqrt();
+            (
+                (r.get(1, 0) - r.get(0, 1)) / s,
+                (r.get(0, 2) + r.get(2, 0)) / s,
+                (r.get(1, 2) + r.get(2, 1)) / s,
+                0.25 * s,
+            )
+        };
+        Self { w, x, y, z }.normalize()
+    }
+
+    /// Converts to Euler angles (roll, pitch, yaw) in radians, XYZ order.
+    #[must_use]
+    pub fn to_euler_angles(&self) -> (f32, f32, f32) {
+        rotation_matrix_to_euler_xyz(&self.to_rotation_matrix3())
     }
 
     /// Build unit quaternion from rotation axis (unit or not) and angle in radians.

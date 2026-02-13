@@ -1,0 +1,76 @@
+[package]
+name = "physics"
+version = "0.1.0"
+authors = ["Dimension"]
+description = "Position-based dynamics (PBD/XPBD) physics with particles, constraints, and collision"
+keywords = ["physics", "pbd", "xpbd", "simulation", "constraints"]
+readme = "README.md"
+repository = "https://github.com/dimension/dimension"
+categories = ["science", "simulation"]
+license = "MIT"
+edition = "2024"
+rust-version = "1.93"
+
+[lib]
+name = "physics"
+path = "src/lib.rs"
+
+[features]
+default = []
+simd = ["mathlib/simd", "collision/simd"]
+parallel = ["mathlib/parallel", "dep:par-core", "dep:par-iter"]
+serde = ["dep:serde", "dep:serde_json", "dep:bincode"]
+wasm = ["dep:wasm-bindgen", "mathlib/wasm"]
+
+[dependencies]
+mathlib = { path = "../mathlib", default-features = false }
+collision = { path = "../collision", default-features = false }
+serde = { version = "1", optional = true, features = ["derive"] }
+serde_json = { version = "1", optional = true }
+bincode = { version = "1", optional = true }
+par-core = { version = "2.0", optional = true, default-features = false, features = ["chili"] }
+par-iter = { version = "2.0", optional = true, default-features = false }
+wasm-bindgen = { version = "0.2", optional = true }
+
+[dev-dependencies]
+criterion = "0.5"
+mathlib = { path = "../mathlib", default-features = false }
+
+[[bench]]
+name = "physics"
+harness = false
+path = "benches/physics.rs"
+
+[[test]]
+name = "physics"
+path = "tests/physics.rs"
+
+[[test]]
+name = "rigidbody"
+path = "tests/rigidbody.rs"
+
+[[test]]
+name = "softbody"
+path = "tests/softbody.rs"
+
+[[test]]
+name = "wasm"
+path = "tests/wasm.rs"
+required-features = ["wasm"]
+
+[[test]]
+name = "serialization"
+path = "tests/serialization.rs"
+required-features = ["serde"]
+
+[[example]]
+name = "particles_2d"
+path = "examples/particles_2d.rs"
+
+[[example]]
+name = "rigid_bodies_3d"
+path = "examples/rigid_bodies_3d.rs"
+
+[[example]]
+name = "softbody_3d"
+path = "examples/softbody_3d.rs"

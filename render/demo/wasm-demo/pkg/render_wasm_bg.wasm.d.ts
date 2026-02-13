@@ -1,0 +1,37 @@
+/* tslint:disable */
+/* eslint-disable */
+export const memory: WebAssembly.Memory;
+export const add_entity: (a: number, b: number) => void;
+export const get_gizmo_mode: () => [number, number];
+export const get_material_names: () => [number, number];
+export const get_no_entity: () => number;
+export const get_primitive_tree: () => [number, number];
+export const get_selected_entity: () => number;
+export const get_selected_entity_local_position: () => [number, number];
+export const get_selected_entity_local_rotation: () => [number, number];
+export const get_selected_entity_local_scale: () => [number, number];
+export const get_selected_entity_world_position: () => [number, number];
+export const main_js: () => void;
+export const remove_selected_entity: () => void;
+export const set_demo: (a: number, b: number) => void;
+export const set_entity_local_position: (a: number, b: number, c: number, d: number) => void;
+export const set_entity_local_rotation: (a: number, b: number, c: number, d: number) => void;
+export const set_entity_local_scale: (a: number, b: number, c: number, d: number) => void;
+export const set_entity_material: (a: number, b: number, c: number) => void;
+export const set_entity_primitive: (a: number, b: number, c: number) => void;
+export const set_entity_world_position: (a: number, b: number, c: number, d: number) => void;
+export const set_gizmo_mode: (a: number, b: number) => void;
+export const set_selected_entity: (a: number) => void;
+export const main: (a: number, b: number) => number;
+export const wasm_bindgen__closure__destroy__h8f0f474f2df844ba: (a: number, b: number) => void;
+export const wasm_bindgen__closure__destroy__h2dfff5868444456c: (a: number, b: number) => void;
+export const wasm_bindgen__convert__closures_____invoke__h96c701c382b3865f: (a: number, b: number, c: any) => void;
+export const wasm_bindgen__convert__closures_____invoke__h123d215eea83d0f1: (a: number, b: number, c: any) => void;
+export const wasm_bindgen__convert__closures_____invoke__ha682be68d5748df8: (a: number, b: number) => void;
+export const __wbindgen_malloc: (a: number, b: number) => number;
+export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+export const __wbindgen_exn_store: (a: number) => void;
+export const __externref_table_alloc: () => number;
+export const __wbindgen_externrefs: WebAssembly.Table;
+export const __wbindgen_free: (a: number, b: number, c: number) => void;
+export const __wbindgen_start: () => void;

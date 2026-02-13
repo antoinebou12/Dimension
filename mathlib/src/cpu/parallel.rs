@@ -59,6 +59,61 @@ pub fn par_squared_diff_sum_f64(a: &[f64], b: &[f64]) -> f64 {
         .sum()
 }
 
+/// Parallel dot product for f32 slices.
+#[inline]
+pub fn par_dot_f32(a: &[f32], b: &[f32]) -> f32 {
+    assert_eq!(a.len(), b.len());
+    a.par_iter().zip(b.par_iter()).map(|(x, y)| x * y).sum()
+}
+
+/// Parallel sum of squared differences for f32: sum_i (a[i] - b[i])^2.
+#[inline]
+pub fn par_squared_diff_sum_f32(a: &[f32], b: &[f32]) -> f32 {
+    assert_eq!(a.len(), b.len());
+    a.par_iter()
+        .zip(b.par_iter())
+        .map(|(&x, &y)| {
+            let d = x - y;
+            d * d
+        })
+        .sum()
+}
+
+/// Parallel scalar multiply for f32: out[i] = s * x[i].
+#[inline]
+pub fn par_scalar_mul_f32(s: f32, x: &[f32], out: &mut [f32]) {
+    assert_eq!(x.len(), out.len());
+    out.par_iter_mut()
+        .zip(x.par_iter())
+        .for_each(|(o, &v)| *o = s * v);
+}
+
+/// Parallel element-wise add for f32: out[i] = a[i] + b[i].
+#[inline]
+pub fn par_add_f32(a: &[f32], b: &[f32], out: &mut [f32]) {
+    assert_eq!(a.len(), b.len());
+    assert_eq!(a.len(), out.len());
+    out.par_iter_mut()
+        .zip(a.par_iter())
+        .zip(b.par_iter())
+        .for_each(|((o, &x), &y)| *o = x + y);
+}
+
+/// Parallel matrix-vector product for column-major f32: y = A * x. Parallelizes over rows.
+#[inline]
+pub fn par_matvec_col_major_f32(m: usize, n: usize, a: &[f32], x: &[f32], y: &mut [f32]) {
+    assert_eq!(a.len(), m * n);
+    assert_eq!(x.len(), n);
+    assert_eq!(y.len(), m);
+    y.par_iter_mut().enumerate().for_each(|(i, yi)| {
+        let mut sum = 0.0f32;
+        for j in 0..n {
+            sum += a[j * m + i] * x[j];
+        }
+        *yi = sum;
+    });
+}
+
 #[cfg(all(test, feature = "parallel", not(target_arch = "wasm32")))]
 mod tests {
     use super::*;

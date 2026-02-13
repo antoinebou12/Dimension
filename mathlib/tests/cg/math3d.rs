@@ -1,6 +1,6 @@
 use mathlib::{
     Matrix4f, Vector3f, make_rotation, matrix3f_inverse, matrix4_mul_vector3, matrix4f_inverse,
-    transform_vector,
+    rotation_matrix_to_euler_xyz, transform_vector, vector3_cross, wrap_angle_to_pi,
 };
 
 #[test]
@@ -115,4 +115,36 @@ fn make_rotation_half_pi_x() {
     assert!((out.get(0) - 0.0).abs() < 1e-5);
     assert!((out.get(1) - 0.0).abs() < 1e-5);
     assert!((out.get(2) - 1.0).abs() < 1e-5);
+}
+
+#[test]
+fn vector3_cross_perpendicular() {
+    let mut a = Vector3f::with_capacity(3);
+    a.set(0, 1.0);
+    a.set(1, 0.0);
+    a.set(2, 0.0);
+    let mut b = Vector3f::with_capacity(3);
+    b.set(0, 0.0);
+    b.set(1, 1.0);
+    b.set(2, 0.0);
+    let c = vector3_cross(&a, &b);
+    assert!((c.get(2) - 1.0).abs() < 1e-5);
+}
+
+#[test]
+fn rotation_matrix_to_euler_xyz_roundtrip() {
+    let (r, p, y) = (0.1, 0.2, 0.3);
+    let m = make_rotation(r, p, y);
+    let (r2, p2, y2) = rotation_matrix_to_euler_xyz(&m);
+    assert!((r - r2).abs() < 1e-5);
+    assert!((p - p2).abs() < 1e-5);
+    assert!((y - y2).abs() < 1e-5);
+}
+
+#[test]
+fn test_wrap_angle_to_pi() {
+    use std::f32::consts::PI;
+    assert!((wrap_angle_to_pi(0.0) - 0.0).abs() < 1e-6);
+    assert!((wrap_angle_to_pi(PI) - PI).abs() < 1e-6);
+    assert!((wrap_angle_to_pi(2.0 * PI) - 0.0).abs() < 1e-6);
 }

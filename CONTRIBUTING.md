@@ -31,6 +31,7 @@ Optional: use [just](https://github.com/casey/just) from the repo root (see `jus
 * Follow Rust standard formatting: `cargo fmt` in `mathlib/`.
 * Respect existing patterns in the crate (e.g. in `mathlib/src/`, `mathlib/tests/`).
 * Add or update tests when changing behavior; run benchmarks if touching performance-critical paths.
+* Follow Rust skill doc-* rules for documentation (see [AGENTS.md](AGENTS.md#documentation)).
 
 **Note:** `cargo bench` runs the lib test binary with `--bench`, so unit tests are reported as "ignored" (skipped). To run unit tests and then benchmarks, use `cargo test && cargo bench` or `just bench-check` from the repo root.
 

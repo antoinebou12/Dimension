@@ -152,3 +152,39 @@ pub fn as_f64x4_chunks_mut(slice: &mut [f64]) -> &mut [[f64; 4]] {
     // SAFETY: ptr and len derived from valid slice; same memory, same lifetime.
     unsafe { std::slice::from_raw_parts_mut(ptr, len) }
 }
+
+/// View `&[f32]` as chunks of 4 for SIMD load/store. Length must be a multiple of 4.
+///
+/// # Panics
+///
+/// Panics if `slice.len() % 4 != 0`.
+#[inline]
+pub fn as_f32x4_chunks(slice: &[f32]) -> &[[f32; 4]] {
+    assert!(
+        slice.len().is_multiple_of(4),
+        "slice length must be multiple of 4, got {}",
+        slice.len()
+    );
+    let ptr = slice.as_ptr().cast::<[f32; 4]>();
+    let len = slice.len() / 4;
+    // SAFETY: ptr and len derived from valid slice; same memory, same lifetime.
+    unsafe { std::slice::from_raw_parts(ptr, len) }
+}
+
+/// View `&mut [f32]` as mutable chunks of 4 for SIMD load/store. Length must be a multiple of 4.
+///
+/// # Panics
+///
+/// Panics if `slice.len() % 4 != 0`.
+#[inline]
+pub fn as_f32x4_chunks_mut(slice: &mut [f32]) -> &mut [[f32; 4]] {
+    assert!(
+        slice.len().is_multiple_of(4),
+        "slice length must be multiple of 4, got {}",
+        slice.len()
+    );
+    let ptr = slice.as_mut_ptr().cast::<[f32; 4]>();
+    let len = slice.len() / 4;
+    // SAFETY: ptr and len derived from valid slice; same memory, same lifetime.
+    unsafe { std::slice::from_raw_parts_mut(ptr, len) }
+}

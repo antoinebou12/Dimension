@@ -139,15 +139,17 @@ fn bench_pso(c: &mut Criterion) {
         let cost = |x: &[f64]| x.iter().map(|&v| v * v).sum::<f64>();
         let low = vec![-10.0; *dims];
         let high = vec![10.0; *dims];
-        let opts = PsoOptions {
-            num_particles: 30,
-            max_iterations: 50,
-            ..Default::default()
-        };
+        let bounds = (low, high);
 
         group.bench_with_input(BenchmarkId::from_parameter(dims), dims, |b, _| {
             b.iter(|| {
-                let result = pso(black_box(&cost), &low, &high, opts);
+                let result = pso(
+                    black_box(bounds.clone()),
+                    30,
+                    black_box(cost),
+                    50,
+                    Some(PsoOptions::default()),
+                );
                 black_box(result);
             });
         });
@@ -177,11 +179,13 @@ fn bench_vector_dot(c: &mut Criterion) {
     let mut group = c.benchmark_group("vector_dot");
 
     for size in [100, 1000, 10000].iter() {
-        let a = Vector::from_vec((0..*size).map(|i| i as f64).collect());
-        let b = Vector::from_vec((0..*size).map(|i| (i * 2) as f64).collect());
+        let a_vec: Vec<f64> = (0..*size).map(|i| i as f64).collect();
+        let b_vec: Vec<f64> = (0..*size).map(|i| (i * 2) as f64).collect();
+        let a = Vector::from_slice(&a_vec);
+        let b = Vector::from_slice(&b_vec);
 
-        group.bench_with_input(BenchmarkId::from_parameter(size), size, |b, _| {
-            b.iter(|| {
+        group.bench_with_input(BenchmarkId::from_parameter(size), size, |ben, _| {
+            ben.iter(|| {
                 let result = black_box(&a).dot(black_box(&b));
                 black_box(result);
             });
