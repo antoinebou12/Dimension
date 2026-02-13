@@ -36,7 +36,7 @@ tracing = "0.1"
 serde = { version = "1", optional = true, features = ["derive"] }
 par-iter = { version = "2.0", optional = true, default-features = false }
 par-core = { version = "2.0", optional = true, default-features = false }
-wide = { version = "0.7", optional = true, default-features = false }
+wide = { version = "1.1", optional = true, default-features = false }
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-shared = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
