@@ -40,7 +40,7 @@ wide = { version = "0.7", optional = true, default-features = false }
 wasm-bindgen = { version = "0.2", optional = true }
 wasm-bindgen-shared = { version = "0.2", optional = true }
 js-sys = { version = "0.3", optional = true }
-rand = { version = "0.8", optional = true }
+rand = { version = "0.10", optional = true }
 rand_distr = { version = "0.4", optional = true }
 wgpu = { version = "28", optional = true }
 wasm-bindgen-futures = { version = "0.4", optional = true }
