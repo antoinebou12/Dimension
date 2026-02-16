@@ -6,7 +6,7 @@ Forward and inverse kinematics for articulated structures, built on [mathlib](..
 
 - **Joint types** (in `src/joints/`): fixed, revolute, prismatic, spherical
 - **Armature**: Tree of joints with forward kinematics, pack/unpack state
-- **IK solvers**: Jacobian (SVD + line search), FABRIK
+- **IK solvers**: Jacobian (SVD + line search), FABRIK (revolute and spherical chains)
 - **WASM bindings**: `wasm-pack build --target web --features wasm`; `WasmArmature` for chains, IK
 - **Optional SIMD/parallel**: `--features simd`, `--features parallel` (parallel not on wasm32)
 
@@ -63,6 +63,17 @@ arm.updateKinematics();
 const pos = arm.getEndEffectorPosition(3);  // Float32Array [x, y, z]
 const err = arm.solveJacobianIk(3, 2.5, 0.5, 0, 30);  // target, max iters
 ```
+
+## IK solver comparison
+
+| Solver      | Goal        | Chain types | WASM   | When to use |
+|------------|-------------|-------------|--------|-------------|
+| **FabrikIk** | Position    | Revolute, spherical (any) | Yes | Position-only; simple API; few iterations. |
+| **JacobianIk** | Position  | Any         | Yes    | Position-only; SVD pseudoinverse + line search. |
+| **HessianIk** | Position    | Any         | Yes    | Position-only; exact Hessian Newton (Erleben & Andrews, MIG 2017). |
+| **HalleyIk**   | 6D pose   | Serial      | Yes    | Position + orientation; best with good initial guess (QuIK-style). |
+
+References: Aristidou & Lasenby, "FABRIK: A fast, iterative solver for the Inverse Kinematics problem," *Graphical Models* 73(5), 2011; K. Erleben & S. Andrews, "Inverse Kinematics Problems with Exact Hessian Matrices," MiG 2017; S. Lloyd et al., "Fast and Robust Inverse Kinematics of Serial Robots Using Halley's Method," IEEE T-RO 2022 (QuIK). Related work: Goal Directed Dynamics (Todorov) addresses physics-layer goal-directed control (cost over accelerations); this crate provides kinematic IK only.
 
 ## References
 

@@ -7,7 +7,7 @@
 //!
 //! Exposes dense matrices (f64/f32), vectors, linear solve Ax = b, damped least-squares, SVD, PCA, Cholesky, LU,
 //! 3D/camera helpers, k-means, DBSCAN, distance metrics, linear SVM, simplex LP solver,
-//! PSO optimization, graph pathfinding (Dijkstra), noise (wave, Perlin, FBM),
+//! PSO and L-BFGS-B optimization, graph pathfinding (Dijkstra), noise (wave, Perlin, FBM),
 //! and easing (lerp, distance) for use from JavaScript.
 //!
 //! # Exported types (index for JS discoverability)
@@ -20,7 +20,7 @@
 //! - **SVM**: [`WasmSvm`], [`WasmSvmResult`]
 //! - **Simplex LP**: [`WasmSimplexResult`]
 //! - **Graph**: [`WasmGraph`], [`WasmDijkstraResult`], [`WasmAstarResult`], [`WasmDStarLiteResult`]
-//! - **Argmin**: [`WasmPsoResult`], `psoMinimize`, `psoMinimizeWithHistory`, `lineSearchBacktracking`
+//! - **Argmin**: [`WasmPsoResult`], `psoMinimize`, `psoMinimizeWithHistory`, [`WasmLbfgsbResult`], `lbfgsbMinimize`, `lineSearchBacktracking`
 //! - **Noise**: `wave2d`, `wave2dParams`, `perlin2d`, `fbm2dPerlin`
 //! - **Colormap**: `heightToRgb` (elevation-style palette)
 //! - **Dual quaternion**: [`WasmDualQuat`] (rigid transforms)
@@ -38,6 +38,7 @@ mod graph;
 mod matrix;
 mod monte_carlo;
 mod noise;
+mod numerical;
 mod simplex;
 mod svm;
 mod transforms;
@@ -49,13 +50,13 @@ pub use self::transforms::{
     fft_inverse_wasm, hamming_wasm, hann_wasm, tukey_wasm,
 };
 pub use argmin::{
-    WasmPsoResult, WasmPsoResultWithHistory, line_search_backtracking, pso_minimize,
-    pso_minimize_with_history,
+    WasmLbfgsbResult, WasmLmResult, WasmPsoResult, WasmPsoResultWithHistory, lbfgsb_minimize,
+    line_search_backtracking, lm_minimize, pso_minimize, pso_minimize_with_history,
 };
 pub use camera::WasmCg;
 pub use clustering::{WasmDbscan, WasmKmeans, dbscan_noise_label};
 pub use colormap::height_to_rgb_wasm;
-pub use decomposition::{WasmCholesky, WasmLu, WasmPca};
+pub use decomposition::{WasmCholesky, WasmLu, WasmPca, WasmQr};
 pub use distance::WasmDistance;
 pub use dual_quaternion::WasmDualQuat;
 pub use graph::{
@@ -64,6 +65,11 @@ pub use graph::{
 pub use matrix::{WasmMatrix, WasmMatrix32, WasmSvd};
 pub use monte_carlo::{estimate_pi_wasm, integrate_x_squared_wasm};
 pub use noise::{fbm2d_perlin, perlin2d, wave2d, wave2d_params};
+pub use numerical::{
+    WasmOdeResult, WasmRootResult, bisection_result_wasm, bisection_wasm, brent_wasm,
+    diff_central_wasm, euler_wasm, gauss_legendre_wasm, newton_wasm, rk4_wasm, secant_wasm,
+    simpson_wasm, trapezoidal_wasm,
+};
 pub use simplex::WasmSimplexResult;
 pub use svm::{WasmSvm, WasmSvmRbf, WasmSvmRbfResult, WasmSvmResult};
 pub use vector::{WasmVector, dot_f32};

@@ -240,7 +240,7 @@ function __wbg_get_imports() {
             const ret = arg0.height;
             return ret;
         },
-        __wbg_height_45209601b4c4edge6: function(arg0) {
+        __wbg_height_45209601b4c4ede6: function(arg0) {
             const ret = arg0.height;
             return ret;
         },
@@ -322,7 +322,7 @@ function __wbg_get_imports() {
             const ret = arg0.maxBufferSize;
             return ret;
         },
-        __wbg_maxColorAttachmentBytesPerSample_2dead1d176129b49e: function(arg0) {
+        __wbg_maxColorAttachmentBytesPerSample_2ded1d176129b49e: function(arg0) {
             const ret = arg0.maxColorAttachmentBytesPerSample;
             return ret;
         },
@@ -342,7 +342,7 @@ function __wbg_get_imports() {
             const ret = arg0.maxComputeWorkgroupSizeY;
             return ret;
         },
-        __wbg_maxComputeWorkgroupSizeZ_53a8c06a42e0data4: function(arg0) {
+        __wbg_maxComputeWorkgroupSizeZ_53a8c06a42e0daa4: function(arg0) {
             const ret = arg0.maxComputeWorkgroupSizeZ;
             return ret;
         },
@@ -803,11 +803,11 @@ function __wbg_get_imports() {
         __wbg_set_load_op_c71d200e998908b0: function(arg0, arg1) {
             arg0.loadOp = __wbindgen_enum_GpuLoadOp[arg1];
         },
-        __wbg_set_load_max_clamp_aaac5daaecca96d4: function(arg0, arg1) {
-            arg0.loadMaxClamp = arg1;
+        __wbg_set_lod_max_clamp_aaac5daaecca96d4: function(arg0, arg1) {
+            arg0.lodMaxClamp = arg1;
         },
-        __wbg_set_load_min_clamp_ed2162d4b198abba: function(arg0, arg1) {
-            arg0.loadMinClamp = arg1;
+        __wbg_set_lod_min_clamp_ed2162d4b198abba: function(arg0, arg1) {
+            arg0.lodMinClamp = arg1;
         },
         __wbg_set_mag_filter_c8a8c1218cd38da6: function(arg0, arg1) {
             arg0.magFilter = __wbindgen_enum_GpuFilterMode[arg1];
@@ -965,7 +965,7 @@ function __wbg_get_imports() {
         __wbg_set_texture_f8ae0bb4bb159354: function(arg0, arg1) {
             arg0.texture = arg1;
         },
-        __wbg_set_timestamp_writes_3998dbfa21e48be: function(arg0, arg1) {
+        __wbg_set_timestamp_writes_3998dbfa21e48dbe: function(arg0, arg1) {
             arg0.timestampWrites = arg1;
         },
         __wbg_set_topology_036632318a24227d: function(arg0, arg1) {

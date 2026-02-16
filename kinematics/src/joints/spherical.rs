@@ -57,11 +57,11 @@ impl Joint for SphericalJoint {
             out.len() >= self.dof_count(),
             "pack slice length >= dof_count"
         );
-        let (r, p, y) = self.quat.to_euler_angles();
         if out.len() >= 3 {
-            out[0] = r;
-            out[1] = p;
-            out[2] = y;
+            let sa = self.quat.to_scaled_axis();
+            out[0] = sa.get(0);
+            out[1] = sa.get(1);
+            out[2] = sa.get(2);
         }
     }
 
@@ -71,7 +71,21 @@ impl Joint for SphericalJoint {
             "unpack slice length >= dof_count"
         );
         if data.len() >= 3 {
-            self.quat = Quat4f::from_euler_angles(data[0], data[1], data[2]);
+            let x = data[0];
+            let y = data[1];
+            let z = data[2];
+            let angle_sq = x * x + y * y + z * z;
+            const EPS_SQ: f32 = 1e-14;
+            if angle_sq < EPS_SQ {
+                self.quat = Quat4f::identity();
+                return;
+            }
+            let angle = angle_sq.sqrt();
+            let mut axis = Vector3f::with_capacity(3);
+            axis.set(0, x / angle);
+            axis.set(1, y / angle);
+            axis.set(2, z / angle);
+            self.quat = Quat4f::from_axis_angle(&axis, angle);
         }
     }
 }

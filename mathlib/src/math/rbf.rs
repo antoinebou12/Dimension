@@ -102,6 +102,7 @@ pub fn rbf_kernel_batch(gamma: f64, dist_sq: &[f64], out: &mut [f64]) {
 }
 
 #[cfg(test)]
+#[allow(clippy::similar_names)]
 mod tests {
     use super::*;
 
@@ -174,7 +175,7 @@ mod tests {
             ] {
                 let k = rbf_kernel_eased(dist_sq, gamma, easing);
                 assert!(
-                    k >= 0.0 && k <= 1.0,
+                    (0.0..=1.0).contains(&k),
                     "eased kernel in [0,1], got {} dist_sq={}",
                     k,
                     dist_sq
@@ -190,7 +191,7 @@ mod tests {
         let k_linear = rbf_kernel_eased(dist_sq, gamma, RbfEasing::Linear);
         let k_ease_out = rbf_kernel_eased(dist_sq, gamma, RbfEasing::EaseOutCubic);
         assert!(
-            k_ease_out != k_linear,
+            (k_ease_out - k_linear).abs() > 1e-10,
             "EaseOutCubic should shape the value"
         );
         assert!((k_linear - 1.0).abs() > 1e-10, "sanity: mid value not 1");
@@ -217,7 +218,7 @@ mod tests {
     #[test]
     fn rbf_kernel_batch_matches_scalar() {
         let gamma = 0.25;
-        let dist_sq: Vec<f64> = (0..20).map(|i| (i as f64) * 0.5).collect();
+        let dist_sq: Vec<f64> = (0..20).map(|i| f64::from(i) * 0.5).collect();
         let mut out = vec![0.0; dist_sq.len()];
         rbf_kernel_batch(gamma, &dist_sq, &mut out);
         for (i, &d) in dist_sq.iter().enumerate() {

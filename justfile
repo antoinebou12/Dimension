@@ -52,6 +52,13 @@ build-simd:
 build-simd-release:
     {{_set_cargo}} cargo build --release --features simd
 
+# Build with SIMD + GPU (always both)
+build-simd-gpu:
+    {{_set_cargo}} cargo build --features "simd gpu"
+
+build-simd-gpu-release:
+    {{_set_cargo}} cargo build --release --features "simd gpu"
+
 # Build with both parallel and SIMD (full = parallel + simd)
 build-full:
     {{_set_cargo}} cargo build --features full
@@ -68,6 +75,9 @@ test-parallel:
 
 test-simd:
     {{_set_cargo}} cargo test --features simd
+
+test-simd-gpu:
+    {{_set_cargo}} cargo test --features "simd gpu"
 
 test-full:
     {{_set_cargo}} cargo test --features full
@@ -90,11 +100,11 @@ bench-full:
     {{_set_cargo}} cargo bench --features full
 
 bench-gpu:
-    {{_set_cargo}} cargo bench --features gpu --bench gpu
+    {{_set_cargo}} cargo bench --features "simd gpu" --bench gpu
 
 # Bench GPU (same code paths used by wasm when built with gpu)
 bench-wasm-gpu:
-    {{_set_cargo}} cargo bench --features "wasm gpu" --bench gpu
+    {{_set_cargo}} cargo bench --features "wasm simd gpu" --bench gpu
 
 # Coverage (tarpaulin; CI uses same as coverage-xml)
 coverage:
@@ -137,6 +147,16 @@ run-kinematics-demo: build-kinematics-demo
 
 build-kinematics-demo-wasm: build-wasm _wasm-render-deps
     just _build-demo-wasm kinematics/demo kinematics_wasm
+
+# Kinematics WASM with SIMD (mathlib/kinematics simd; can improve Hessian/cross and frame rate)
+build-kinematics-demo-wasm-simd: build-wasm _wasm-render-deps
+    cd kinematics/demo && {{ _rust }} cargo build --release --target wasm32-unknown-unknown --example kinematics_wasm --features simd
+    cd kinematics/demo && wasm-bindgen ../../target/wasm32-unknown-unknown/release/examples/kinematics_wasm.wasm --out-dir wasm-demo/pkg --target web --out-name kinematics_wasm
+
+# Kinematics WASM with Neural IK solver (requires neural crate ONNX; may need NEURAL_IK_ONNX or neural/iknet.onnx)
+build-kinematics-demo-wasm-neural: build-wasm _wasm-render-deps
+    cd kinematics/demo && {{ _rust }} cargo build --release --target wasm32-unknown-unknown --example kinematics_wasm --features neural
+    cd kinematics/demo && wasm-bindgen ../../target/wasm32-unknown-unknown/release/examples/kinematics_wasm.wasm --out-dir wasm-demo/pkg --target web --out-name kinematics_wasm
 
 wasm-kinematics-demo: build-kinematics-demo-wasm
     just _serve-demo kinematics/demo
@@ -230,6 +250,9 @@ check-parallel:
 check-simd:
     {{_set_cargo}} cargo check --features simd
 
+check-simd-gpu:
+    {{_set_cargo}} cargo check --features "simd gpu"
+
 # WASM: demo is documented in docs/DOCS.md (WASM and browser demo) and mathlib/demo/wasm-demo/README.md
 # WASM targets (target wasm32-unknown-unknown; use --features wasm or wasm,simd; parallel not supported)
 build-wasm:
@@ -253,13 +276,13 @@ doc-wasm:
 clippy-wasm:
     {{_set_cargo}} cargo clippy --target wasm32-unknown-unknown --features wasm
 
-# Check WASM+GPU (syntax only)
+# Check WASM+SIMD+GPU (syntax only)
 check-wasm-gpu:
-    {{_set_cargo}} cargo check --target wasm32-unknown-unknown --features "wasm gpu"
+    {{_set_cargo}} cargo check --target wasm32-unknown-unknown --features "wasm simd gpu"
 
-# Test WASM+GPU (runs on native host; tests the Rust API used by bindings)
+# Test WASM+SIMD+GPU (runs on native host; tests the Rust API used by bindings)
 test-wasm-gpu:
-    {{_set_cargo}} cargo test --features "wasm gpu" wasm
+    {{_set_cargo}} cargo test --features "wasm simd gpu" wasm
 
 # WASM: build pkg/ for web, copy into wasm-demo/pkg, then serve (demo at /wasm-demo/)
 # wasm-pack uses release profile + wasm-opt -Oz (see Cargo.toml). If wasm-pack fails, use wasm-build-manual
@@ -272,10 +295,10 @@ wasm-build: _require_wasm_pack
     {{_set_cargo}} wasm-pack build --target web --features wasm
     {{_set_cargo}} cp -r pkg demo/wasm-demo/
 
-# WASM pkg/ with GPU support (initGpuAsync, gpuAvailable in demo). GPU feature uses wgpu 26 for rustc compatibility; wgpu 28 requires rustc 1.92+.
+# WASM pkg/ with SIMD+GPU (initGpuAsync, gpuAvailable in demo). Always build simd and gpu together.
 wasm-build-gpu: _require_wasm_pack
     cd mathlib && rm -rf pkg
-    {{_set_cargo}} wasm-pack build --target web --features "wasm gpu"
+    {{_set_cargo}} wasm-pack build --target web --features "wasm simd gpu"
     {{_set_cargo}} cp -r pkg demo/wasm-demo/
 
 # WASM pkg/ without wasm-pack (cargo + wasm-bindgen), then copy into demo/wasm-demo
@@ -303,6 +326,10 @@ wasm gpu='':
 demo: wasm
 demo-gpu:
     just wasm gpu
+
+# Download ONNX models for neural crate (text/image/graph etc.) into neural/models/
+download-neural-models:
+    cargo run -p neural --bin download_models -- --all
 
 # Render crate (builds mathlib first)
 build-render: build
@@ -340,6 +367,11 @@ _wasm-render-build: build-wasm _wasm-render-deps
     {{_set_render_demo}} cargo build --release --target wasm32-unknown-unknown --example render_wasm
     {{_set_render_demo}} wasm-bindgen ../../target/wasm32-unknown-unknown/release/examples/render_wasm.wasm --out-dir wasm-demo/pkg --target web --out-name render_wasm
 
+# Render WASM with SIMD (can improve frame rate). Use for website-build-simd or local serve.
+_wasm-render-build-simd: build-wasm-simd _wasm-render-deps
+    {{_set_render_demo}} cargo build --release --target wasm32-unknown-unknown --example render_wasm --features simd
+    {{_set_render_demo}} wasm-bindgen ../../target/wasm32-unknown-unknown/release/examples/render_wasm.wasm --out-dir wasm-demo/pkg --target web --out-name render_wasm
+
 # Serve render wasm-demo. Use "just wasm-render-serve" to serve only, or "just render-wasm" to build + serve.
 [windows]
 _wasm-render-serve:
@@ -351,6 +383,9 @@ _wasm-render-serve:
 
 # Public alias: build only (no serve). Use wasm-render-serve to serve, or render-wasm to build + serve.
 wasm-render-build: _wasm-render-build
+
+# Build render WASM with SIMD (then use wasm-render-serve to serve). Can improve frame rate.
+wasm-render-build-simd: _wasm-render-build-simd
 
 # Public alias: serve render wasm-demo (run after building with render-wasm or wasm-render-build).
 wasm-render-serve: _wasm-render-serve
@@ -382,9 +417,22 @@ demo-render-stop:
 demo-render-stop:
     powershell -NoProfile -Command "if (Test-Path render/demo/.serve.pid) { $$pid = Get-Content render/demo/.serve.pid; Stop-Process -Id $$pid -ErrorAction SilentlyContinue; Remove-Item render/demo/.serve.pid }; Write-Host 'Stopped (or server was not running).'"
 
+# Neural WASM pkg (NeuralIkWasm bindings; used by website/neural/)
+build-neural-wasm: _require_wasm_pack
+    cd neural && rm -rf pkg && wasm-pack build --target web --no-default-features --features wasm
+
 # Unified website: all WASM demos in website/ (hub at /, demos at /mathlib/, /render/, etc.)
-website-build: wasm-build _wasm-render-build build-kinematics-demo-wasm build-physics-demo-wasm build-geometry-demo-wasm
-    mkdir -p website/mathlib website/render website/kinematics website/physics website/geometry
+website-build: wasm-build _wasm-render-build build-kinematics-demo-wasm build-physics-demo-wasm build-geometry-demo-wasm build-neural-wasm _website-populate
+
+# Website build with GPU-enabled mathlib (initGpuAsync, matmulF32GpuAsync, etc.)
+website-build-gpu: wasm-build-gpu _wasm-render-build build-kinematics-demo-wasm build-physics-demo-wasm build-geometry-demo-wasm build-neural-wasm _website-populate
+
+# Website build with SIMD-enabled render and kinematics demos (can improve frame rate and Hessian path)
+website-build-simd: wasm-build _wasm-render-build-simd build-kinematics-demo-wasm-simd build-physics-demo-wasm build-geometry-demo-wasm build-neural-wasm _website-populate
+
+[private]
+_website-populate:
+    mkdir -p website/mathlib website/render website/kinematics website/physics website/geometry website/neural website/neural/embedding website/neural/pkg
     cp -r mathlib/demo/wasm-demo/* website/mathlib/
     find website/mathlib -name '*.html' -exec sed -i.bak 's|<base href="/wasm-demo/">|<base href="/mathlib/">|g' {} \;
     find website/mathlib -name '*.html.bak' -delete
@@ -393,6 +441,7 @@ website-build: wasm-build _wasm-render-build build-kinematics-demo-wasm build-ph
     cp -r physics/demo/wasm-demo/* website/physics/
     cp website/geometry-index.html website/geometry/index.html
     cp -r geometry/demo/wasm-demo/pkg website/geometry/
+    cp -r neural/pkg/* website/neural/pkg/
 
 # Serve website/ locally (hub at /, demos at /mathlib/, /render/, etc.). Port 3000.
 [unix]

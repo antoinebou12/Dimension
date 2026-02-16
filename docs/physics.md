@@ -32,7 +32,7 @@ Features: `simd`, `parallel` (native only), `serde`, `wasm`.
 |------|------|
 | `Particle` | x, v, inv_mass, phase, radius |
 | `PhysicsState` | particles, config (dt, substeps, solver_iterations, etc.) |
-| `PhysicsConfig` | dt, substeps, solver_iterations, stabilization_iterations, sor_omega, sleep_threshold |
+| `PhysicsConfig` | dt, substeps, solver_iterations, stabilization_iterations, sor_omega, sleep_threshold, contact_friction, contact_restitution, contact_rolling_friction |
 | `Constraint` | trait: num_particles, particle_index, solve |
 | `PbdIntegrator` | Holds constraints and contact_constraints; Integrator::step runs solver |
 | `PlaneConstraint` | Half-space (e.g. ground): keeps particle on or above a plane |

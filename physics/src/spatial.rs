@@ -30,11 +30,7 @@ pub fn broad_phase_pairs(
     skip_range: Option<Range<usize>>,
 ) -> Vec<(usize, usize)> {
     let mut pairs = Vec::new();
-    let skip = |id: usize| -> bool {
-        skip_range
-            .as_ref()
-            .map_or(false, |r| r.contains(&id))
-    };
+    let skip = |id: usize| -> bool { skip_range.as_ref().map_or(false, |r| r.contains(&id)) };
     for (idx_a, (id_a, aabb_a)) in items.iter().enumerate() {
         if skip(*id_a) {
             continue;

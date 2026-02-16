@@ -4,5 +4,6 @@
 //! for weighted recombination and parallel fitness evaluation.
 
 pub mod cmaes;
+pub mod normal;
 
 pub use cmaes::{CmaEs, CmaEsBuilder, CmaEsResult};

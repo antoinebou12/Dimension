@@ -9,25 +9,40 @@ extend-exclude = [
     "**/wasm-demo/pkg/",  # wasm-bindgen generated JS (hash suffixes trigger false positives)
     "website/**/pkg/",
     "**/pkg/",
+    "**/*.ttf",       # binary fonts (CSS/class text triggers false positives)
+    "render/fonts/",  # font files
 ]
 ignore-hidden = false
 
 [default]
 extend-ignore-re = [
     "\\bPolygon::PN\\b",
+    "NdArray",           # Burn/ndarray backend (Nd + Array)
+    "NdArrayDevice",
 ]
 
 # Case sensitive, matches entire word.
 [default.extend-identifiers]
 anc_color = "anc_color"
 ba = "ba"
+ndarray = "ndarray"   # burn::backend::ndarray
+NdArray = "NdArray"    # Burn backend name
+NdArrayDevice = "NdArrayDevice"
+pn = "pn"
 rady = "rady"
+iz = "iz"    # z-axis index or inertia I_z
+fo = "fo"    # e.g. CSS class fragments in binaries
+Nd = "Nd"    # NdArray, NdArrayDevice (Burn backend)
 
 # Case insensitive, matches inside word.
 [default.extend-words]
 ba = "ba"
 bellow = "below"
 toi = "toi"
+iz = "iz"   # z-axis index (e.g. for iz in 0..nz) or inertia I_z
+gti = "gti" # e.g. gti320-style format name
+fo = "fo"   # e.g. CSS class fragments in font/binaries
+Nd = "Nd"   # NdArray, NdArrayDevice (Burn/ndarray backend names)
 
 # WGSL shaders (render/shaders/*.wgsl)
 [type.wgsl]

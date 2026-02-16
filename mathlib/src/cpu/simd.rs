@@ -118,6 +118,69 @@ pub fn squared_diff_sum_f64(a: &[f64], b: &[f64]) -> f64 {
     sum
 }
 
+/// SIMD sum of squares: sum_i x[i]² (4 lanes at a time, remainder scalar).
+#[inline]
+pub fn squared_sum_f64(x: &[f64]) -> f64 {
+    let n = x.len();
+    let mut sum = 0.0_f64;
+    let chunks = n / 4;
+    for i in 0..chunks {
+        let vx = load_f64x4(x, i * 4);
+        sum += (vx * vx).reduce_add();
+    }
+    for i in (chunks * 4)..n {
+        let v = x[i];
+        sum += v * v;
+    }
+    sum
+}
+
+/// SIMD sum of absolute differences: sum_i |a[i] - b[i]|.
+#[inline]
+pub fn abs_diff_sum_f64(a: &[f64], b: &[f64]) -> f64 {
+    assert_eq!(a.len(), b.len());
+    let n = a.len();
+    let mut sum = 0.0_f64;
+    let chunks = n / 4;
+    for i in 0..chunks {
+        let va = load_f64x4(a, i * 4);
+        let vb = load_f64x4(b, i * 4);
+        let diff = (va - vb).abs();
+        sum += diff.reduce_add();
+    }
+    for i in (chunks * 4)..n {
+        sum += (a[i] - b[i]).abs();
+    }
+    sum
+}
+
+/// SIMD max of absolute differences: max_i |a[i] - b[i]|.
+#[inline]
+pub fn max_abs_diff_f64(a: &[f64], b: &[f64]) -> f64 {
+    assert_eq!(a.len(), b.len());
+    let n = a.len();
+    let mut max_val = 0.0_f64;
+    let chunks = n / 4;
+    for i in 0..chunks {
+        let va = load_f64x4(a, i * 4);
+        let vb = load_f64x4(b, i * 4);
+        let diff = (va - vb).abs();
+        let arr = diff.to_array();
+        for &v in &arr {
+            if v > max_val {
+                max_val = v;
+            }
+        }
+    }
+    for i in (chunks * 4)..n {
+        let d = (a[i] - b[i]).abs();
+        if d > max_val {
+            max_val = d;
+        }
+    }
+    max_val
+}
+
 /// Batch RBF kernel: out[i] = exp(-gamma * dist_sq[i]). Uses scalar exp per element
 /// (wide does not provide f64x4::exp); keeps batch API ready for future vectorized exp.
 #[inline]
@@ -242,6 +305,23 @@ pub fn squared_diff_sum_f32(a: &[f32], b: &[f32]) -> f32 {
     for i in (chunks * 4)..n {
         let d = a[i] - b[i];
         sum += d * d;
+    }
+    sum
+}
+
+/// SIMD sum of squares for f32: sum_i x[i]².
+#[inline]
+pub fn squared_sum_f32(x: &[f32]) -> f32 {
+    let n = x.len();
+    let mut sum = 0.0_f32;
+    let chunks = n / 4;
+    for i in 0..chunks {
+        let vx = load_f32x4(x, i * 4);
+        sum += (vx * vx).reduce_add();
+    }
+    for i in (chunks * 4)..n {
+        let v = x[i];
+        sum += v * v;
     }
     sum
 }

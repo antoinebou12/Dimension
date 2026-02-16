@@ -1,9 +1,12 @@
 //! WASM platform: canvas, requestAnimationFrame, physics scene, orbit + pan + zoom, UI and FPS overlay.
 
 use crate::scene::{
-    build_physics_scene, build_spawn_panel, spawn_body, step_physics, PhysicsScene,
-    SPAWN_BUTTON_ID, SPAWN_WINDOW_ID,
+    build_bodies_tree_panel, build_physics_scene, build_spawn_panel, format_bodies_tree,
+    reset_scene, spawn_box_body, spawn_jelly, spawn_sphere, step_physics, total_momentum,
+    PhysicsScene, BODIES_TREE_WINDOW_ID, RESET_BUTTON_ID, SPAWN_BOX_ID, SPAWN_JELLY_ID,
+    SPAWN_SPHERE_ID, SPAWN_WINDOW_ID,
 };
+use crate::wasm_debug;
 use render::input_constants::{ORBIT_SENSITIVITY, PAN_SENSITIVITY, ZOOM_SENSITIVITY};
 use render::{build_stats_panel, Engine, FrameStats, STATS_WINDOW_ID};
 use std::cell::RefCell;
@@ -15,9 +18,26 @@ use web_sys::HtmlCanvasElement;
 const FPS_EMA_ALPHA: f32 = 0.9;
 const DT: f32 = 1.0 / 60.0;
 
+thread_local! {
+    static BODIES_TREE_DUMP: RefCell<String> = RefCell::new(String::new());
+    static MOMENTUM_DUMP: RefCell<String> = RefCell::new(String::new());
+    static BODY_COUNT_DUMP: RefCell<u32> = RefCell::new(0);
+    static PENDING_SPAWN_SPHERE: RefCell<bool> = RefCell::new(false);
+    static PENDING_SPAWN_BOX: RefCell<bool> = RefCell::new(false);
+    static PENDING_SPAWN_JELLY: RefCell<bool> = RefCell::new(false);
+    static PENDING_RESET: RefCell<bool> = RefCell::new(false);
+    // Input state written by DOM handlers, read and applied in the frame loop (no engine borrow in handlers).
+    static LAST_POINTER_POS: RefCell<(f32, f32)> = RefCell::new((0.0, 0.0));
+    static POINTER_DOWN_PENDING: RefCell<bool> = RefCell::new(false);
+    static POINTER_UP_PENDING: RefCell<bool> = RefCell::new(false);
+    static PENDING_WHEEL_DELTA: RefCell<Option<f32>> = RefCell::new(None);
+    static PENDING_RESIZE: RefCell<Option<(u32, u32)>> = RefCell::new(None);
+}
+
 type EngineAndScene = Option<(Engine, PhysicsScene)>;
 type FrameTiming = (f64, f32);
-type OrbitState = (bool, Option<(f64, f64)>);
+/// (pressing, last_pos, current_pos, ctrl_key). Frame loop applies delta from last to current then sets last = current.
+type OrbitState = (bool, Option<(f64, f64)>, Option<(f64, f64)>, bool);
 
 fn canvas_coords(e: &web_sys::PointerEvent, canvas: &HtmlCanvasElement) -> (f32, f32) {
     let rect = canvas.get_bounding_client_rect();
@@ -76,7 +96,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 
     let engine_scene: Rc<RefCell<EngineAndScene>> = Rc::new(RefCell::new(None));
-    let orbit_state: Rc<RefCell<OrbitState>> = Rc::new(RefCell::new((false, None)));
+    let orbit_state: Rc<RefCell<OrbitState>> = Rc::new(RefCell::new((false, None, None, false)));
     let frame_timing: Rc<RefCell<FrameTiming>> = Rc::new(RefCell::new((0.0, 60.0)));
 
     let engine_clone = Rc::clone(&engine_scene);
@@ -90,9 +110,10 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 if let Some(ui) = eng.ui.as_mut() {
                     ui.set_theme(render::Theme::dark());
                 }
+                wasm_debug::maybe_enable_debug_from_url();
                 *engine_clone.borrow_mut() = Some((eng, scene));
                 setup_listeners(&engine_clone, &orbit_clone, &canvas);
-                schedule_frame(&engine_clone, &timing_clone);
+                schedule_frame(&engine_clone, &orbit_clone, &timing_clone);
             }
             Err(e) => {
                 let msg = format!("physics-demo init failed: {e}");
@@ -106,25 +127,21 @@ pub fn run() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 fn setup_listeners(
-    engine_scene: &Rc<RefCell<EngineAndScene>>,
+    _engine_scene: &Rc<RefCell<EngineAndScene>>,
     orbit_state: &Rc<RefCell<OrbitState>>,
     canvas: &HtmlCanvasElement,
 ) {
-    let engine_scene = Rc::clone(engine_scene);
     let canvas = canvas.clone();
 
-    let engine_down = Rc::clone(&engine_scene);
     let orbit_down = Rc::clone(orbit_state);
     let canvas_down = canvas.clone();
     let on_pointer_down: Closure<dyn FnMut(web_sys::PointerEvent)> =
         Closure::new(move |e: web_sys::PointerEvent| {
             let (x, y) = canvas_coords(&e, &canvas_down);
-            if let Some((eng, _)) = engine_down.borrow_mut().as_mut() {
-                eng.ui_mouse_move(x, y);
-                eng.ui_mouse_down();
-                if e.button() == 0 && !eng.is_cursor_over_ui() {
-                    *orbit_down.borrow_mut() = (true, None);
-                }
+            LAST_POINTER_POS.with(|c| *c.borrow_mut() = (x, y));
+            POINTER_DOWN_PENDING.with(|c| *c.borrow_mut() = true);
+            if e.button() == 0 {
+                *orbit_down.borrow_mut() = (true, None, None, false);
             }
         });
     canvas
@@ -132,14 +149,11 @@ fn setup_listeners(
         .expect("add pointerdown listener");
     on_pointer_down.forget();
 
-    let engine_up = Rc::clone(&engine_scene);
     let orbit_up = Rc::clone(orbit_state);
     let on_pointer_up: Closure<dyn FnMut(web_sys::PointerEvent)> =
         Closure::new(move |_e: web_sys::PointerEvent| {
-            if let Some((eng, _)) = engine_up.borrow_mut().as_mut() {
-                eng.ui_mouse_up();
-            }
-            *orbit_up.borrow_mut() = (false, None);
+            POINTER_UP_PENDING.with(|c| *c.borrow_mut() = true);
+            *orbit_up.borrow_mut() = (false, None, None, false);
         });
     canvas
         .add_event_listener_with_callback("pointerup", on_pointer_up.as_ref().unchecked_ref())
@@ -149,14 +163,13 @@ fn setup_listeners(
     let orbit_leave = Rc::clone(orbit_state);
     let on_pointer_leave: Closure<dyn FnMut(web_sys::PointerEvent)> =
         Closure::new(move |_e: web_sys::PointerEvent| {
-            *orbit_leave.borrow_mut() = (false, None);
+            *orbit_leave.borrow_mut() = (false, None, None, false);
         });
     canvas
         .add_event_listener_with_callback("pointerleave", on_pointer_leave.as_ref().unchecked_ref())
         .expect("add pointerleave listener");
     on_pointer_leave.forget();
 
-    let engine_move = Rc::clone(&engine_scene);
     let orbit_move = Rc::clone(orbit_state);
     let canvas_move = canvas.clone();
     let on_pointer_move: Closure<dyn FnMut(web_sys::PointerEvent)> =
@@ -164,24 +177,11 @@ fn setup_listeners(
             let (x, y) = canvas_coords(&e, &canvas_move);
             let x64 = e.client_x() as f64;
             let y64 = e.client_y() as f64;
-            let mut g = engine_move.borrow_mut();
-            if let Some((eng, _scene)) = g.as_mut() {
-                eng.ui_mouse_move(x, y);
-                let (orbit_pressing, orbit_last) = *orbit_move.borrow();
-                if orbit_pressing && !eng.is_cursor_over_ui() {
-                    if let Some((lx, ly)) = orbit_last {
-                        if e.ctrl_key() {
-                            let dx = (x64 - lx) as f32 * PAN_SENSITIVITY;
-                            let dy = (y64 - ly) as f32 * PAN_SENSITIVITY;
-                            eng.pan(dx, dy);
-                        } else {
-                            let dyaw = (x64 - lx) as f32 * ORBIT_SENSITIVITY;
-                            let dpitch = (ly - y64) as f32 * ORBIT_SENSITIVITY;
-                            eng.orbit(dyaw, dpitch);
-                        }
-                    }
-                    *orbit_move.borrow_mut() = (true, Some((x64, y64)));
-                }
+            LAST_POINTER_POS.with(|c| *c.borrow_mut() = (x, y));
+            let mut o = orbit_move.borrow_mut();
+            if o.0 {
+                o.2 = Some((x64, y64));
+                o.3 = e.ctrl_key();
             }
         });
     canvas
@@ -196,30 +196,29 @@ fn setup_listeners(
         .expect("add contextmenu listener");
     on_context.forget();
 
-    let engine_wheel = Rc::clone(&engine_scene);
     let on_wheel: Closure<dyn FnMut(web_sys::WheelEvent)> =
         Closure::new(move |e: web_sys::WheelEvent| {
-            e.prevent_default();
             let delta = e.delta_y() as f32 * ZOOM_SENSITIVITY;
-            if let Some((eng, _scene)) = engine_wheel.borrow_mut().as_mut() {
-                eng.zoom(-delta);
-            }
+            PENDING_WHEEL_DELTA.with(|c| *c.borrow_mut() = Some(delta));
         });
+    let wheel_opts = web_sys::AddEventListenerOptions::new();
+    wheel_opts.set_passive(true);
     canvas
-        .add_event_listener_with_callback("wheel", on_wheel.as_ref().unchecked_ref())
+        .add_event_listener_with_callback_and_add_event_listener_options(
+            "wheel",
+            on_wheel.as_ref().unchecked_ref(),
+            &wheel_opts,
+        )
         .expect("add wheel listener");
     on_wheel.forget();
 
-    let engine_resize = Rc::clone(&engine_scene);
     let canvas_resize = canvas.clone();
     let on_resize: Closure<dyn FnMut()> = Closure::new(move || {
         set_canvas_size_from_display(&canvas_resize);
         let w = canvas_resize.width();
         let h = canvas_resize.height();
         if w > 0 && h > 0 {
-            if let Some((eng, _scene)) = engine_resize.borrow_mut().as_mut() {
-                eng.resize(w, h);
-            }
+            PENDING_RESIZE.with(|c| *c.borrow_mut() = Some((w, h)));
         }
     });
     web_sys::window()
@@ -231,9 +230,11 @@ fn setup_listeners(
 
 fn schedule_frame(
     engine_scene: &Rc<RefCell<EngineAndScene>>,
+    orbit_state: &Rc<RefCell<OrbitState>>,
     frame_timing: &Rc<RefCell<FrameTiming>>,
 ) {
     let engine_scene = Rc::clone(engine_scene);
+    let orbit_state = Rc::clone(orbit_state);
     let frame_timing = Rc::clone(frame_timing);
     let closure = Closure::once(move || {
         let now_ms = web_sys::window()
@@ -242,6 +243,40 @@ fn schedule_frame(
             .unwrap_or(0.0);
         let mut g = engine_scene.borrow_mut();
         if let Some((eng, scene)) = g.as_mut() {
+            // Apply pending input (written by DOM handlers; no engine borrow there).
+            let (px, py) = LAST_POINTER_POS.with(|c| *c.borrow());
+            eng.ui_mouse_move(px, py);
+            if POINTER_DOWN_PENDING.with(|c| c.replace(false)) {
+                eng.ui_mouse_down();
+            }
+            if POINTER_UP_PENDING.with(|c| c.replace(false)) {
+                eng.ui_mouse_up();
+            }
+            {
+                let mut o = orbit_state.borrow_mut();
+                let (pressing, last, current, ctrl) = *o;
+                if pressing && !eng.is_cursor_over_ui() {
+                    if let (Some((lx, ly)), Some((cx, cy))) = (last, current) {
+                        if ctrl {
+                            let dx = (cx - lx) as f32 * PAN_SENSITIVITY;
+                            let dy = (cy - ly) as f32 * PAN_SENSITIVITY;
+                            eng.pan(dx, dy);
+                        } else {
+                            let dyaw = (cx - lx) as f32 * ORBIT_SENSITIVITY;
+                            let dpitch = (ly - cy) as f32 * ORBIT_SENSITIVITY;
+                            eng.orbit(dyaw, dpitch);
+                        }
+                    }
+                    o.1 = current;
+                }
+            }
+            if let Some(delta) = PENDING_WHEEL_DELTA.with(|c| c.replace(None)) {
+                eng.zoom(-delta);
+            }
+            if let Some((w, h)) = PENDING_RESIZE.with(|c| c.replace(None)) {
+                eng.resize(w, h);
+            }
+
             let (last_time, fps_ema) = *frame_timing.borrow();
             let (cpu_time_ms, fps) = if last_time > 0.0 {
                 let elapsed_ms = now_ms - last_time;
@@ -263,27 +298,66 @@ fn schedule_frame(
                 gpu_time_ms: None,
                 element_count: 0,
             });
+            let _ = wasm_debug::next_frame();
+            BODIES_TREE_DUMP.with(|c| *c.borrow_mut() = format_bodies_tree(scene));
+            let p = total_momentum(scene);
+            let p_mag = (p[0] * p[0] + p[1] * p[1] + p[2] * p[2]).sqrt();
+            MOMENTUM_DUMP.with(|c| *c.borrow_mut() = format!("{p_mag:.3}"));
+
+            // Update stats overlay via JS (rigid bodies excluding ground + soft bodies)
+            let body_count =
+                scene.state.rigid_bodies.len().saturating_sub(1) + scene.state.soft_bodies.len();
+            BODY_COUNT_DUMP.with(|c| *c.borrow_mut() = body_count as u32);
+            call_set_stats_overlay(fps, cpu_time_ms, -1.0, body_count as f32);
+
             let viewport_w = eng.viewport_width() as f32;
             let stats_clone = eng.last_frame_stats().cloned();
             if let Some(ui) = eng.ui.as_mut() {
                 ui.update_springs(DT);
                 if let Some(stats) = stats_clone {
-                    ui.windows_mut()
-                        .retain(|w| w.id != STATS_WINDOW_ID && w.id != SPAWN_WINDOW_ID);
+                    ui.windows_mut().retain(|w| {
+                        w.id != STATS_WINDOW_ID
+                            && w.id != SPAWN_WINDOW_ID
+                            && w.id != BODIES_TREE_WINDOW_ID
+                    });
                     ui.add_window(build_stats_panel(&stats, viewport_w));
-                    ui.add_window(build_spawn_panel(viewport_w));
+                    ui.add_window(build_bodies_tree_panel(scene, viewport_w));
+                    ui.add_window(build_spawn_panel(scene, viewport_w));
                 }
             }
 
-            if eng.take_clicked_control() == Some(SPAWN_BUTTON_ID) {
-                let root = eng.world().root_entity();
-                let _ = spawn_body(scene, eng.world_mut(), root, [0.0, 2.0, 0.0]);
+            // Consume pending JS-triggered actions (HTML toolbar buttons)
+            let root = eng.world().root_entity();
+            if PENDING_RESET.with(|c| c.replace(false)) {
+                reset_scene(scene, eng.world_mut());
+            } else {
+                if PENDING_SPAWN_SPHERE.with(|c| c.replace(false)) {
+                    let _ = spawn_sphere(scene, eng.world_mut(), root, [0.0, 2.5, 0.0]);
+                }
+                if PENDING_SPAWN_BOX.with(|c| c.replace(false)) {
+                    let _ = spawn_box_body(scene, eng.world_mut(), root, [0.0, 2.5, 0.0]);
+                }
+                if PENDING_SPAWN_JELLY.with(|c| c.replace(false)) {
+                    let _ = spawn_jelly(scene, eng.world_mut(), root, [0.0, 2.5, 0.0]);
+                }
+            }
+            // Handle canvas UI button clicks
+            if let Some(clicked) = eng.take_clicked_control() {
+                if clicked == SPAWN_SPHERE_ID {
+                    let _ = spawn_sphere(scene, eng.world_mut(), root, [0.0, 2.5, 0.0]);
+                } else if clicked == SPAWN_BOX_ID {
+                    let _ = spawn_box_body(scene, eng.world_mut(), root, [0.0, 2.5, 0.0]);
+                } else if clicked == SPAWN_JELLY_ID {
+                    let _ = spawn_jelly(scene, eng.world_mut(), root, [0.0, 2.5, 0.0]);
+                } else if clicked == RESET_BUTTON_ID {
+                    reset_scene(scene, eng.world_mut());
+                }
             }
 
             step_physics(scene, eng.world_mut(), DT);
             let _ = eng.render_frame();
         }
-        schedule_frame(&engine_scene, &frame_timing);
+        schedule_frame(&engine_scene, &orbit_state, &frame_timing);
     });
     web_sys::window()
         .and_then(|w| {
@@ -292,4 +366,64 @@ fn schedule_frame(
         })
         .expect("request_animation_frame failed");
     closure.forget();
+}
+
+/// Call `window.set_stats_overlay(fps, cpu_ms, gpu_ms, elements)` if it exists.
+fn call_set_stats_overlay(fps: f32, cpu_ms: f32, gpu_ms: f32, elements: f32) {
+    let Some(window) = web_sys::window() else {
+        return;
+    };
+    let func = js_sys::Reflect::get(
+        &window,
+        &wasm_bindgen::JsValue::from_str("set_stats_overlay"),
+    )
+    .ok()
+    .and_then(|v| v.dyn_into::<js_sys::Function>().ok());
+    if let Some(f) = func {
+        let _ = f.call4(
+            &wasm_bindgen::JsValue::NULL,
+            &wasm_bindgen::JsValue::from_f64(f64::from(fps)),
+            &wasm_bindgen::JsValue::from_f64(f64::from(cpu_ms)),
+            &wasm_bindgen::JsValue::from_f64(f64::from(gpu_ms)),
+            &wasm_bindgen::JsValue::from_f64(f64::from(elements)),
+        );
+    }
+}
+
+/// Return the bodies tree as a newline-separated string. Updated each frame.
+#[must_use]
+pub fn get_bodies_tree() -> String {
+    BODIES_TREE_DUMP.with(|c| c.borrow().clone())
+}
+
+/// Return total momentum magnitude as a string.
+#[must_use]
+pub fn get_total_momentum() -> String {
+    MOMENTUM_DUMP.with(|c| c.borrow().clone())
+}
+
+/// Spawn a sphere from JS (HTML toolbar). Consumed on next frame.
+pub fn spawn_sphere_js() {
+    PENDING_SPAWN_SPHERE.with(|c| *c.borrow_mut() = true);
+}
+
+/// Spawn a box from JS (HTML toolbar). Consumed on next frame.
+pub fn spawn_box_js() {
+    PENDING_SPAWN_BOX.with(|c| *c.borrow_mut() = true);
+}
+
+/// Spawn a jelly from JS (HTML toolbar). Consumed on next frame.
+pub fn spawn_jelly_js() {
+    PENDING_SPAWN_JELLY.with(|c| *c.borrow_mut() = true);
+}
+
+/// Reset scene from JS (HTML toolbar). Consumed on next frame.
+pub fn reset_scene_js() {
+    PENDING_RESET.with(|c| *c.borrow_mut() = true);
+}
+
+/// Return total body count (rigid excluding ground + soft) for HTML display. Updated each frame.
+#[must_use]
+pub fn get_body_count() -> u32 {
+    BODY_COUNT_DUMP.with(|c| *c.borrow())
 }

@@ -325,6 +325,83 @@ impl SvdEcon {
     pub fn get_sigma(&self) -> &Vector<f64> {
         self.sigma()
     }
+
+    /// Moore–Penrose pseudoinverse A⁺ from this SVD (Section 7.2.1).
+    ///
+    /// Returns the matrix A⁺ such that A A⁺ A ≈ A and A⁺ A A⁺ ≈ A⁺. Uses Σ⁺ with
+    /// reciprocal of singular values; singular values below `tol` are treated as zero.
+    /// If `tol` is `None`, uses `max(m, n) * ε * σ_max` with ε = 1e-15.
+    #[must_use]
+    pub fn pseudoinverse(&self, tol: Option<f64>) -> Matrix<f64> {
+        pinv_from_svd(self, tol)
+    }
+
+    /// Low-rank approximation: reconstructs A_k = U_k Σ_k V_kᵀ (Section 7.2.2).
+    ///
+    /// Returns the matrix of rank at most `k` that best approximates A in the Frobenius norm.
+    /// Panics if `k` is greater than the number of components in this SVD.
+    #[must_use]
+    pub fn reconstruct_rank(&self, k: usize) -> Matrix<f64> {
+        let m = self.u.rows();
+        let n = self.v.rows();
+        let k_full = self.sigma.rows();
+        assert!(k <= k_full, "k must be ≤ number of singular values");
+        // A_k = U_k Σ_k V_kᵀ: (m×k) diag(σ) (k×n) = (m×n)
+        let mut u_sigma = Matrix::with_storage(m, k, Storage::Column);
+        for j in 0..k {
+            let s = self.sigma.get(j);
+            for i in 0..m {
+                u_sigma.set(i, j, self.u.get(i, j) * s);
+            }
+        }
+        let v_k = self.v.transpose(); // k_full×n; we use rows 0..k
+        let mut out = Matrix::with_storage(m, n, Storage::Column);
+        out.set_zero();
+        for i in 0..m {
+            for j in 0..n {
+                let mut sum = 0.0_f64;
+                for t in 0..k {
+                    sum += u_sigma.get(i, t) * v_k.get(t, j);
+                }
+                out.set(i, j, sum);
+            }
+        }
+        out
+    }
+}
+
+/// Builds Moore–Penrose pseudoinverse from an economical SVD: A⁺ = V Σ⁺ Uᵀ.
+fn pinv_from_svd(svd: &SvdEcon, tol: Option<f64>) -> Matrix<f64> {
+    let (m, n) = (svd.u().rows(), svd.v().rows());
+    let k = svd.sigma().rows();
+    let sigma_max = if k > 0 { svd.sigma().get(0).abs() } else { 0.0 };
+    let eps = 1e-15_f64;
+    let tol = tol.unwrap_or_else(|| (m.max(n) as f64) * eps * sigma_max.max(eps));
+    // Σ⁺: reciprocal of sigma where |sigma| > tol (SVD may store signed singular values)
+    let mut v_sigma_plus = Matrix::with_storage(n, k, Storage::Column);
+    for j in 0..k {
+        let s = svd.sigma().get(j);
+        let abs_s = s.abs();
+        let inv = if abs_s > tol { 1.0 / s } else { 0.0 };
+        for i in 0..n {
+            v_sigma_plus.set(i, j, svd.v().get(i, j) * inv);
+        }
+    }
+    // A⁺ = (V Σ⁺) Uᵀ: (n×k) * (k×m) = n×m
+    let u_t = svd.u().transpose();
+    let mut out = Matrix::with_storage(n, m, Storage::Column);
+    v_sigma_plus.mul_into(&u_t, &mut out);
+    out
+}
+
+/// Moore–Penrose pseudoinverse of A via SVD (Section 7.2.1).
+///
+/// Returns A⁺ such that A A⁺ A ≈ A. Uses economical SVD; small singular values
+/// below a tolerance are zeroed for numerical stability.
+#[must_use]
+pub fn pinv(a: &Matrix<f64>) -> Matrix<f64> {
+    let svd = svd_econ(a);
+    pinv_from_svd(&svd, None)
 }
 
 /// Economical singular value decomposition: returns U (m×k), V (n×k), sigma (length k) with k = min(m, n).

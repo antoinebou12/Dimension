@@ -5,7 +5,7 @@
 
 use criterion::{BenchmarkId, Criterion, black_box};
 use mathlib::graph::{adjacency_ccs, adjacency_crs, adjacency_triplets, tree_adjacency_crs};
-use mathlib::{Graph, Tree, Vector};
+use mathlib::{Graph, SparseStorage, Tree, Vector};
 
 use super::{graph_helpers_grid, graph_helpers_random_graph};
 
@@ -50,14 +50,14 @@ pub fn bench_graph_matrix(c: &mut Criterion) {
         }
         group.bench_with_input(
             BenchmarkId::new("spmv_crs", side * side),
-            (&crs, &x),
-            |b, (a, v)| b.iter(|| black_box(a * v)),
+            &(&crs, &x),
+            |b, (a, v)| b.iter(|| black_box(*a * *v)),
         );
         let ccs = adjacency_ccs(&g);
         group.bench_with_input(
             BenchmarkId::new("spmv_ccs", side * side),
-            (&ccs, &x),
-            |b, (a, v)| b.iter(|| black_box(a * v)),
+            &(&ccs, &x),
+            |b, (a, v)| b.iter(|| black_box(a.mul_vector(v))),
         );
     }
 

@@ -57,6 +57,29 @@ pub fn squared_diff_sum_f64(a: &[f64], b: &[f64]) -> f64 {
         .sum()
 }
 
+/// Sequential sum of squares: `sum_i` x[i]².
+#[inline]
+pub fn squared_sum_f64(x: &[f64]) -> f64 {
+    x.iter().map(|&v| v * v).sum()
+}
+
+/// Sequential sum of absolute differences: `sum_i` |a[i] - b[i]|.
+#[inline]
+pub fn abs_diff_sum_f64(a: &[f64], b: &[f64]) -> f64 {
+    assert_eq!(a.len(), b.len());
+    a.iter().zip(b.iter()).map(|(&x, &y)| (x - y).abs()).sum()
+}
+
+/// Sequential max of absolute differences: `max_i` |a[i] - b[i]|.
+#[inline]
+pub fn max_abs_diff_f64(a: &[f64], b: &[f64]) -> f64 {
+    assert_eq!(a.len(), b.len());
+    a.iter()
+        .zip(b.iter())
+        .map(|(&x, &y)| (x - y).abs())
+        .fold(0.0_f64, f64::max)
+}
+
 /// Sequential dot product for f32 slices.
 #[inline]
 pub fn dot_f32(a: &[f32], b: &[f32]) -> f32 {
@@ -84,6 +107,12 @@ pub fn squared_diff_sum_f32(a: &[f32], b: &[f32]) -> f32 {
             d * d
         })
         .sum()
+}
+
+/// Sequential sum of squares for f32: `sum_i` x[i]².
+#[inline]
+pub fn squared_sum_f32(x: &[f32]) -> f32 {
+    x.iter().map(|&v| v * v).sum()
 }
 
 /// Sequential element-wise add for f32: out[i] = a[i] + b[i].

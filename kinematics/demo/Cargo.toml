@@ -9,16 +9,25 @@ repository = "https://github.com/dimension/dimension"
 keywords = ["kinematics", "ik", "demo", "wgpu", "winit", "wasm"]
 categories = ["graphics", "games", "wasm"]
 
+[features]
+default = []
+bvh = ["dep:parse"]
+neural = ["dep:neural"]
+simd = ["kinematics/simd"]
+
 [dependencies]
 kinematics = { path = ".." }
 render = { path = "../../render" }
 mathlib = { path = "../../mathlib" }
 rand = "0.8"
+parse = { path = "../../parse", optional = true, features = ["bvh"] }
+neural = { path = "../../neural", optional = true, default-features = false, features = ["onnx"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2", features = ["js"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
-web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "DomTokenList", "PointerEvent", "WheelEvent", "EventTarget", "Performance", "console", "KeyboardEvent"] }
+web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "DomTokenList", "PointerEvent", "WheelEvent", "EventTarget", "Performance", "console", "KeyboardEvent", "Location"] }
 js-sys = "0.3"
 console_error_panic_hook = "0.1"
 
@@ -26,6 +35,7 @@ console_error_panic_hook = "0.1"
 raw-window-handle = "0.6"
 winit = "0.30"
 forte = "1.0.0-alpha"
+rfd = "0.14"
 
 [[example]]
 name = "kinematics_native"

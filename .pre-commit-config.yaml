@@ -29,17 +29,17 @@ repos:
       - id: typos
         args: [--force-exclude]
 
-  # Rust: format and clippy (run from repo root; crate in mathlib/)
+  # Rust: format and clippy (workspace-wide format; mathlib clippy)
   - repo: local
     hooks:
       - id: cargo-fmt
-        name: cargo fmt (mathlib)
-        entry: bash -c "cd mathlib && cargo fmt -- --check"
+        name: cargo fmt (workspace)
+        entry: bash -c "cargo fmt --all -- --check"
         language: system
         pass_filenames: false
       - id: cargo-clippy
         name: cargo clippy (mathlib)
-        entry: bash -c "cd mathlib && cargo clippy -- -D warnings"
+        entry: bash -c "cargo clippy -p mathlib -- -D warnings -A clippy::multiple_crate_versions"
         language: system
         pass_filenames: false
       - id: cargo-coverage

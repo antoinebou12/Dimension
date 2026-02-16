@@ -68,7 +68,7 @@ function drawScatter(seed, maxPoints = 4000) {
 
 function runEstimate(lib, seed, n) {
   const t0 = performance.now();
-  const piEst = lib.estimatePi(seed, n);
+  const piEst = lib.estimatePi(BigInt(seed), BigInt(n));
   const elapsed = (performance.now() - t0).toFixed(1);
   const err = Math.abs(piEst - Math.PI);
   return { piEst, err, elapsed };
@@ -117,7 +117,7 @@ try {
       updateOutput(result);
       drawScatter(seed);
       if (typeof integrateXSquared === "function" && outIntegral) {
-        const integral = integrateXSquared(0, 1, 100000, seed + 1);
+        const integral = integrateXSquared(0, 1, BigInt(100000), BigInt(seed + 1));
         outIntegral.textContent =
           `∫₀¹ x² dx ≈ ${integral.toFixed(6)}  (expected 1/3 ≈ 0.333333)`;
       }

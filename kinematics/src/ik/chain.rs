@@ -1,11 +1,53 @@
 //! Shared helpers for building Jacobians/Hessians along a serial chain.
 
-#[cfg(not(target_arch = "wasm32"))]
 use mathlib::Vector;
 use mathlib::math3d::Vector3f;
-use mathlib::{Matrix, Matrix4f, Storage, transform_vector, vector3_cross};
+use mathlib::{Matrix, Matrix4f, Storage, transform_vector, vec3_cross_f64, vector3_cross};
 
-use crate::armature::{Armature, JointVariant};
+use crate::armature::{Armature, JointData, JointVariant};
+
+/// Applies a joint-space step to theta using path-to-DFS mapping and world-to-local
+/// conversion for spherical joints. Shared by JacobianIk, HessianIk, and HalleyIk.
+#[allow(clippy::module_name_repetitions)]
+pub fn apply_joint_step(
+    tree: &mathlib::graph::Tree<JointData>,
+    path: &[usize],
+    dof_mapping: &[usize],
+    alpha: f32,
+    d_theta: &[f32],
+    theta_new: &mut [f32],
+) {
+    let mut path_dof_offset = 0;
+    for (path_node_idx, &node_idx) in path.iter().enumerate() {
+        let dof = tree.nodes[node_idx].data.joint.dof_count();
+        if dof == 0 {
+            continue;
+        }
+        let dfs_start = dof_mapping[path_dof_offset];
+        if dof == 3 && path_node_idx > 0 {
+            let parent_idx = path[path_node_idx - 1];
+            let parent_world = &tree.nodes[parent_idx].data.world_transform;
+            let parent_r_t = parent_world.transpose();
+            let mut d_world = Vector3f::with_capacity(3);
+            d_world.set(0, d_theta[path_dof_offset]);
+            d_world.set(1, d_theta[path_dof_offset + 1]);
+            d_world.set(2, d_theta[path_dof_offset + 2]);
+            let d_local = transform_vector(&parent_r_t, &d_world);
+            for d in 0..3 {
+                if dfs_start + d < theta_new.len() {
+                    theta_new[dfs_start + d] += alpha * d_local.get(d);
+                }
+            }
+        } else {
+            for d in 0..dof {
+                if dfs_start + d < theta_new.len() && path_dof_offset + d < d_theta.len() {
+                    theta_new[dfs_start + d] += alpha * d_theta[path_dof_offset + d];
+                }
+            }
+        }
+        path_dof_offset += dof;
+    }
+}
 
 /// World-space origin extracted from a transform matrix.
 #[must_use]
@@ -92,6 +134,102 @@ pub fn build_geometric_jacobian(
     (jac, is_prismatic)
 }
 
+/// Builds the 3×N position Jacobian, world-space axes per DOF (for Hessian K term), and
+/// whether each DOF is prismatic. Used by HessianIk (Erleben & Andrews, MIG 2017).
+///
+/// - J_col = axis_world × (ee_pos - joint_pos) for revolute/spherical; axis_world for prismatic.
+/// - axes[j] = world-space axis for DOF j (zero for prismatic when computing K; stored for consistency).
+#[must_use]
+pub fn build_position_jacobian_and_axes(
+    armature: &Armature,
+    path: &[usize],
+    end_effector_pos: &Vector3f,
+) -> (Matrix<f64>, Vec<[f64; 3]>, Vec<bool>) {
+    let dof_total: usize = path
+        .iter()
+        .map(|&i| armature.tree().nodes[i].data.joint.dof_count())
+        .sum();
+    let mut jac = Matrix::with_storage(3, dof_total, Storage::Column);
+    jac.set_zero();
+    let mut axes = Vec::with_capacity(dof_total);
+    let mut is_prismatic = Vec::with_capacity(dof_total);
+    let mut col = 0;
+
+    for &idx in path {
+        let node = &armature.tree().nodes[idx];
+        let joint_pos = world_position(&node.data.world_transform);
+        let r = diff(end_effector_pos, &joint_pos);
+        match &node.data.joint {
+            JointVariant::Revolute(rev) => {
+                let axis_local = vector_from_tuple(rev.axis);
+                let axis_world = world_direction(&node.data.world_transform, &axis_local);
+                let col_vec = vector3_cross(&axis_world, &r);
+                set_position_column(&mut jac, col, &col_vec);
+                axes.push([
+                    axis_world.get(0) as f64,
+                    axis_world.get(1) as f64,
+                    axis_world.get(2) as f64,
+                ]);
+                is_prismatic.push(false);
+                col += 1;
+            }
+            JointVariant::Prismatic(prism) => {
+                let axis_local = vector_from_tuple(prism.axis);
+                let axis_world = world_direction(&node.data.world_transform, &axis_local);
+                set_position_column(&mut jac, col, &axis_world);
+                axes.push([0.0, 0.0, 0.0]);
+                is_prismatic.push(true);
+                col += 1;
+            }
+            JointVariant::Spherical(_) => {
+                for &(ax, ay, az) in &[(1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)] {
+                    let axis_local = vector3(ax, ay, az);
+                    let axis_world = world_direction(&node.data.world_transform, &axis_local);
+                    let col_vec = vector3_cross(&axis_world, &r);
+                    set_position_column(&mut jac, col, &col_vec);
+                    axes.push([
+                        axis_world.get(0) as f64,
+                        axis_world.get(1) as f64,
+                        axis_world.get(2) as f64,
+                    ]);
+                    is_prismatic.push(false);
+                    col += 1;
+                }
+            }
+            JointVariant::Revolute2d(_) => {
+                let axis = vector3(0.0, 0.0, 1.0);
+                let axis_world = world_direction(&node.data.world_transform, &axis);
+                let col_vec = vector3_cross(&axis_world, &r);
+                set_position_column(&mut jac, col, &col_vec);
+                axes.push([
+                    axis_world.get(0) as f64,
+                    axis_world.get(1) as f64,
+                    axis_world.get(2) as f64,
+                ]);
+                is_prismatic.push(false);
+                col += 1;
+            }
+            JointVariant::Prismatic2d(prism) => {
+                let axis = vector3(prism.axis.0, prism.axis.1, 0.0);
+                let axis_world = world_direction(&node.data.world_transform, &axis);
+                set_position_column(&mut jac, col, &axis_world);
+                axes.push([0.0, 0.0, 0.0]);
+                is_prismatic.push(true);
+                col += 1;
+            }
+            JointVariant::Fixed(_) | JointVariant::Fixed2d(_) => {}
+        }
+    }
+
+    (jac, axes, is_prismatic)
+}
+
+fn set_position_column(jac: &mut Matrix<f64>, col: usize, v: &Vector3f) {
+    for row in 0..3 {
+        jac.set(row, col, v.get(row) as f64);
+    }
+}
+
 fn diff(a: &Vector3f, b: &Vector3f) -> Vector3f {
     let mut out = Vector3f::with_capacity(3);
     out.set(0, a.get(0) - b.get(0));
@@ -127,8 +265,6 @@ fn set_prismatic_column(jac: &mut Matrix<f64>, col: usize, axis_world: &Vector3f
 }
 
 /// Adds the Hessian product `H * step` into `out`, starting from `jacobian`.
-#[cfg(not(target_arch = "wasm32"))]
-#[allow(dead_code)]
 pub fn hessian_product(
     jacobian: &Matrix<f64>,
     step: &Vector<f64>,
@@ -148,24 +284,22 @@ pub fn hessian_product(
             if !is_prismatic[i] {
                 let jwi = column_segment(jacobian, i, 3);
                 if !is_prismatic[k] {
-                    let rot = cross(&jwi, &jwk);
+                    let rot = vec3_cross_f64(&jwi, &jwk);
                     add_segment(out, k, 3, &(scale(&rot, step.get(i))));
                 }
-                let trans = cross(&jwi, &jvk);
+                let trans = vec3_cross_f64(&jwi, &jvk);
                 add_segment(out, k, 0, &(scale(&trans, step.get(i))));
                 add_segment(out, i, 0, &(scale(&trans, step.get(k))));
             }
         }
 
         if !is_prismatic[k] {
-            let diag = cross(&jwk, &jvk);
+            let diag = vec3_cross_f64(&jwk, &jvk);
             add_segment(out, k, 0, &(scale(&diag, step.get(k))));
         }
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[allow(dead_code)]
 fn column_segment(matrix: &Matrix<f64>, col: usize, row_offset: usize) -> [f64; 3] {
     [
         matrix.get(row_offset, col),
@@ -174,8 +308,6 @@ fn column_segment(matrix: &Matrix<f64>, col: usize, row_offset: usize) -> [f64; 
     ]
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[allow(dead_code)]
 fn add_segment(matrix: &mut Matrix<f64>, col: usize, row_offset: usize, value: &[f64; 3]) {
     for r in 0..3 {
         let current = matrix.get(row_offset + r, col);
@@ -183,18 +315,6 @@ fn add_segment(matrix: &mut Matrix<f64>, col: usize, row_offset: usize, value: &
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
-#[allow(dead_code)]
-fn cross(a: &[f64; 3], b: &[f64; 3]) -> [f64; 3] {
-    [
-        a[1] * b[2] - a[2] * b[1],
-        a[2] * b[0] - a[0] * b[2],
-        a[0] * b[1] - a[1] * b[0],
-    ]
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-#[allow(dead_code)]
 fn scale(v: &[f64; 3], s: f64) -> [f64; 3] {
     [v[0] * s, v[1] * s, v[2] * s]
 }

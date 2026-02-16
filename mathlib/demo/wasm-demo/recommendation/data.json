@@ -1,0 +1,36 @@
+{
+  "texts": [
+    "Rust is a systems programming language.",
+    "Machine learning models can be exported to ONNX.",
+    "WebAssembly runs in the browser.",
+    "Vector embeddings are used for search and recommendation.",
+    "PCA reduces high-dimensional data to fewer dimensions.",
+    "The neural crate provides embedding and ONNX inference.",
+    "Fastembed supports text and image embeddings.",
+    "Recommendation systems use similarity between vectors.",
+    "Dimensionality reduction helps visualize high-D data.",
+    "Python is popular for data science.",
+    "Rust offers memory safety without garbage collection.",
+    "Graph neural networks operate on graph structures.",
+    "Point clouds represent 3D geometry.",
+    "PDF documents can be parsed to extract text.",
+    "Cosine similarity measures angle between vectors."
+  ],
+  "embeddings": [
+    [0.1, 0.0, 0.0, 0.2, 0.1, 0.0, 0.0, 0.1],
+    [0.0, 0.2, 0.1, 0.0, 0.0, 0.2, 0.1, 0.0],
+    [0.1, 0.0, 0.2, 0.0, 0.1, 0.0, 0.2, 0.0],
+    [0.2, 0.1, 0.1, 0.2, 0.0, 0.1, 0.1, 0.2],
+    [0.0, 0.2, 0.2, 0.1, 0.2, 0.0, 0.0, 0.1],
+    [0.1, 0.1, 0.2, 0.2, 0.1, 0.1, 0.0, 0.2],
+    [0.2, 0.0, 0.1, 0.1, 0.2, 0.2, 0.1, 0.0],
+    [0.1, 0.2, 0.0, 0.1, 0.1, 0.2, 0.2, 0.1],
+    [0.0, 0.1, 0.2, 0.2, 0.0, 0.1, 0.2, 0.2],
+    [0.2, 0.2, 0.0, 0.0, 0.1, 0.1, 0.2, 0.0],
+    [0.1, 0.0, 0.0, 0.1, 0.2, 0.2, 0.0, 0.1],
+    [0.0, 0.1, 0.1, 0.0, 0.2, 0.0, 0.2, 0.2],
+    [0.2, 0.0, 0.2, 0.1, 0.0, 0.2, 0.1, 0.0],
+    [0.0, 0.2, 0.0, 0.2, 0.1, 0.0, 0.1, 0.2],
+    [0.1, 0.1, 0.1, 0.1, 0.2, 0.2, 0.2, 0.2]
+  ]
+}

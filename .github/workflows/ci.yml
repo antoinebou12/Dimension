@@ -9,24 +9,12 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: mathlib
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            mathlib/target
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: cargo-${{ runner.os }}-${{ hashFiles('mathlib/Cargo.lock') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -34,14 +22,14 @@ jobs:
       - name: Check format
         run: cargo fmt --all -- --check
 
-      - name: Clippy
-        run: cargo clippy --all-targets -- -D warnings
+      - name: Clippy (mathlib)
+        run: cargo clippy -p mathlib --all-targets -- -D warnings
 
-      - name: Test
-        run: cargo test
+      - name: Test (mathlib)
+        run: cargo test -p mathlib
 
-      - name: Build examples
-        run: cargo build --examples
+      - name: Build examples (mathlib)
+        run: cargo build -p mathlib --examples
 
   test-parse:
     runs-on: ubuntu-latest
@@ -51,18 +39,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            parse/target
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: cargo-parse-${{ runner.os }}-${{ hashFiles('Cargo.lock', 'parse/Cargo.toml') }}
-          restore-keys: |
-            cargo-parse-${{ runner.os }}-
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -78,18 +58,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            mathlib/target
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: cargo-features-${{ runner.os }}-${{ hashFiles('mathlib/Cargo.lock') }}
-          restore-keys: |
-            cargo-features-${{ runner.os }}-
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -108,18 +80,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            mathlib/target
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: cargo-gpu-${{ runner.os }}-${{ hashFiles('mathlib/Cargo.lock') }}
-          restore-keys: |
-            cargo-gpu-${{ runner.os }}-
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -133,20 +97,19 @@ jobs:
   typos:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - uses: crate-ci/typos@v1
         with:
           config: .typos.toml
 
   security:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: mathlib
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -155,7 +118,7 @@ jobs:
         run: cargo install cargo-audit --locked
 
       - name: Generate lockfile for audit
-        run: cargo generate-lockfile
+        run: cargo check -p mathlib
 
       - name: Audit dependencies
         run: cargo audit
@@ -168,18 +131,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Cache Cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            mathlib/target
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: cargo-${{ runner.os }}-${{ hashFiles('mathlib/Cargo.lock') }}
-          restore-keys: |
-            cargo-${{ runner.os }}-
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -192,7 +147,7 @@ jobs:
         run: cargo tarpaulin --features "parallel genetic" --out Xml --out Html --output-dir coverage --timeout 300
 
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: coverage-report
           path: mathlib/coverage/
@@ -213,18 +168,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Cache Cargo
-        uses: actions/cache@v4
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            mathlib/target
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: cargo-wasm-${{ runner.os }}-${{ hashFiles('mathlib/Cargo.lock') }}
-          restore-keys: |
-            cargo-wasm-${{ runner.os }}-
+          targets: wasm32-unknown-unknown
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -245,18 +194,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
-      - name: Cache Cargo
-        uses: actions/cache@v4
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            mathlib/target
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: cargo-wasm-gpu-${{ runner.os }}-${{ hashFiles('mathlib/Cargo.lock') }}
-          restore-keys: |
-            cargo-wasm-gpu-${{ runner.os }}-
+          targets: wasm32-unknown-unknown
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable

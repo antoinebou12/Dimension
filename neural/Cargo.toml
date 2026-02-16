@@ -1,0 +1,83 @@
+# Neural IK: train and run neural inverse-kinematics models (Burn + ONNX).
+# Chain-dependent on N joint positions in world space; usable from WASM and wgpu.
+
+[package]
+name = "neural"
+version = "0.1.0"
+authors = ["Dimension"]
+repository = "https://github.com/dimension/dimension"
+description = "Neural inverse kinematics: train (Burn) and run (Burn/ONNX) models for chain IK; WASM and wgpu friendly"
+keywords = ["ik", "inverse-kinematics", "neural", "burn", "onnx", "wasm", "wgpu"]
+readme = "README.md"
+categories = ["science", "mathematics", "algorithms"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.70"
+
+[lib]
+crate-type = ["rlib", "cdylib"]
+
+[features]
+default = ["train"]
+# Training with Burn (CPU ndarray or wgpu)
+train = ["dep:burn", "dep:burn-train", "dep:kinematics"]
+# ONNX load and inference (ort)
+onnx = ["dep:ort"]
+# WASM bindings for inference
+wasm = ["dep:wasm-bindgen"]
+# Prefer wgpu backend when training (native GPU)
+wgpu = ["burn/wgpu"]
+# Text embedding (fastembed, MiniLM etc.)
+embed-text = ["dep:fastembed"]
+# Image embedding (fastembed, CLIP etc.)
+embed-image = ["dep:fastembed"]
+# PDF text extraction (pdf-extract; if wasm32 build fails, gate in code)
+pdf = ["dep:pdf-extract"]
+# Point cloud embedding via user-supplied ONNX (e.g. PointNet)
+pointcloud = ["onnx"]
+# Graph embedding via ONNX (model downloaded by download_models binary)
+embed-graph = ["onnx"]
+# Precompute demo embeddings (embed-text + JSON export)
+precompute = ["embed-text", "dep:serde_json"]
+
+[dependencies]
+mathlib = { path = "../mathlib" }
+kinematics = { path = "../kinematics", optional = true }
+burn = { version = "0.14", optional = true, default-features = false, features = ["ndarray", "train"] }
+burn-train = { version = "0.14", optional = true, default-features = false }
+ort = { version = "2.0.0-rc.11", optional = true }
+wasm-bindgen = { version = "0.2", optional = true }
+fastembed = { version = "5", optional = true, default-features = true }
+pdf-extract = { version = "0.10", optional = true }
+serde_json = { version = "1", optional = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+rand = "0.8"
+clap = { version = "4", features = ["derive"] }
+reqwest = { version = "0.12", features = ["blocking"] }
+
+[target.'cfg(not(target_arch = "wasm32"))'.build-dependencies]
+# Optional: generate Rust from ONNX at build time
+# burn-import = { version = "0.14", optional = true }
+
+[[bin]]
+name = "train"
+path = "bin/train.rs"
+required-features = ["train"]
+
+[[bin]]
+name = "download_models"
+path = "bin/download_models.rs"
+
+[[example]]
+name = "neural_ik_inference"
+path = "examples/neural_ik_inference.rs"
+
+[[example]]
+name = "precompute_demo_embeddings"
+path = "examples/precompute_demo_embeddings.rs"
+required-features = ["precompute"]
+
+[[test]]
+name = "neural"
+path = "tests/neural.rs"

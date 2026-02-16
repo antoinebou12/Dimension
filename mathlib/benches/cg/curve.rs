@@ -11,7 +11,7 @@ pub fn benches(c: &mut Criterion) {
     let p3 = [1.0, 1.0, 1.0];
     let m0 = [0.0_f32, 0.0, 0.0];
     let m1 = [0.0_f32, 0.0, 0.0];
-    let t = 0.5_f32;
+    let _t = 0.5_f32;
 
     group.bench_function("linear_curve_1000", |b| {
         b.iter(|| {
@@ -66,4 +66,4 @@ pub fn benches(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, benches);
+criterion_group!(curve_benches, benches);

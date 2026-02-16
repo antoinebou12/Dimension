@@ -1,17 +1,41 @@
-//! Jacobian-based IK using SVD pseudoinverse and line search.
+//! Jacobian-based IK using damped least-squares (with SVD fallback) and line search.
+//!
+//! Uses [damped_least_squares](mathlib::damped_least_squares) on the 3×N position Jacobian for
+//! speed; falls back to SVD pseudoinverse when the normal equations are singular (e.g.
+//! CholError::NotSPD). Step size is capped via full-step scaling (inf-norm), preserving
+//! direction while respecting [max_delta_rad](JacobianIk::with_max_delta_rad). Adaptive damping
+//! increases when the line search fails to improve, reducing blow-up near singularities.
+//! Relative-improvement stagnation exits early when improvement over consecutive steps is tiny.
+//!
+//! For spherical joints, packed state uses scaled axis (tangent space); the solver
+//! converts world-frame angular increments to parent-local before applying.
+//! Early exit uses a configurable position tolerance, consistent with
+//! [FabrikIk::with_tolerance](super::fabrik::FabrikIk::with_tolerance).
 
-use mathlib::{Matrix, Storage, Vector3f, svd_econ};
+use mathlib::{Vector, Vector3f, damped_least_squares, svd_econ};
 
-use super::chain::build_geometric_jacobian;
+use super::chain::{apply_joint_step, build_position_jacobian_and_axes};
 use crate::armature::Armature;
 
-/// Jacobian IK solver (SVD + line search).
+/// Relative improvement below this over consecutive steps triggers stagnation exit.
+const RELATIVE_STAGNATION_THRESHOLD: f32 = 1e-4;
+/// Maximum damping when adapting (avoid overly small steps).
+const MAX_DAMPING: f64 = 1.0;
+/// Damping multiplier when line search finds no improving step.
+const DAMPING_INCREASE_FACTOR: f64 = 2.0;
+
+/// Jacobian IK solver (damped least-squares + line search).
 pub struct JacobianIk<'a> {
     armature: &'a mut Armature,
     end_effector_idx: usize,
     target: Vector3f,
     max_iters: usize,
-    sigma_min: f64,
+    /// Position error threshold for early exit (stop when error < tolerance), same as FABRIK.
+    tolerance: f32,
+    /// Damping for damped least-squares; increased adaptively when line search fails.
+    damping: f64,
+    /// Cap on step size (inf-norm of d_theta in radians); None = no cap.
+    max_delta_rad: Option<f32>,
 }
 
 impl<'a> JacobianIk<'a> {
@@ -22,7 +46,9 @@ impl<'a> JacobianIk<'a> {
             end_effector_idx,
             target,
             max_iters: 50,
-            sigma_min: 1e-6,
+            tolerance: 1e-5,
+            damping: 1e-2,
+            max_delta_rad: Some(0.5),
         }
     }
 
@@ -33,23 +59,64 @@ impl<'a> JacobianIk<'a> {
         self
     }
 
+    /// Sets damping for damped least-squares (default 1e-2). Larger values give smaller steps.
+    #[must_use]
+    pub fn with_damping(mut self, damping: f64) -> Self {
+        self.damping = damping;
+        self
+    }
+
+    /// Sets maximum joint delta per step in radians (default 0.5). None disables clamping.
+    #[must_use]
+    pub fn with_max_delta_rad(mut self, max: Option<f32>) -> Self {
+        self.max_delta_rad = max;
+        self
+    }
+
+    /// Sets position tolerance for early exit; solver stops when error is below this (same as FABRIK).
+    #[must_use]
+    pub fn with_tolerance(mut self, tol: f32) -> Self {
+        self.tolerance = tol;
+        self
+    }
+
+    /// Updates the target position.
+    pub fn set_target(&mut self, target: Vector3f) {
+        self.target = target;
+    }
+
     /// Performs one or more IK steps; returns final error magnitude.
     ///
-    /// Uses a stagnation counter so that when the target moves, the solver
-    /// can keep tracking instead of breaking on the first non-improving step.
+    /// Stops when error is below tolerance, or when relative improvement is below
+    /// threshold for two consecutive improving steps, or after three non-improving steps, or max_iters.
     pub fn solve(&mut self) -> f32 {
         let mut best_err = f32::MAX;
-        let mut stagnant = 0;
+        let mut stagnant = 0u32;
+        let mut small_improvement_count = 0u32;
+        let mut current_damping = self.damping;
         for _ in 0..self.max_iters {
-            let err = self.step();
-            if err < 1e-5 {
+            let err = self.step(&mut current_damping);
+            if err < self.tolerance {
                 return err;
             }
             if err < best_err {
+                let prev = best_err;
                 best_err = err;
                 stagnant = 0;
+                if prev < f32::MAX {
+                    let rel = (prev - err) / (prev + 1e-9f32);
+                    if rel < RELATIVE_STAGNATION_THRESHOLD {
+                        small_improvement_count += 1;
+                        if small_improvement_count >= 2 {
+                            break;
+                        }
+                    } else {
+                        small_improvement_count = 0;
+                    }
+                }
             } else {
                 stagnant += 1;
+                small_improvement_count = 0;
                 if stagnant >= 3 {
                     break;
                 }
@@ -59,7 +126,8 @@ impl<'a> JacobianIk<'a> {
     }
 
     /// Performs one IK step; returns error magnitude after the step.
-    pub fn step(&mut self) -> f32 {
+    /// Updates `current_damping` when line search fails (increase) or succeeds (reset to base).
+    pub fn step(&mut self, current_damping: &mut f64) -> f32 {
         self.armature.update_kinematics();
         let ee = self.armature.end_effector_position(self.end_effector_idx);
         let dx = self.delta_to_target(&ee);
@@ -77,39 +145,67 @@ impl<'a> JacobianIk<'a> {
             return err;
         }
 
-        let j = self.build_jacobian(&path, &ee);
-        let j_f64 = self.matrix_f32_to_f64(&j);
-        let svd = svd_econ(&j_f64);
-        let d_theta = self.svd_solve(&svd, &dx);
+        let (j_pos, _, _) = build_position_jacobian_and_axes(self.armature, &path, &ee);
+        let mut dx_v = Vector::with_capacity(3);
+        dx_v.set(0, dx.get(0) as f64);
+        dx_v.set(1, dx.get(1) as f64);
+        dx_v.set(2, dx.get(2) as f64);
+
+        let mut d_theta = match damped_least_squares(&j_pos, &dx_v, *current_damping) {
+            Ok(x) => (0..x.rows()).map(|i| x.get(i) as f32).collect::<Vec<f32>>(),
+            Err(_) => {
+                let svd = svd_econ(&j_pos);
+                self.svd_solve(&svd, &dx, *current_damping)
+            }
+        };
         if d_theta.is_empty() {
             return err;
         }
 
-        let dof_mapping = self.armature.path_to_dfs_dof_mapping(&path);
-        let theta = self.armature.pack();
-        let mut alpha = 1.0f32;
-        for _ in 0..8 {
-            let mut theta_new = theta.clone();
-            for (path_dof_idx, &dt) in d_theta.iter().enumerate() {
-                if let Some(&dfs_dof_idx) = dof_mapping.get(path_dof_idx) {
-                    if dfs_dof_idx < theta_new.len() {
-                        theta_new[dfs_dof_idx] += alpha * dt;
-                    }
+        if let Some(max_d) = self.max_delta_rad {
+            let max_abs = d_theta.iter().map(|&t| t.abs()).fold(0.0f32, f32::max);
+            if max_abs > max_d && max_abs > 1e-9 {
+                let scale = max_d / max_abs;
+                for dt in &mut d_theta {
+                    *dt *= scale;
                 }
             }
+        }
+
+        let dof_mapping = self.armature.path_to_dfs_dof_mapping(&path);
+        let theta = self.armature.pack();
+        let mut best_err_new = err;
+        let mut best_theta_new = theta.clone();
+        let mut theta_new = theta.clone();
+        const ALPHAS: [f32; 4] = [1.0, 0.5, 0.25, 0.125];
+        for alpha in ALPHAS {
+            theta_new.copy_from_slice(&theta);
+            apply_joint_step(
+                self.armature.tree(),
+                &path,
+                &dof_mapping,
+                alpha,
+                &d_theta,
+                &mut theta_new,
+            );
             self.armature.unpack(&theta_new);
             self.armature.update_kinematics();
             let ee_new = self.armature.end_effector_position(self.end_effector_idx);
             let dx_new = self.delta_to_target(&ee_new);
             let err_new = self.norm3(dx_new.get(0), dx_new.get(1), dx_new.get(2));
             if err_new < err {
+                *current_damping = self.damping;
                 return err_new;
             }
-            alpha *= 0.5;
+            if err_new < best_err_new {
+                best_err_new = err_new;
+                best_theta_new.copy_from_slice(&theta_new);
+            }
         }
-        self.armature.unpack(&theta);
+        *current_damping = (*current_damping * DAMPING_INCREASE_FACTOR).min(MAX_DAMPING);
+        self.armature.unpack(&best_theta_new);
         self.armature.update_kinematics();
-        err
+        best_err_new
     }
 
     fn delta_to_target(&self, ee: &Vector3f) -> Vector3f {
@@ -120,31 +216,7 @@ impl<'a> JacobianIk<'a> {
         d
     }
 
-    fn build_jacobian(&self, path: &[usize], ee_pos: &Vector3f) -> Vec<Vec<f32>> {
-        let (jacobian, _) = build_geometric_jacobian(self.armature, path, ee_pos);
-        let cols = jacobian.cols();
-        let mut j = vec![vec![0.0f32; cols], vec![0.0f32; cols], vec![0.0f32; cols]];
-        for col in 0..cols {
-            for row in 0..3 {
-                j[row][col] = jacobian.get(row, col) as f32;
-            }
-        }
-        j
-    }
-
-    fn matrix_f32_to_f64(&self, j: &[Vec<f32>]) -> Matrix<f64> {
-        let rows = j.len();
-        let cols = if rows > 0 { j[0].len() } else { 0 };
-        let mut m = Matrix::with_storage(rows, cols, Storage::Column);
-        for (i, row) in j.iter().enumerate().take(rows) {
-            for (c, &v) in row.iter().enumerate() {
-                m.set(i, c, v as f64);
-            }
-        }
-        m
-    }
-
-    fn svd_solve(&self, svd: &mathlib::SvdEcon, dx: &Vector3f) -> Vec<f32> {
+    fn svd_solve(&self, svd: &mathlib::SvdEcon, dx: &Vector3f, damping: f64) -> Vec<f32> {
         let u = svd.u();
         let v = svd.v();
         let sigma = svd.sigma();
@@ -159,7 +231,13 @@ impl<'a> JacobianIk<'a> {
         let mut y = vec![0.0f64; k];
         for (i, y_i) in y.iter_mut().enumerate().take(k) {
             let s = sigma.get(i);
-            *y_i = if s > self.sigma_min { b[i] / s } else { 0.0 };
+            let s_sq = s * s;
+            let denom = s_sq + damping;
+            *y_i = if denom > 1e-20 {
+                (s * b[i]) / denom
+            } else {
+                0.0
+            };
         }
         let mut d_theta = vec![0.0f32; n];
         for (i, d_i) in d_theta.iter_mut().enumerate().take(n) {

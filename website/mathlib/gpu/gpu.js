@@ -1,6 +1,6 @@
 /**
  * mathlib WASM demo — GPU (WebGPU) section.
- * Requires build with: just wasm-build-gpu
+ * Requires build with: just wasm-build-gpu or just website-build-gpu
  * Exposes: initGpuAsync, matmulF32GpuAsync, dotF32GpuAsync, matvecF32GpuAsync.
  */
 
@@ -29,7 +29,7 @@ if (window.location.protocol === "file:") {
     const matvecOut = byId("matvec-out");
 
     if (typeof initGpuAsync !== "function" || typeof gpuAvailable !== "function") {
-      gpuStatus.textContent = "GPU bindings not available (build with just wasm-build-gpu)";
+      gpuStatus.textContent = "GPU bindings not available (build with just wasm-build-gpu or just website-build-gpu)";
       gpuInitBtn.disabled = true;
     } else {
       function updateStatus() {

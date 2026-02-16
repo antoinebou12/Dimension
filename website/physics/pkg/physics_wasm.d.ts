@@ -1,19 +1,73 @@
 /* tslint:disable */
 /* eslint-disable */
 
+/**
+ * Return the bodies tree as a newline-separated string for the HTML tree panel. Updated each frame.
+ */
+export function get_bodies_tree(): string;
+
+/**
+ * Return current body count (rigid + soft, excluding ground) for HTML display.
+ */
+export function get_body_count(): number;
+
+/**
+ * Return whether debug logging is enabled.
+ */
+export function get_debug_physics(): boolean;
+
+/**
+ * Return total momentum magnitude as a string.
+ */
+export function get_total_momentum(): string;
+
 export function main_js(): void;
+
+/**
+ * Reset the scene from HTML toolbar. Applied on next frame.
+ */
+export function reset_scene(): void;
+
+/**
+ * Enable or disable verbose debug logging. Use `?debug=1` in URL to auto-enable.
+ */
+export function set_debug_physics(enabled: boolean): void;
+
+/**
+ * Spawn a box from HTML toolbar. Applied on next frame.
+ */
+export function spawn_box_body(): void;
+
+/**
+ * Spawn a jelly (soft body) from HTML toolbar. Applied on next frame.
+ */
+export function spawn_jelly(): void;
+
+/**
+ * Spawn a sphere from HTML toolbar. Applied on next frame.
+ */
+export function spawn_sphere(): void;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly get_bodies_tree: () => [number, number];
+    readonly get_body_count: () => number;
+    readonly get_debug_physics: () => number;
+    readonly get_total_momentum: () => [number, number];
     readonly main_js: () => void;
+    readonly reset_scene: () => void;
+    readonly set_debug_physics: (a: number) => void;
+    readonly spawn_box_body: () => void;
+    readonly spawn_jelly: () => void;
+    readonly spawn_sphere: () => void;
     readonly main: (a: number, b: number) => number;
     readonly wasm_bindgen__closure__destroy__h8f0f474f2df844ba: (a: number, b: number) => void;
-    readonly wasm_bindgen__closure__destroy__h31d1a13eb91fb31e: (a: number, b: number) => void;
+    readonly wasm_bindgen__closure__destroy__h4207447d512d3099: (a: number, b: number) => void;
     readonly wasm_bindgen__convert__closures_____invoke__h96c701c382b3865f: (a: number, b: number, c: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h64617728fca606af: (a: number, b: number, c: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h26cce2af6f639b02: (a: number, b: number) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h04258a0b986c3318: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h0f0f986c11098b6d: (a: number, b: number) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;

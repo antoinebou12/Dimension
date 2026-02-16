@@ -42,8 +42,8 @@ fn graph_adjacency_spmv() {
     x.set(2, 1.0);
     let y = &a * &x;
     assert_eq!(y.rows(), 3);
-    // y[0] = A[0,:].x = 1*1 + 2*1 = 3, y[1] = 1*1 = 1, y[2] = 0
-    assert!((y.get(0) - 3.0).abs() < 1e-10);
+    // y[0] = A[0,:].x = 1*x[1] + 2*x[2] = 1*0 + 2*1 = 2, y[1] = 1*1 = 1, y[2] = 0
+    assert!((y.get(0) - 2.0).abs() < 1e-10);
     assert!((y.get(1) - 1.0).abs() < 1e-10);
     assert!((y.get(2) - 0.0).abs() < 1e-10);
 }

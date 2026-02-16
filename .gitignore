@@ -80,6 +80,9 @@ Desktop.ini
 node_modules/
 npm-debug.log*
 
+# Neural: downloaded ONNX models (run just download-neural-models to fetch)
+neural/models/*.onnx
+
 # Playwright E2E
 e2e/test-results/
 e2e/playwright-report/

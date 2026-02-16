@@ -2,9 +2,11 @@
 //!
 //! Based on “Fast and Robust Inverse Kinematics of Serial Robots Using Halley’s Method”
 //! (S. Lloyd et al., IEEE T-RO 2022). Uses a damped Newton step followed by a
-//! third-order correction via the geometric Hessian.
+//! third-order correction via the geometric Hessian. Unlike the QuIK C++/ROS implementation
+//! (DH parameters, tool frame), this solver works on the crate's tree armature with a
+//! full 4×4 target pose.
 
-use super::chain::{build_geometric_jacobian, hessian_product, world_position};
+use super::chain::{apply_joint_step, build_geometric_jacobian, hessian_product, world_position};
 use crate::armature::Armature;
 use mathlib::{Matrix4f, Vector, clamp_twist, damped_least_squares, pose_twist_error};
 
@@ -130,14 +132,12 @@ impl<'a> HalleyIk<'a> {
             let mut scaled = newton_step.clone();
             scale_vector(&mut scaled, 0.5);
 
-            let mut halley_matrix = jacobian.clone();
-            hessian_product(&jacobian, &scaled, &link_types, &mut halley_matrix);
-            let halley_step = damped_least_squares(&halley_matrix, &error_f64, self.lambda_sq)
+            let mut corrected_jacobian = jacobian.clone();
+            hessian_product(&jacobian, &scaled, &link_types, &mut corrected_jacobian);
+            let halley_step = damped_least_squares(&corrected_jacobian, &error_f64, self.lambda_sq)
                 .unwrap_or_else(|_| newton_step.clone());
 
-            let final_step = halley_step;
-
-            match self.try_step(&final_step, err_norm) {
+            match self.try_step(&halley_step, err_norm) {
                 Some(new_err) => {
                     if new_err < best_err {
                         best_err = new_err;
@@ -161,15 +161,21 @@ impl<'a> HalleyIk<'a> {
     }
 
     fn try_step(&mut self, delta: &Vector<f64>, current_err: f32) -> Option<f32> {
+        let path = self.armature.path_to(self.end_effector_idx);
+        let dof_mapping = self.armature.path_to_dfs_dof_mapping(&path);
         let theta = self.armature.pack();
-        let mut alpha = 1.0_f32;
-        for _ in 0..6 {
+        let d_theta: Vec<f32> = (0..delta.rows()).map(|i| delta.get(i) as f32).collect();
+        const ALPHAS: [f32; 6] = [1.0, 0.5, 0.25, 0.125, 0.0625, 0.03125];
+        for alpha in ALPHAS {
             let mut theta_new = theta.clone();
-            for i in 0..delta.rows() {
-                if i < theta_new.len() {
-                    theta_new[i] += alpha * delta.get(i) as f32;
-                }
-            }
+            apply_joint_step(
+                self.armature.tree(),
+                &path,
+                &dof_mapping,
+                alpha,
+                &d_theta,
+                &mut theta_new,
+            );
             self.armature.unpack(&theta_new);
             self.armature.update_kinematics();
             let new_tf = self.current_transform();
@@ -177,7 +183,6 @@ impl<'a> HalleyIk<'a> {
             if new_err < current_err {
                 return Some(new_err);
             }
-            alpha *= 0.5;
         }
         self.armature.unpack(&theta);
         self.armature.update_kinematics();

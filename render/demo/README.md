@@ -41,7 +41,14 @@ just wasm-render-serve
 
 Then open http://localhost:3000/wasm-demo/ in a browser that supports WebGPU.
 
+**GPU: N/A in the stats overlay:** On WASM, GPU *timing* is disabled (to avoid buffer mapping issues), so the overlay shows "GPU: N/A". This does not mean rendering is CPU-only — the 3D scene still uses wgpu/WebGPU when the browser supports it.
+
 To stop the server: press Ctrl+C. Alternatively, run `just demo-render-bg` to serve in the background (after building), then `just demo-render-stop` to stop it.
+
+## Performance / Troubleshooting
+
+- Use a modern browser with WebGPU enabled (Chrome, Edge, or Firefox with `dom.webgpu.enabled`) for best frame rate; software or limited WebGPU can cause slow FPS.
+- For potentially better FPS on CPU-bound work (math, culling), build the render WASM demo with SIMD: `just wasm-render-build-simd`, then `just wasm-render-serve`, and open the same URL.
 
 ## E2E tests (Playwright)
 

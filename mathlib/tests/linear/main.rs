@@ -3,6 +3,7 @@
 mod chol;
 mod lu;
 mod pca;
+mod pinv_norms;
 mod qz;
 mod schur;
 mod simplex;

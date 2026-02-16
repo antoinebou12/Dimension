@@ -12,7 +12,7 @@ Browser demo of mathlib compiled to WebAssembly. Demos are split into domain-bas
 | Linear | [linear/](linear/) | Vector, Matrix, Storage, Cholesky, SVD, LU; Large matrix (GPU) |
 | GPU | [gpu/](gpu/) | WebGPU init, async matmul, dot, matvec (build with wasm-build-gpu) |
 | ML | [ml/](ml/) | K-means, PCA, SVM, DBSCAN |
-| Optimization | [optimization/](optimization/) | Simplex LP, Line search, PSO |
+| Optimization | [optimization/](optimization/) | Simplex LP, Line search, PSO, L-BFGS-B |
 | Graph | [graph/](graph/) | Dijkstra, A*, D* Lite; vertex coloring; BFS/DFS |
 | Distance | [distance/](distance/) | Euclidean, Manhattan, cosine, Chebyshev, Minkowski |
 | Monte Carlo | [monte_carlo/](monte_carlo/) | π estimation (scatter); optional ∫x² 1D integration |
@@ -25,7 +25,7 @@ Shared utilities live in [shared.js](shared.js). Each domain page loads WASM on 
 
 ## Build
 
-From **repo root**: `just wasm-build` — builds with wasm-pack and copies `pkg/` into `wasm-demo/pkg/`. For GPU (Large matrix, vector dot/norm, matvec): use `just wasm-build-gpu`; click "Init GPU" in the Linear page first. Async GPU bindings: `matmulF32GpuAsync`, `dotF32GpuAsync`, `normF32GpuAsync`, `matvecF32GpuAsync`.
+From **repo root**: `just wasm-build` — builds with wasm-pack and copies `pkg/` into `wasm-demo/pkg/`. For GPU (Large matrix, vector dot/norm, matvec): use `just wasm-build-gpu`; then open the Linear page and click **"Init GPU"** first. Async GPU bindings: `matmulF32GpuAsync`, `dotF32GpuAsync`, `normF32GpuAsync`, `matvecF32GpuAsync`. If you see "GPU bindings not available (build with just wasm-build-gpu)", that means the pkg was built without the `gpu` feature — run `just wasm-build-gpu` (or for the unified site, `just website-build-gpu`) and click "Init GPU" in the browser.
 
 From **mathlib** directory:
 

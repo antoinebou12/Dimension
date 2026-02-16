@@ -11,7 +11,9 @@ fn fill_slice_white(slice: &mut [f32]) {
     {
         mathlib::cpu::simd::set_zero_f32(slice);
         let ones = vec![1.0_f32; slice.len()];
-        mathlib::cpu::simd::add_f32(&ones, slice, slice);
+        let mut out = vec![0.0_f32; slice.len()];
+        mathlib::cpu::simd::add_f32(&ones, slice, &mut out);
+        slice.copy_from_slice(&out);
     }
     #[cfg(not(feature = "simd"))]
     {

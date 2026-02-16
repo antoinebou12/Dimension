@@ -123,3 +123,39 @@ pub fn matvec_col_major_f32(m: usize, n: usize, a: &[f32], x: &[f32], y: &mut [f
     )))]
     sequential::matvec_col_major_f32(m, n, a, x, y);
 }
+
+/// Sum of squares for f64 slice: `sum_i` x[i]². Dispatches to simd or sequential.
+#[inline]
+pub fn squared_sum_f64(x: &[f64]) -> f64 {
+    #[cfg(feature = "simd")]
+    return simd::squared_sum_f64(x);
+    #[cfg(not(feature = "simd"))]
+    return sequential::squared_sum_f64(x);
+}
+
+/// Sum of squares for f32 slice: `sum_i` x[i]². Dispatches to simd or sequential.
+#[inline]
+pub fn squared_sum_f32(x: &[f32]) -> f32 {
+    #[cfg(feature = "simd")]
+    return simd::squared_sum_f32(x);
+    #[cfg(not(feature = "simd"))]
+    return sequential::squared_sum_f32(x);
+}
+
+/// Sum of absolute differences for f64: `sum_i` |a[i] - b[i]|. Dispatches to simd or sequential.
+#[inline]
+pub fn abs_diff_sum_f64(a: &[f64], b: &[f64]) -> f64 {
+    #[cfg(feature = "simd")]
+    return simd::abs_diff_sum_f64(a, b);
+    #[cfg(not(feature = "simd"))]
+    return sequential::abs_diff_sum_f64(a, b);
+}
+
+/// Max of absolute differences for f64: `max_i` |a[i] - b[i]|. Dispatches to simd or sequential.
+#[inline]
+pub fn max_abs_diff_f64(a: &[f64], b: &[f64]) -> f64 {
+    #[cfg(feature = "simd")]
+    return simd::max_abs_diff_f64(a, b);
+    #[cfg(not(feature = "simd"))]
+    return sequential::max_abs_diff_f64(a, b);
+}

@@ -2,13 +2,16 @@
 //!
 //! Handles particles, rigid bodies, and soft bodies (Neo-Hookean) in one loop.
 
+use crate::body::RigidBody;
 use crate::body_constraint::{PositionalConstraint, RigidContactConstraint};
 use crate::constraint::Constraint;
 use crate::hooks::SubstepHooks;
 use crate::neohookean;
-use crate::state::PhysicsState;
+use crate::schur_cg;
+use crate::state::{PhysicsState, RigidBilateralSolver};
 use mathlib::math3d_raw::{
-    quat_conjugate, quat_mul, quat_normalize, vec3_add, vec3_length_sq, vec3_scale, vec3_sub,
+    generalized_inverse_mass_bilinear_two_r, quat_conjugate, quat_mul, quat_normalize,
+    quat_rotate_vec, vec3_add, vec3_length_sq, vec3_scale, vec3_sub,
 };
 
 /// Full PBD step (backward-compatible, no rigid/joint constraints).
@@ -103,7 +106,27 @@ pub fn step_xpbd(
             c.reset_lambda();
         }
         for c in rigid_contacts.iter_mut() {
-            c.lambda_accum = 0.0;
+            c.lambda_accum = [0.0; 3];
+        }
+
+        // Optional: solve bilateral (positional) constraints with CG once per substep
+        let use_cg = state.config.rigid_bilateral_solver == RigidBilateralSolver::ConjugateGradient
+            && !positional_constraints.is_empty();
+        if use_cg {
+            let inv_inertia_cg: Vec<[f32; 9]> = state
+                .rigid_bodies
+                .iter()
+                .map(|rb| RigidBody::inv_inertia_world_from_q(&rb.inv_inertia, &rb.predicted_q))
+                .collect();
+            schur_cg::solve_positional_cg(
+                &*positional_constraints,
+                &mut state.rigid_bodies,
+                &inv_inertia_cg,
+                dtau,
+                state.config.constraint_gamma,
+                state.config.cg_max_iter,
+                state.config.cg_tolerance,
+            );
         }
 
         // Soft body Lagrange multipliers (deviatoric + hydrostatic per tet)
@@ -116,6 +139,8 @@ pub fn step_xpbd(
         // == Constraint solve iterations ==
         let mut dx: Vec<[f32; 3]> = vec![[0.0; 3]; n_particles];
         let mut n_affecting: Vec<u32> = vec![0; n_particles];
+        let n_bodies = state.rigid_bodies.len();
+        let mut inv_inertia_cache: Vec<[f32; 9]> = vec![[0.0; 9]; n_bodies];
 
         for _iter in 0..iterations {
             for d in dx.iter_mut() {
@@ -140,12 +165,56 @@ pub fn step_xpbd(
                 }
             }
 
-            // Rigid body constraints
-            for c in positional_constraints.iter_mut() {
-                c.solve(&mut state.rigid_bodies);
+            // Cache world-frame inverse inertia per body (from predicted_q) for rigid constraints.
+            // Avoids O(contacts) recomputation; each body's inertia is computed once per iteration.
+            for (i, rb) in state.rigid_bodies.iter().enumerate() {
+                inv_inertia_cache[i] =
+                    RigidBody::inv_inertia_world_from_q(&rb.inv_inertia, &rb.predicted_q);
             }
-            for c in rigid_contacts.iter_mut() {
-                c.solve(&mut state.rigid_bodies);
+
+            // PGS coupling: build body -> constraint index lists and compute RHS coupling terms (contacts only when using CG for positionals)
+            let n_bodies = state.rigid_bodies.len();
+            let body_to_pos = {
+                let pos = &*positional_constraints;
+                build_body_to_constraint_indices(n_bodies, pos.len(), |i| {
+                    [pos[i].body_a, pos[i].body_b]
+                })
+            };
+            let body_to_contact = {
+                let con = &*rigid_contacts;
+                build_body_to_constraint_indices(n_bodies, con.len(), |i| {
+                    [con[i].body_a, con[i].body_b]
+                })
+            };
+            let coupling_pos = compute_positional_coupling(
+                &*positional_constraints,
+                &state.rigid_bodies,
+                &inv_inertia_cache,
+                &body_to_pos,
+            );
+            let coupling_contact = compute_contact_coupling(
+                &*rigid_contacts,
+                &state.rigid_bodies,
+                &inv_inertia_cache,
+                &body_to_contact,
+            );
+
+            // Rigid body bilateral constraints: PGS (with coupling) or skip when CG was used
+            if !use_cg {
+                for (c, coupling) in positional_constraints
+                    .iter_mut()
+                    .zip(coupling_pos.into_iter())
+                {
+                    c.solve(&mut state.rigid_bodies, &inv_inertia_cache, coupling);
+                }
+            }
+            for (c, coupling) in rigid_contacts.iter_mut().zip(coupling_contact.into_iter()) {
+                c.solve(
+                    &mut state.rigid_bodies,
+                    &inv_inertia_cache,
+                    state.config.contact_friction,
+                    coupling,
+                );
             }
 
             // Soft body Neo-Hookean constraints
@@ -224,4 +293,139 @@ fn integrate_quaternion(q: &[f32; 4], omega: &[f32; 3], dt: f32) -> [f32; 4] {
         q[2] + half_dt * dq[2],
         q[3] + half_dt * dq[3],
     ])
+}
+
+/// Build per-body lists of constraint indices (positional or contact) that touch that body.
+fn build_body_to_constraint_indices<F>(
+    n_bodies: usize,
+    n_constraints: usize,
+    body_pair: F,
+) -> Vec<Vec<usize>>
+where
+    F: Fn(usize) -> [usize; 2],
+{
+    let mut out = vec![Vec::new(); n_bodies];
+    for i in 0..n_constraints {
+        let [a, b] = body_pair(i);
+        if a < n_bodies {
+            out[a].push(i);
+        }
+        if b < n_bodies && b != a {
+            out[b].push(i);
+        }
+    }
+    out
+}
+
+/// PGS coupling for positionals: for each constraint i, subtract sum_j (J_i M⁻¹ J_jᵀ) λ_j over j on same bodies.
+fn compute_positional_coupling(
+    positionals: &[PositionalConstraint],
+    bodies: &[RigidBody],
+    inv_inertia_cache: &[[f32; 9]],
+    body_to_pos: &[Vec<usize>],
+) -> Vec<[f32; 3]> {
+    const AXES: [[f32; 3]; 3] = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+    let n = positionals.len();
+    let mut coupling = vec![[0.0; 3]; n];
+    for i in 0..n {
+        let pi = &positionals[i];
+        let bodies_i = [pi.body_a, pi.body_b];
+        for &bi in &bodies_i {
+            if bi >= bodies.len() {
+                continue;
+            }
+            let rb = &bodies[bi];
+            let inv_mass = rb.inv_mass;
+            let inv_i = &inv_inertia_cache[bi];
+            let ri = if pi.body_a == bi {
+                quat_rotate_vec(&rb.predicted_q, &pi.r_a)
+            } else {
+                quat_rotate_vec(&rb.predicted_q, &pi.r_b)
+            };
+            for &j in &body_to_pos[bi] {
+                if j == i {
+                    continue;
+                }
+                let pj = &positionals[j];
+                let rj = if pj.body_a == bi {
+                    quat_rotate_vec(&rb.predicted_q, &pj.r_a)
+                } else {
+                    quat_rotate_vec(&rb.predicted_q, &pj.r_b)
+                };
+                let mut block = [[0.0_f32; 3]; 3];
+                for (k, ek) in AXES.iter().enumerate() {
+                    for (l, el) in AXES.iter().enumerate() {
+                        block[k][l] = generalized_inverse_mass_bilinear_two_r(
+                            inv_mass, inv_i, &ri, &rj, ek, el,
+                        );
+                    }
+                }
+                let lam = &pj.lambda_accum;
+                coupling[i][0] +=
+                    block[0][0] * lam[0] + block[0][1] * lam[1] + block[0][2] * lam[2];
+                coupling[i][1] +=
+                    block[1][0] * lam[0] + block[1][1] * lam[1] + block[1][2] * lam[2];
+                coupling[i][2] +=
+                    block[2][0] * lam[0] + block[2][1] * lam[1] + block[2][2] * lam[2];
+            }
+        }
+    }
+    coupling
+}
+
+/// PGS coupling for contacts: same idea with normal + two tangents.
+fn compute_contact_coupling(
+    contacts: &[RigidContactConstraint],
+    bodies: &[RigidBody],
+    inv_inertia_cache: &[[f32; 9]],
+    body_to_contact: &[Vec<usize>],
+) -> Vec<[f32; 3]> {
+    let n = contacts.len();
+    let mut coupling = vec![[0.0; 3]; n];
+    for i in 0..n {
+        let ci = &contacts[i];
+        let dirs_i: [&[f32; 3]; 3] = [&ci.normal, &ci.tangent1, &ci.tangent2];
+        let bodies_i = [ci.body_a, ci.body_b];
+        for &bi in &bodies_i {
+            if bi >= bodies.len() {
+                continue;
+            }
+            let rb = &bodies[bi];
+            let inv_mass = rb.inv_mass;
+            let inv_i = &inv_inertia_cache[bi];
+            let ri = if ci.body_a == bi {
+                quat_rotate_vec(&rb.predicted_q, &ci.r_a)
+            } else {
+                quat_rotate_vec(&rb.predicted_q, &ci.r_b)
+            };
+            for &j in &body_to_contact[bi] {
+                if j == i {
+                    continue;
+                }
+                let cj = &contacts[j];
+                let rj = if cj.body_a == bi {
+                    quat_rotate_vec(&rb.predicted_q, &cj.r_a)
+                } else {
+                    quat_rotate_vec(&rb.predicted_q, &cj.r_b)
+                };
+                let dirs_j: [&[f32; 3]; 3] = [&cj.normal, &cj.tangent1, &cj.tangent2];
+                let mut block = [[0.0_f32; 3]; 3];
+                for k in 0..3 {
+                    for l in 0..3 {
+                        block[k][l] = generalized_inverse_mass_bilinear_two_r(
+                            inv_mass, inv_i, &ri, &rj, dirs_i[k], dirs_j[l],
+                        );
+                    }
+                }
+                let lam = &cj.lambda_accum;
+                coupling[i][0] +=
+                    block[0][0] * lam[0] + block[0][1] * lam[1] + block[0][2] * lam[2];
+                coupling[i][1] +=
+                    block[1][0] * lam[0] + block[1][1] * lam[1] + block[1][2] * lam[2];
+                coupling[i][2] +=
+                    block[2][0] * lam[0] + block[2][1] * lam[1] + block[2][2] * lam[2];
+            }
+        }
+    }
+    coupling
 }

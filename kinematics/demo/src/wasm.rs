@@ -3,13 +3,18 @@
 //! Expects the page to define `window.set_stats_overlay(fps, cpu_ms, gpu_ms, elements)` and
 //! optionally `window.show_render_error(msg)` for init errors (same pattern as render-demo).
 
+#[cfg(feature = "bvh")]
+use crate::scene::build_chain_from_armature;
 use crate::scene::{
-    apply_kinematics_action, build_armature_controls_panel, build_armature_tree_panel,
-    build_kinematics_scene, build_scene_entity_panel, camera_view_forward, screen_to_plane_at_point,
-    step_ik, KinematicsScene, ARMATURE_CONTROLS_WINDOW_ID, ARMATURE_TREE_WINDOW_ID,
-    SCENE_ENTITY_WINDOW_ID,
+    apply_kinematics_action, build_armature_controls_panel, build_armature_tree_panel, build_chain,
+    build_kinematics_scene, build_scene_entity_panel, camera_view_forward, format_armature_tree,
+    randomize_ik_target_for_chain, screen_to_plane_at_point, set_target_to_end_effector_for_chain,
+    step_ik, ArmPreset, ChainIndex, IkSolverType, KinematicsScene, ARMATURE_CONTROLS_WINDOW_ID,
+    ARMATURE_TREE_WINDOW_ID, SCENE_ENTITY_WINDOW_ID,
 };
 use js_sys::Reflect;
+#[cfg(feature = "bvh")]
+use kinematics::Armature;
 use render::input_constants::PAN_SENSITIVITY;
 use render::{
     build_stats_panel, pick_entity, pick_gizmo_handle, Engine, FrameStats, GizmoMode,
@@ -18,6 +23,27 @@ use render::{
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::rc::Rc;
+
+thread_local! {
+    static PENDING_SOLVER: RefCell<Option<IkSolverType>> = RefCell::new(None);
+    static PENDING_EE_IDX: RefCell<Option<usize>> = RefCell::new(None);
+    static PENDING_RANDOM_TARGET: RefCell<bool> = RefCell::new(false);
+    static PENDING_SET_TARGET_TO_EE: RefCell<bool> = RefCell::new(false);
+    static PENDING_RESET_SCENE: RefCell<bool> = RefCell::new(false);
+    #[cfg(feature = "bvh")]
+    static PENDING_BVH_ARMATURE: RefCell<Option<Armature>> = RefCell::new(None);
+    static PENDING_ACTIVE_CHAIN: RefCell<Option<ChainIndex>> = RefCell::new(None);
+    static PENDING_ARM_PRESET: RefCell<Option<ArmPreset>> = RefCell::new(None);
+    static ACTIVE_CHAIN_DUMP: RefCell<String> = RefCell::new("a".to_string());
+    static ARMATURE_TREE_DUMP: RefCell<String> = RefCell::new(String::new());
+    static EE_POSITION_DUMP: RefCell<String> = RefCell::new(String::new());
+    static TARGET_POSITION_DUMP: RefCell<String> = RefCell::new(String::new());
+    static SOLVER_DUMP: RefCell<String> = RefCell::new("fabrik".to_string());
+    static CURRENT_EE_IDX: RefCell<u32> = RefCell::new(3);
+    static NODE_COUNT_DUMP: RefCell<u32> = RefCell::new(4);
+    /// Last Hessian snapshot (data row-major, size n, error); updated each frame when solver is Hessian.
+    static HESSIAN_SNAPSHOT: RefCell<Option<(Vec<f64>, usize, f32)>> = RefCell::new(None);
+}
 use wasm_bindgen::closure::Closure;
 use wasm_bindgen::{JsCast, JsValue};
 use web_sys::HtmlCanvasElement;
@@ -202,6 +228,27 @@ fn setup_listeners(
             }
             if e.key() == "Control" {
                 *ctrl_down.borrow_mut() = true;
+                return;
+            }
+            match e.key().as_str() {
+                "1" => {
+                    let _ = e.prevent_default();
+                    set_active_chain("a");
+                }
+                "2" => {
+                    let _ = e.prevent_default();
+                    set_active_chain("b");
+                }
+                "Tab" => {
+                    let _ = e.prevent_default();
+                    let cur = ACTIVE_CHAIN_DUMP.with(|c| c.borrow().clone());
+                    set_active_chain(if cur == "a" { "b" } else { "a" });
+                }
+                "r" | "R" => {
+                    let _ = e.prevent_default();
+                    randomize_target();
+                }
+                _ => {}
             }
         });
     let ctrl_up = Rc::clone(&ctrl_held);
@@ -342,13 +389,15 @@ fn setup_listeners(
                     }
                     *orbit_move.borrow_mut() = (true, Some((x64, y64)), orbit_down);
                 } else if ik_pressing && !eng.is_cursor_over_ui() {
-                    if let Some(pos) = screen_to_plane_at_point(
-                        eng.camera(),
-                        x,
-                        y,
-                        scene.ik_target,
-                    ) {
-                        scene.ik_target = pos;
+                    let target = match scene.active_chain {
+                        ChainIndex::A => scene.chain_a.ik_target,
+                        ChainIndex::B => scene.chain_b.ik_target,
+                    };
+                    if let Some(pos) = screen_to_plane_at_point(eng.camera(), x, y, target) {
+                        match scene.active_chain {
+                            ChainIndex::A => scene.chain_a.ik_target = pos,
+                            ChainIndex::B => scene.chain_b.ik_target = pos,
+                        }
                         step_ik(scene, eng.world_mut());
                     }
                     *ik_move.borrow_mut() = (true, Some((x64, y64)));
@@ -381,9 +430,13 @@ fn setup_listeners(
                 if ik_pressing && !eng.is_cursor_over_ui() {
                     let forward = camera_view_forward(eng.camera());
                     let step = delta * DEPTH_SCROLL_SENSITIVITY;
-                    scene.ik_target[0] += forward[0] * step;
-                    scene.ik_target[1] += forward[1] * step;
-                    scene.ik_target[2] += forward[2] * step;
+                    let chain = match scene.active_chain {
+                        ChainIndex::A => &mut scene.chain_a,
+                        ChainIndex::B => &mut scene.chain_b,
+                    };
+                    chain.ik_target[0] += forward[0] * step;
+                    chain.ik_target[1] += forward[1] * step;
+                    chain.ik_target[2] += forward[2] * step;
                     step_ik(scene, eng.world_mut());
                 } else {
                     eng.zoom(-delta * ZOOM_SENSITIVITY);
@@ -452,6 +505,67 @@ fn schedule_frame(
 
             let mut stats_to_show = None;
             if let Some((eng, scene)) = g.as_mut() {
+                if PENDING_RESET_SCENE.with(|c| {
+                    let mut r = c.borrow_mut();
+                    let prev = *r;
+                    *r = false;
+                    prev
+                }) {
+                    let world = eng.world_mut();
+                    for &e in scene
+                        .chain_a
+                        .joint_entities
+                        .iter()
+                        .chain(scene.chain_a.link_entities.iter())
+                        .chain(scene.chain_a.cone_entities.iter())
+                        .chain(std::iter::once(&scene.chain_a.target_entity))
+                    {
+                        world.despawn(e);
+                    }
+                    for &e in scene
+                        .chain_b
+                        .joint_entities
+                        .iter()
+                        .chain(scene.chain_b.link_entities.iter())
+                        .chain(scene.chain_b.cone_entities.iter())
+                        .chain(std::iter::once(&scene.chain_b.target_entity))
+                    {
+                        world.despawn(e);
+                    }
+                    *scene = build_kinematics_scene(world);
+                }
+                #[cfg(feature = "bvh")]
+                if let Some(armature) = PENDING_BVH_ARMATURE.with(|c| c.borrow_mut().take()) {
+                    let active = scene.active_chain;
+                    let chain = match active {
+                        ChainIndex::A => &mut scene.chain_a,
+                        ChainIndex::B => &mut scene.chain_b,
+                    };
+                    let to_despawn: Vec<_> = chain
+                        .joint_entities
+                        .iter()
+                        .chain(chain.link_entities.iter())
+                        .chain(chain.cone_entities.iter())
+                        .copied()
+                        .chain(std::iter::once(chain.target_entity))
+                        .collect();
+                    let world = eng.world_mut();
+                    for &e in &to_despawn {
+                        world.despawn(e);
+                    }
+                    let new_chain = build_chain_from_armature(
+                        world,
+                        armature,
+                        chain.root_offset,
+                        chain.color,
+                        chain.target_color,
+                        chain.ik_solver_type,
+                    );
+                    match active {
+                        ChainIndex::A => scene.chain_a = new_chain,
+                        ChainIndex::B => scene.chain_b = new_chain,
+                    }
+                }
                 eng.set_last_frame_stats(FrameStats {
                     fps,
                     cpu_time_ms,
@@ -481,16 +595,14 @@ fn schedule_frame(
                     }
                     // One-time viewport/panel debug log after first successful frame
                     if frame_num == 1 {
+                        crate::wasm_debug::maybe_enable_debug_from_url();
                         let vw = eng.viewport_width();
                         let vh = eng.camera().height;
                         let ctrl_x = (390.0_f32).min(vw as f32 - 190.0);
-                        let _ = web_sys::console::log_1(
-                            &format!(
-                                "[kinematics] viewport {}x{} panels: scene(10,10,160,_) tree(180,10,200,_) controls({:.0},10,180,_)",
-                                vw, vh, ctrl_x
-                            )
-                            .into(),
-                        );
+                        crate::wasm_debug::log_always(&format!(
+                            "[kinematics] viewport {}x{} panels: scene(10,10,160,_) tree(180,10,200,_) controls({:.0},10,180,_)",
+                            vw, vh, ctrl_x
+                        ));
                     }
                 }
 
@@ -521,12 +633,170 @@ fn schedule_frame(
                     }
                 }
 
-                if eng.selected_entity() == Some(scene.target_entity) {
-                    if let Some(data) = eng.world().get(scene.target_entity) {
-                        scene.ik_target = data.transform.position;
+                if let Some(selected) = eng.selected_entity() {
+                    if selected == scene.chain_a.target_entity {
+                        if let Some(data) = eng.world().get(selected) {
+                            scene.chain_a.ik_target = data.transform.position;
+                        }
+                    } else if selected == scene.chain_b.target_entity {
+                        if let Some(data) = eng.world().get(selected) {
+                            scene.chain_b.ik_target = data.transform.position;
+                        }
                     }
                 }
+                // Apply pending HTML UI actions. Apply active-chain switch first so solver/EE/random use the correct chain.
+                if let Some(c) = PENDING_ACTIVE_CHAIN.with(|cell| cell.borrow_mut().take()) {
+                    scene.active_chain = c;
+                }
+                let active = scene.active_chain;
+                if let Some(preset) = PENDING_ARM_PRESET.with(|c| c.borrow_mut().take()) {
+                    let chain = match active {
+                        ChainIndex::A => &mut scene.chain_a,
+                        ChainIndex::B => &mut scene.chain_b,
+                    };
+                    let to_despawn: Vec<_> = chain
+                        .joint_entities
+                        .iter()
+                        .chain(chain.link_entities.iter())
+                        .chain(chain.cone_entities.iter())
+                        .copied()
+                        .chain(std::iter::once(chain.target_entity))
+                        .collect();
+                    let world = eng.world_mut();
+                    for &e in &to_despawn {
+                        world.despawn(e);
+                    }
+                    let new_chain = build_chain(
+                        world,
+                        preset,
+                        chain.root_offset,
+                        chain.color,
+                        chain.target_color,
+                        chain.ik_solver_type,
+                    );
+                    match active {
+                        ChainIndex::A => scene.chain_a = new_chain,
+                        ChainIndex::B => scene.chain_b = new_chain,
+                    }
+                }
+                if let Some(solver) = PENDING_SOLVER.with(|c| c.borrow_mut().take()) {
+                    let chain = match active {
+                        ChainIndex::A => &mut scene.chain_a,
+                        ChainIndex::B => &mut scene.chain_b,
+                    };
+                    chain.ik_solver_type = solver;
+                    let name = match solver {
+                        IkSolverType::Fabrik => "FABRIK",
+                        IkSolverType::FabrikSqp => "FABRIK+SQP",
+                        IkSolverType::Jacobian => "Jacobian",
+                        IkSolverType::Ccd => "CCD",
+                        IkSolverType::Halley => "Halley",
+                        IkSolverType::Hessian => "Hessian",
+                        #[cfg(feature = "neural")]
+                        IkSolverType::Neural => "Neural",
+                    };
+                    crate::wasm_debug::log(&format!(
+                        "[kinematics] solver={} EE={}",
+                        name, chain.end_effector_idx
+                    ));
+                }
+                if let Some(idx) = PENDING_EE_IDX.with(|c| c.borrow_mut().take()) {
+                    let chain = match active {
+                        ChainIndex::A => &mut scene.chain_a,
+                        ChainIndex::B => &mut scene.chain_b,
+                    };
+                    let n = chain.armature.tree().num_nodes();
+                    if idx < n {
+                        chain.end_effector_idx = idx;
+                        crate::wasm_debug::log(&format!("[kinematics] EE_idx={}", idx));
+                    }
+                }
+                if PENDING_RANDOM_TARGET.with(|c| {
+                    let mut g = c.borrow_mut();
+                    let prev = *g;
+                    *g = false;
+                    prev
+                }) {
+                    let chain = match active {
+                        ChainIndex::A => &mut scene.chain_a,
+                        ChainIndex::B => &mut scene.chain_b,
+                    };
+                    randomize_ik_target_for_chain(chain);
+                }
+                if PENDING_SET_TARGET_TO_EE.with(|c| {
+                    let mut g = c.borrow_mut();
+                    let prev = *g;
+                    *g = false;
+                    prev
+                }) {
+                    let chain = match active {
+                        ChainIndex::A => &mut scene.chain_a,
+                        ChainIndex::B => &mut scene.chain_b,
+                    };
+                    set_target_to_end_effector_for_chain(chain);
+                }
                 step_ik(scene, eng.world_mut());
+                // Update dumps for HTML UI getters (active chain).
+                ARMATURE_TREE_DUMP.with(|c| *c.borrow_mut() = format_armature_tree(scene));
+                let chain = match scene.active_chain {
+                    ChainIndex::A => &scene.chain_a,
+                    ChainIndex::B => &scene.chain_b,
+                };
+                let ee = chain.armature.end_effector_position(chain.end_effector_idx);
+                let ee_wx = chain.root_offset[0] + ee.get(0);
+                let ee_wy = chain.root_offset[1] + ee.get(1);
+                let ee_wz = chain.root_offset[2] + ee.get(2);
+                EE_POSITION_DUMP
+                    .with(|c| *c.borrow_mut() = format!("{:.3},{:.3},{:.3}", ee_wx, ee_wy, ee_wz));
+                TARGET_POSITION_DUMP.with(|c| {
+                    *c.borrow_mut() = format!(
+                        "{:.3},{:.3},{:.3}",
+                        chain.ik_target[0], chain.ik_target[1], chain.ik_target[2]
+                    )
+                });
+                SOLVER_DUMP.with(|c| {
+                    *c.borrow_mut() = match chain.ik_solver_type {
+                        IkSolverType::Fabrik => "fabrik".to_string(),
+                        IkSolverType::FabrikSqp => "fabrik_sqp".to_string(),
+                        IkSolverType::Jacobian => "jacobian".to_string(),
+                        IkSolverType::Ccd => "ccd".to_string(),
+                        IkSolverType::Halley => "halley".to_string(),
+                        IkSolverType::Hessian => "hessian".to_string(),
+                        #[cfg(feature = "neural")]
+                        IkSolverType::Neural => "neural".to_string(),
+                    }
+                });
+                CURRENT_EE_IDX.with(|c| *c.borrow_mut() = chain.end_effector_idx as u32);
+                NODE_COUNT_DUMP
+                    .with(|c| *c.borrow_mut() = chain.armature.tree().num_nodes() as u32);
+                // Update Hessian snapshot for viz when active chain solver is Hessian.
+                {
+                    let chain_mut = match scene.active_chain {
+                        ChainIndex::A => &mut scene.chain_a,
+                        ChainIndex::B => &mut scene.chain_b,
+                    };
+                    if chain_mut.ik_solver_type == IkSolverType::Hessian {
+                        let target = mathlib::cg::vector3(
+                            chain_mut.ik_target[0],
+                            chain_mut.ik_target[1],
+                            chain_mut.ik_target[2],
+                        );
+                        let snap = kinematics::hessian_snapshot(
+                            &mut chain_mut.armature,
+                            chain_mut.end_effector_idx,
+                            target,
+                        );
+                        HESSIAN_SNAPSHOT.with(|c| *c.borrow_mut() = snap);
+                    } else {
+                        HESSIAN_SNAPSHOT.with(|c| *c.borrow_mut() = None);
+                    }
+                }
+                ACTIVE_CHAIN_DUMP.with(|c| {
+                    *c.borrow_mut() = match scene.active_chain {
+                        ChainIndex::A => "a".to_string(),
+                        ChainIndex::B => "b".to_string(),
+                    }
+                });
                 let (scene_entity_window, scene_entity_mapping) =
                     build_scene_entity_panel(scene, eng.world());
                 let mut merged_opt: Option<HashMap<_, _>> = None;
@@ -569,4 +839,158 @@ fn schedule_frame(
         })
         .expect("request_animation_frame failed");
     closure.forget();
+}
+
+/// Set the IK solver for the active chain. Call with `"fabrik"`, `"jacobian"`, `"ccd"`, or `"halley"`; applied on next frame.
+pub fn set_ik_solver(name: &str) {
+    let solver = if name.eq_ignore_ascii_case("jacobian") {
+        IkSolverType::Jacobian
+    } else if name.eq_ignore_ascii_case("ccd") {
+        IkSolverType::Ccd
+    } else if name.eq_ignore_ascii_case("halley") {
+        IkSolverType::Halley
+    } else if name.eq_ignore_ascii_case("hessian") {
+        IkSolverType::Hessian
+    } else if name.eq_ignore_ascii_case("fabrik_sqp") {
+        IkSolverType::FabrikSqp
+    } else if name.eq_ignore_ascii_case("neural") {
+        #[cfg(feature = "neural")]
+        {
+            IkSolverType::Neural
+        }
+        #[cfg(not(feature = "neural"))]
+        {
+            IkSolverType::Fabrik
+        }
+    } else {
+        IkSolverType::Fabrik
+    };
+    PENDING_SOLVER.with(|c| c.borrow_mut().replace(solver));
+}
+
+/// Return the active chain as `"a"` or `"b"`. Updated each frame.
+#[must_use]
+#[allow(dead_code)] // Called from JS via WASM; no in-crate references
+pub fn get_active_chain() -> String {
+    ACTIVE_CHAIN_DUMP.with(|c| c.borrow().clone())
+}
+
+/// Set the active chain. Call with `"a"` or `"b"`; applied on next frame.
+pub fn set_active_chain(name: &str) {
+    let c = if name.eq_ignore_ascii_case("b") {
+        ChainIndex::B
+    } else {
+        ChainIndex::A
+    };
+    PENDING_ACTIVE_CHAIN.with(|cell| cell.borrow_mut().replace(c));
+}
+
+/// Set the arm preset for the active chain. Call with `"spherical"`, `"revolute"`, `"mixed"`, or `"snake"`; applied on next frame.
+pub fn set_arm_preset(name: &str) {
+    let preset = if name.eq_ignore_ascii_case("revolute") {
+        ArmPreset::Revolute
+    } else if name.eq_ignore_ascii_case("mixed") {
+        ArmPreset::MixedArm
+    } else if name.eq_ignore_ascii_case("snake") {
+        ArmPreset::SphericalSnake
+    } else {
+        ArmPreset::Spherical
+    };
+    PENDING_ARM_PRESET.with(|c| c.borrow_mut().replace(preset));
+}
+
+/// Return the current IK solver: `"fabrik"`, `"jacobian"`, `"ccd"`, or `"halley"`. Updated each frame.
+#[must_use]
+pub fn get_ik_solver() -> String {
+    SOLVER_DUMP.with(|c| c.borrow().clone())
+}
+
+/// Return comma-separated list of solver names available on this build.
+#[must_use]
+pub fn get_available_solvers() -> String {
+    #[cfg(feature = "neural")]
+    return "fabrik,fabrik_sqp,jacobian,ccd,halley,hessian,neural".to_string();
+    #[cfg(not(feature = "neural"))]
+    "fabrik,fabrik_sqp,jacobian,ccd,halley,hessian".to_string()
+}
+
+/// Return the armature tree as a newline-separated string. Updated each frame.
+#[must_use]
+pub fn get_armature_tree() -> String {
+    ARMATURE_TREE_DUMP.with(|c| c.borrow().clone())
+}
+
+/// Return the end-effector position as `"x,y,z"`. Updated each frame.
+#[must_use]
+pub fn get_ee_position() -> String {
+    EE_POSITION_DUMP.with(|c| c.borrow().clone())
+}
+
+/// Return the current end-effector node index. Updated each frame.
+#[must_use]
+pub fn get_end_effector_index() -> u32 {
+    CURRENT_EE_IDX.with(|c| *c.borrow())
+}
+
+/// Return the number of nodes in the active chain's armature. Updated each frame.
+#[must_use]
+pub fn get_armature_node_count() -> u32 {
+    NODE_COUNT_DUMP.with(|c| *c.borrow())
+}
+
+/// Return the IK target position as `"x,y,z"`. Updated each frame.
+#[must_use]
+pub fn get_target_position() -> String {
+    TARGET_POSITION_DUMP.with(|c| c.borrow().clone())
+}
+
+/// Return the last Hessian snapshot for the active chain when solver is Hessian: `{ hessian: Float64Array (row-major n×n), size: number, error: number }` or null.
+#[must_use]
+pub fn get_hessian_snapshot() -> JsValue {
+    let snap = HESSIAN_SNAPSHOT.with(|c| c.borrow().clone());
+    let Some((data, n, err)) = snap else {
+        return JsValue::NULL;
+    };
+    let arr = js_sys::Float64Array::new_with_length(data.len() as u32);
+    for (i, &v) in data.iter().enumerate() {
+        arr.set_index(i as u32, v);
+    }
+    let obj = js_sys::Object::new();
+    let _ = Reflect::set(&obj, &"hessian".into(), &arr.into());
+    let _ = Reflect::set(&obj, &"size".into(), &(n as u32).into());
+    let _ = Reflect::set(&obj, &"error".into(), &err.into());
+    obj.into()
+}
+
+/// Set the end-effector node index. Applied on next frame.
+pub fn set_end_effector(idx: u32) {
+    PENDING_EE_IDX.with(|c| c.borrow_mut().replace(idx as usize));
+}
+
+/// Trigger randomize IK target. Applied on next frame.
+pub fn randomize_target() {
+    PENDING_RANDOM_TARGET.with(|c| *c.borrow_mut() = true);
+}
+
+/// Set the IK target to the current end-effector position for the active chain. Applied on next frame.
+pub fn set_target_to_ee() {
+    PENDING_SET_TARGET_TO_EE.with(|c| *c.borrow_mut() = true);
+}
+
+/// Reset the scene to initial state. Applied on next frame.
+pub fn reset_scene() {
+    PENDING_RESET_SCENE.with(|c| *c.borrow_mut() = true);
+}
+
+/// Load BVH from bytes and replace the active chain on next frame. No-op if parse or conversion fails. Requires `bvh` feature.
+#[cfg(feature = "bvh")]
+pub fn load_bvh_from_bytes(bytes: &[u8]) -> bool {
+    let Ok(bvh) = parse::bvh::parse(bytes) else {
+        return false;
+    };
+    let Some(armature) = crate::bvh_import::armature_from_bvh(&bvh) else {
+        return false;
+    };
+    PENDING_BVH_ARMATURE.with(|c| c.borrow_mut().replace(armature));
+    true
 }

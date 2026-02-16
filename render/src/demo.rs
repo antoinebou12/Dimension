@@ -674,11 +674,19 @@ pub fn build_stats_panel(stats: &FrameStats, viewport_width: f32) -> Window {
     window.title_bar_height = 20.0;
     let body = window.body_rect();
     let mut y = body.y + 4.0;
-    let gpu_str = stats
-        .gpu_time_ms
-        .map_or("N/A (no adapter support)".to_string(), |g| {
-            format!("{g:.2} ms")
-        });
+    let gpu_str = stats.gpu_time_ms.map_or_else(
+        || {
+            #[cfg(target_arch = "wasm32")]
+            {
+                "N/A (timing disabled on Web)".to_string()
+            }
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                "N/A (no adapter support)".to_string()
+            }
+        },
+        |g| format!("{g:.2} ms"),
+    );
     let ids = [
         STATS_WINDOW_ID.0 + 1,
         STATS_WINDOW_ID.0 + 2,

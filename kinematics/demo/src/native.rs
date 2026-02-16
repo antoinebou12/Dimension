@@ -3,8 +3,8 @@
 use crate::scene::{
     apply_kinematics_action, build_armature_controls_panel, build_armature_tree_panel,
     build_kinematics_scene, build_scene_entity_panel, camera_view_forward,
-    screen_to_plane_at_point, step_ik, sync_armature_to_world, KinematicsAction, KinematicsScene,
-    ARMATURE_CONTROLS_WINDOW_ID, ARMATURE_TREE_WINDOW_ID, SCENE_ENTITY_WINDOW_ID,
+    screen_to_plane_at_point, step_ik, sync_armature_to_world, ChainIndex, KinematicsAction,
+    KinematicsScene, ARMATURE_CONTROLS_WINDOW_ID, ARMATURE_TREE_WINDOW_ID, SCENE_ENTITY_WINDOW_ID,
 };
 use render::backend::Projection;
 use render::input_constants::PAN_SENSITIVITY;
@@ -21,6 +21,7 @@ use winit::event::MouseScrollDelta;
 use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
 use winit::event_loop::EventLoop;
+use winit::keyboard::Key;
 use winit::keyboard::ModifiersKeyState;
 use winit::window::Window;
 
@@ -173,9 +174,15 @@ impl ApplicationHandler for KinematicsApp {
                     apply_kinematics_action(scene, engine, &self.action_mapping, cid);
                 }
 
-                if engine.selected_entity() == Some(scene.target_entity) {
-                    if let Some(data) = engine.world().get(scene.target_entity) {
-                        scene.ik_target = data.transform.position;
+                if let Some(selected) = engine.selected_entity() {
+                    if selected == scene.chain_a.target_entity {
+                        if let Some(data) = engine.world().get(selected) {
+                            scene.chain_a.ik_target = data.transform.position;
+                        }
+                    } else if selected == scene.chain_b.target_entity {
+                        if let Some(data) = engine.world().get(selected) {
+                            scene.chain_b.ik_target = data.transform.position;
+                        }
                     }
                 }
                 sync_armature_to_world(scene, engine.world_mut());
@@ -232,13 +239,17 @@ impl ApplicationHandler for KinematicsApp {
                     }
                     self.last_cursor = Some((x, y));
                 } else if self.ik_target_pressing && !engine.is_cursor_over_ui() {
-                    if let Some(pos) = screen_to_plane_at_point(
-                        engine.camera(),
-                        x as f32,
-                        y as f32,
-                        scene.ik_target,
-                    ) {
-                        scene.ik_target = pos;
+                    let target = match scene.active_chain {
+                        ChainIndex::A => scene.chain_a.ik_target,
+                        ChainIndex::B => scene.chain_b.ik_target,
+                    };
+                    if let Some(pos) =
+                        screen_to_plane_at_point(engine.camera(), x as f32, y as f32, target)
+                    {
+                        match scene.active_chain {
+                            ChainIndex::A => scene.chain_a.ik_target = pos,
+                            ChainIndex::B => scene.chain_b.ik_target = pos,
+                        }
                         step_ik(scene, engine.world_mut());
                     }
                     self.last_cursor = Some((x, y));
@@ -246,6 +257,24 @@ impl ApplicationHandler for KinematicsApp {
             }
             WindowEvent::ModifiersChanged(modifiers) => {
                 self.modifiers = modifiers;
+            }
+            WindowEvent::KeyboardInput {
+                event,
+                is_synthetic: false,
+                ..
+            } if event.state == ElementState::Pressed && !event.repeat => {
+                if let Key::Character(c) = event.logical_key.as_ref() {
+                    if c == "1" {
+                        scene.active_chain = ChainIndex::A;
+                    } else if c == "2" {
+                        scene.active_chain = ChainIndex::B;
+                    }
+                } else if event.logical_key == Key::Named(winit::keyboard::NamedKey::Tab) {
+                    scene.active_chain = match scene.active_chain {
+                        ChainIndex::A => ChainIndex::B,
+                        ChainIndex::B => ChainIndex::A,
+                    };
+                }
             }
             WindowEvent::MouseWheel { delta, .. } => {
                 let scroll = match delta {
@@ -255,9 +284,13 @@ impl ApplicationHandler for KinematicsApp {
                 if self.ik_target_pressing && !engine.is_cursor_over_ui() {
                     let forward = camera_view_forward(engine.camera());
                     let step = scroll * DEPTH_SCROLL_SENSITIVITY;
-                    scene.ik_target[0] += forward[0] * step;
-                    scene.ik_target[1] += forward[1] * step;
-                    scene.ik_target[2] += forward[2] * step;
+                    let chain = match scene.active_chain {
+                        ChainIndex::A => &mut scene.chain_a,
+                        ChainIndex::B => &mut scene.chain_b,
+                    };
+                    chain.ik_target[0] += forward[0] * step;
+                    chain.ik_target[1] += forward[1] * step;
+                    chain.ik_target[2] += forward[2] * step;
                     step_ik(scene, engine.world_mut());
                 } else {
                     engine.zoom(-scroll);

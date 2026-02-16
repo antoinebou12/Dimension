@@ -14,7 +14,7 @@ Quick reference for development setup, CI, and optional tooling.
 
 - **Build**: From repo root, `just wasm-build` (builds pkg and copies into `mathlib/demo/wasm-demo/pkg/`).
 - **Serve**: From repo root, `just wasm-serve` (or `just demo` to build then serve). Open **/wasm-demo/** (use the URL shown by the server).
-- **GitHub Pages**: The wasm-demo is built in CI and deployed to GitHub Pages on push to `main`/`master` (workflow: [.github/workflows/pages.yml](../.github/workflows/pages.yml)). Enable **Settings → Pages → GitHub Actions** to publish the live demo at your repo's Pages URL.
+- **GitHub Pages**: The wasm-demo is built in CI and deployed to GitHub Pages on push to `main`/`master` (workflow: [.github/workflows/pages.yml](../.github/workflows/pages.yml)). Enable **Settings → Pages → Build and deployment → GitHub Actions** in the repo so the deploy workflow can run; otherwise the build-and-deploy job will fail with "Get Pages site failed".
 - **Details**: See [mathlib/demo/wasm-demo/README.md](../mathlib/demo/wasm-demo/README.md), [wasm.md](wasm.md), and the [WASM and browser demo](DOCS.md#wasm-and-browser-demo) section in DOCS.md.
 
 ## Render WASM demo

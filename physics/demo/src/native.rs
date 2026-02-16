@@ -1,8 +1,9 @@
 //! Native platform: winit, physics scene, orbit + pan + zoom, UI and FPS overlay.
 
 use crate::scene::{
-    build_physics_scene, build_spawn_panel, spawn_body, step_physics, PhysicsScene,
-    SPAWN_BUTTON_ID, SPAWN_WINDOW_ID,
+    build_bodies_tree_panel, build_physics_scene, build_spawn_panel, reset_scene, spawn_box_body,
+    spawn_jelly, spawn_sphere, step_physics, PhysicsScene, BODIES_TREE_WINDOW_ID, RESET_BUTTON_ID,
+    SPAWN_BOX_ID, SPAWN_JELLY_ID, SPAWN_SPHERE_ID, SPAWN_WINDOW_ID,
 };
 use render::backend::Projection;
 use render::input_constants::{ORBIT_SENSITIVITY, PAN_SENSITIVITY, ZOOM_SENSITIVITY};
@@ -17,7 +18,7 @@ use winit::event::MouseScrollDelta;
 use winit::event::WindowEvent;
 use winit::event_loop::ActiveEventLoop;
 use winit::event_loop::EventLoop;
-use winit::keyboard::ModifiersKeyState;
+use winit::keyboard::{Key, ModifiersKeyState, NamedKey};
 use winit::window::Window;
 
 static FORTE_POOL: forte::ThreadPool = forte::ThreadPool::new();
@@ -64,7 +65,7 @@ impl ApplicationHandler for PhysicsApp {
             return;
         }
         let attrs = Window::default_attributes()
-            .with_title("physics-demo")
+            .with_title("physics-demo — XPBD Rigid Bodies")
             .with_inner_size(winit::dpi::PhysicalSize::new(800, 600));
         let window = Arc::new(event_loop.create_window(attrs).expect("create window"));
         FORTE_POOL.populate();
@@ -130,15 +131,28 @@ impl ApplicationHandler for PhysicsApp {
                 engine.set_last_frame_stats(stats);
                 if let Some(ui) = engine.ui.as_mut() {
                     ui.update_springs(DT);
-                    ui.windows_mut()
-                        .retain(|w| w.id != STATS_WINDOW_ID && w.id != SPAWN_WINDOW_ID);
+                    ui.windows_mut().retain(|w| {
+                        w.id != STATS_WINDOW_ID
+                            && w.id != SPAWN_WINDOW_ID
+                            && w.id != BODIES_TREE_WINDOW_ID
+                    });
                     ui.add_window(stats_window);
-                    ui.add_window(build_spawn_panel(viewport_width));
+                    ui.add_window(build_bodies_tree_panel(scene, viewport_width));
+                    ui.add_window(build_spawn_panel(scene, viewport_width));
                 }
 
-                if engine.take_clicked_control() == Some(SPAWN_BUTTON_ID) {
+                // Handle button clicks
+                if let Some(clicked) = engine.take_clicked_control() {
                     let root = engine.world().root_entity();
-                    let _ = spawn_body(scene, engine.world_mut(), root, [0.0, 2.0, 0.0]);
+                    if clicked == SPAWN_SPHERE_ID {
+                        let _ = spawn_sphere(scene, engine.world_mut(), root, [0.0, 2.5, 0.0]);
+                    } else if clicked == SPAWN_BOX_ID {
+                        let _ = spawn_box_body(scene, engine.world_mut(), root, [0.0, 2.5, 0.0]);
+                    } else if clicked == SPAWN_JELLY_ID {
+                        let _ = spawn_jelly(scene, engine.world_mut(), root, [0.0, 2.5, 0.0]);
+                    } else if clicked == RESET_BUTTON_ID {
+                        reset_scene(scene, engine.world_mut());
+                    }
                 }
 
                 step_physics(scene, engine.world_mut(), DT);
@@ -147,6 +161,32 @@ impl ApplicationHandler for PhysicsApp {
             }
             WindowEvent::Resized(size) => {
                 engine.resize(size.width, size.height);
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                if event.state == ElementState::Pressed {
+                    match event.logical_key {
+                        Key::Character(ref c) if c.as_str() == "s" || c.as_str() == "S" => {
+                            let root = engine.world().root_entity();
+                            let _ = spawn_sphere(scene, engine.world_mut(), root, [0.0, 2.5, 0.0]);
+                        }
+                        Key::Character(ref c) if c.as_str() == "b" || c.as_str() == "B" => {
+                            let root = engine.world().root_entity();
+                            let _ =
+                                spawn_box_body(scene, engine.world_mut(), root, [0.0, 2.5, 0.0]);
+                        }
+                        Key::Character(ref c) if c.as_str() == "j" || c.as_str() == "J" => {
+                            let root = engine.world().root_entity();
+                            let _ = spawn_jelly(scene, engine.world_mut(), root, [0.0, 2.5, 0.0]);
+                        }
+                        Key::Character(ref c) if c.as_str() == "r" || c.as_str() == "R" => {
+                            reset_scene(scene, engine.world_mut());
+                        }
+                        Key::Named(NamedKey::Escape) => {
+                            self.close_requested = true;
+                        }
+                        _ => {}
+                    }
+                }
             }
             WindowEvent::MouseInput {
                 state,

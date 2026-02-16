@@ -6,10 +6,11 @@
 
 use crate::chol::{CholError, Cholesky};
 use crate::cpu;
+use crate::genetic::normal::sample_standard_normal;
 use crate::matrix::Matrix;
 use crate::types::Storage;
-use rand::Rng;
-use rand_distr::StandardNormal;
+use rand::SeedableRng;
+use rand::rngs::StdRng;
 use tracing::{debug, info};
 
 /// Result of a CMA-ES run: best solution and its fitness.
@@ -110,6 +111,7 @@ impl CmaEs {
 
     fn from_builder(b: CmaEsBuilder) -> Self {
         let n = b.dim;
+        #[allow(clippy::cast_sign_loss)]
         let lambda = 4 + (3.0 * (n as f64).ln()) as usize;
         let lambda = lambda.max(2);
         let mu = lambda / 2;
@@ -145,9 +147,9 @@ impl CmaEs {
         let p_c = vec![0.0; n];
 
         let rng = if let Some(seed) = b.seed {
-            rand::SeedableRng::seed_from_u64(seed)
+            StdRng::seed_from_u64(seed)
         } else {
-            rand::SeedableRng::from_entropy()
+            StdRng::from_rng(&mut rand::rng())
         };
 
         Self {
@@ -189,7 +191,7 @@ impl CmaEs {
             // Cholesky of C (with small diagonal if needed for numerical stability).
             let chol = match Cholesky::new(&self.c) {
                 Ok(ch) => ch,
-                Err(CholError::NotSPD) | Err(CholError::NotSquare) => {
+                Err(CholError::NotSPD | CholError::NotSquare) => {
                     for i in 0..self.n {
                         let v = self.c.get(i, i);
                         self.c.set(i, i, v + 1e-14);
@@ -204,7 +206,7 @@ impl CmaEs {
 
             for _ in 0..self.lambda {
                 let z: Vec<f64> = (0..self.n)
-                    .map(|_| self.rng.sample(StandardNormal))
+                    .map(|_| sample_standard_normal(&mut self.rng))
                     .collect();
                 let y = lower_triangular_matvec(l, &z);
                 let x: Vec<f64> = weighted_add(1.0, &self.mean, self.sigma, &y);
@@ -299,6 +301,7 @@ impl CmaEs {
 }
 
 /// Lower triangular L (column-major): out = L * x.
+#[allow(clippy::needless_range_loop)]
 fn lower_triangular_matvec(l: &Matrix<f64>, x: &[f64]) -> Vec<f64> {
     let n = l.rows();
     assert_eq!(l.cols(), n);
@@ -315,6 +318,7 @@ fn lower_triangular_matvec(l: &Matrix<f64>, x: &[f64]) -> Vec<f64> {
 }
 
 /// Solve L^T x = b (L lower triangular, column-major). Returns x.
+#[allow(clippy::needless_range_loop)]
 fn solve_lt(l: &Matrix<f64>, b: &[f64]) -> Vec<f64> {
     let n = l.rows();
     assert_eq!(l.cols(), n);

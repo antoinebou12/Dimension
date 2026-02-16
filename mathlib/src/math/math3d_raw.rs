@@ -299,3 +299,36 @@ pub fn generalized_inverse_mass(
     let i_rxn = mat3_mul_vec(inv_inertia_world, &rxn);
     inv_mass + vec3_dot(&rxn, &i_rxn)
 }
+
+/// Bilinear form for the 3×3 effective mass block: `1/m * n_a·n_b + (r×n_a)ᵀ·I⁻¹·(r×n_b)`.
+/// Used to build the contact block (normal + two tangents) for one body.
+#[must_use]
+pub fn generalized_inverse_mass_bilinear(
+    inv_mass: f32,
+    inv_inertia_world: &[f32; 9],
+    r: &[f32; 3],
+    n_a: &[f32; 3],
+    n_b: &[f32; 3],
+) -> f32 {
+    let rxa = vec3_cross(r, n_a);
+    let rxb = vec3_cross(r, n_b);
+    let i_rxb = mat3_mul_vec(inv_inertia_world, &rxb);
+    inv_mass * vec3_dot(n_a, n_b) + vec3_dot(&rxa, &i_rxb)
+}
+
+/// Bilinear form with two attachment points (for coupling between two constraints on the same body):
+/// `1/m * n_a·n_b + (r_a×n_a)ᵀ·I⁻¹·(r_b×n_b)`.
+#[must_use]
+pub fn generalized_inverse_mass_bilinear_two_r(
+    inv_mass: f32,
+    inv_inertia_world: &[f32; 9],
+    r_a: &[f32; 3],
+    r_b: &[f32; 3],
+    n_a: &[f32; 3],
+    n_b: &[f32; 3],
+) -> f32 {
+    let rxa = vec3_cross(r_a, n_a);
+    let rxb = vec3_cross(r_b, n_b);
+    let i_rxb = mat3_mul_vec(inv_inertia_world, &rxb);
+    inv_mass * vec3_dot(n_a, n_b) + vec3_dot(&rxa, &i_rxb)
+}

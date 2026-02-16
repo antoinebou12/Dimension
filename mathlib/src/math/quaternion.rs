@@ -118,6 +118,37 @@ impl Quat4f {
         }
     }
 
+    /// Logarithm map: rotation quaternion to scaled axis (axis × angle in radians).
+    ///
+    /// Returns a 3-vector such that `from_axis_angle(&normalized(v), |v|)` recovers the
+    /// rotation (for non-identity). Identity quaternion maps to zero.
+    #[must_use]
+    pub fn to_scaled_axis(&self) -> Vector3f {
+        const SMALL: f32 = 1e-6;
+        let mut out = Vector3f::with_capacity(3);
+        out.set_zero();
+        let v_norm = (self.x * self.x + self.y * self.y + self.z * self.z).sqrt();
+        if v_norm < SMALL {
+            // Small-angle: sin(θ/2) ≈ θ/2 ⇒ scaled axis ≈ 2*(x,y,z)
+            out.set(0, 2.0 * self.x);
+            out.set(1, 2.0 * self.y);
+            out.set(2, 2.0 * self.z);
+            return out;
+        }
+        let angle = 2.0 * v_norm.atan2(self.w);
+        if angle.abs() < SMALL {
+            out.set(0, 2.0 * self.x);
+            out.set(1, 2.0 * self.y);
+            out.set(2, 2.0 * self.z);
+            return out;
+        }
+        let scale = angle / v_norm;
+        out.set(0, self.x * scale);
+        out.set(1, self.y * scale);
+        out.set(2, self.z * scale);
+        out
+    }
+
     /// Conjugate (inverse for unit quaternion): (w, -x, -y, -z).
     #[must_use]
     pub fn conjugate(&self) -> Self {

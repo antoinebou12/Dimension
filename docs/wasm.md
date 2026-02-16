@@ -6,6 +6,10 @@ This page covers building mathlib for WebAssembly, running tests, and optional G
 
 The wasm-demo is built in CI and deployed to GitHub Pages on every push to `main`/`master`. Once **Settings → Pages → Build and deployment** is set to **GitHub Actions**, the live demo is available at your repository's GitHub Pages URL (e.g. `https://<owner>.github.io/<repo>/`). See [dev-tools.md](dev-tools.md) and [mathlib/demo/wasm-demo/README.md](../mathlib/demo/wasm-demo/README.md).
 
+### Unified website
+
+The repo also has a **unified website** that serves all WASM demos (mathlib, render, kinematics, physics, geometry, neural) from one site. Build with `just website-build` and serve locally with `just website-serve` (e.g. http://localhost:3000). See [website.md](website.md) for build, serve, Docker, and GitHub Pages.
+
 ## Build matrix
 
 | Build | Command | Notes |

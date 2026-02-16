@@ -8,6 +8,7 @@ pub mod easing;
 pub mod math3d;
 /// Raw array-based 3D math (`[f32; 9]` matrices, `[f32; 3]` vectors) for physics and performance.
 pub mod math3d_raw;
+pub mod quantize;
 pub mod quaternion;
 pub mod rbf;
 pub mod trig;

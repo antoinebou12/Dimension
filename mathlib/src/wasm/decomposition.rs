@@ -1,7 +1,8 @@
-//! WasmPca, WasmCholesky, and WasmLu for JavaScript.
+//! WasmPca, WasmCholesky, WasmLu, and WasmQr for JavaScript.
 
 use wasm_bindgen::prelude::*;
 
+use crate::linear::qr::{Qr, QrError};
 use crate::lu::Lu;
 use crate::{Cholesky, Matrix, Storage, Vector};
 
@@ -272,6 +273,45 @@ impl WasmLu {
             }
             x.set(i, s / uii);
         }
+        Ok(WasmVector { inner: x })
+    }
+}
+
+/// QR decomposition: A = Q R.
+#[wasm_bindgen]
+pub struct WasmQr {
+    qr: Qr,
+}
+
+#[wasm_bindgen]
+impl WasmQr {
+    /// Compute QR decomposition of matrix A. A must have rows >= cols.
+    #[wasm_bindgen(constructor)]
+    pub fn new(a: &WasmMatrix) -> Result<WasmQr, JsError> {
+        let qr = Qr::new(&a.inner).map_err(|e: QrError| JsError::new(&e.to_string()))?;
+        Ok(Self { qr })
+    }
+
+    /// Orthonormal factor Q.
+    #[wasm_bindgen(js_name = getQ)]
+    pub fn get_q(&self) -> WasmMatrix {
+        WasmMatrix {
+            inner: self.qr.q().clone(),
+        }
+    }
+
+    /// Upper triangular factor R.
+    #[wasm_bindgen(js_name = getR)]
+    pub fn get_r(&self) -> WasmMatrix {
+        WasmMatrix {
+            inner: self.qr.r().clone(),
+        }
+    }
+
+    /// Solve min ||Ax - b|| for least squares. Returns x.
+    #[wasm_bindgen(js_name = solve)]
+    pub fn solve(&self, b: &WasmVector) -> Result<WasmVector, JsError> {
+        let x = self.qr.solve(&b.inner);
         Ok(WasmVector { inner: x })
     }
 }

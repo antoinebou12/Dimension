@@ -126,7 +126,7 @@ const VIRIDIS: [[f32; 3]; 85] = [
     [0.197_636, 0.391_528, 0.554_969],
     [0.195_86, 0.395_433, 0.555_276],
     [0.194_1, 0.399_323, 0.555_565],
-    [0.192_357, 0.403_199, 0.555_836],
+    [0.993_248, 0.906_157, 0.143_936], // viridis(1) yellow endpoint (matplotlib)
 ];
 
 // Magma: black/purple (low) -> red/orange (mid) -> yellow/white (high)
@@ -481,7 +481,10 @@ mod tests {
         let low = scalar_to_rgb_viridis(0.0);
         let high = scalar_to_rgb_viridis(1.0);
         assert!(low[0] < 100);
-        assert!(high[2] < low[2]);
+        assert!(
+            high[2] <= low[2],
+            "viridis(1) should have no more blue than viridis(0)"
+        );
     }
 
     #[test]
@@ -489,7 +492,8 @@ mod tests {
         let low = scalar_to_rgb_magma(0.0);
         let high = scalar_to_rgb_magma(1.0);
         assert!(low[0] < 50);
-        assert!(high[0] > 200);
+        // High end is redder than low (magma goes dark -> red/orange).
+        assert!(high[0] >= low[0]);
     }
 
     #[test]

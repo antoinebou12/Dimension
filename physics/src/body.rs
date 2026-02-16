@@ -164,9 +164,16 @@ impl RigidBody {
     /// Compute world-frame inverse inertia: `R · I⁻¹_body · Rᵀ`.
     #[must_use]
     pub fn inv_inertia_world(&self) -> [f32; 9] {
-        let r = quat_to_mat3(&self.q);
+        Self::inv_inertia_world_from_q(&self.inv_inertia, &self.q)
+    }
+
+    /// Compute world-frame inverse inertia from body-frame inverse inertia and a quaternion.
+    /// Use this with `predicted_q` during XPBD solves for consistency.
+    #[must_use]
+    pub fn inv_inertia_world_from_q(inv_inertia: &[f32; 9], q: &[f32; 4]) -> [f32; 9] {
+        let r = quat_to_mat3(q);
         let rt = mat3_transpose(&r);
-        let tmp = mat3_mul(&r, &self.inv_inertia);
+        let tmp = mat3_mul(&r, inv_inertia);
         mat3_mul(&tmp, &rt)
     }
 

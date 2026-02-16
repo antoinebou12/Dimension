@@ -16,8 +16,8 @@ crate-type = ["rlib", "cdylib"]
 
 [features]
 default = []
-# Parallel batch update (not on wasm32)
-parallel = ["mathlib/parallel"]
+# Parallel batch update and Hessian parallelization (not on wasm32)
+parallel = ["dep:par-iter", "mathlib/parallel"]
 # SIMD acceleration (works on wasm)
 simd = ["mathlib/simd"]
 # WASM bindings
@@ -25,13 +25,17 @@ wasm = ["dep:wasm-bindgen", "mathlib/wasm"]
 
 [dependencies]
 mathlib = { path = "../mathlib" }
+par-iter = { version = "2.0", optional = true, default-features = false }
 wasm-bindgen = { version = "0.2", optional = true }
 
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
 
-[dev-dependencies]
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = "0.5"
+
+[target.'cfg(target_arch = "wasm32")'.dev-dependencies]
+criterion = { version = "0.5", default-features = false }
 
 [[bench]]
 name = "kinematics"

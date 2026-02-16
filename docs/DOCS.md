@@ -2,7 +2,7 @@
 
 **mathlib** is a Rust linear algebra crate in the Dimension repo. It provides dense and sparse matrices, vectors, SVD decomposition, and 3D math helpers under the `mathlib` namespace.
 
-For AI/LLM context see [docs/claude.md](claude.md) and [AGENTS.md](../AGENTS.md). Domain taxonomy: [docs/domains.md](domains.md).
+For AI/LLM context see [docs/claude.md](claude.md) and [AGENTS.md](../AGENTS.md). Domain taxonomy: [docs/domains.md](domains.md). Unified WASM website (build/serve, GitHub Pages): [docs/website.md](website.md).
 
 ## Domain organization
 

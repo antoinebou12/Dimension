@@ -1,5 +1,5 @@
 /**
- * mathlib WASM demo — Optimization (Simplex, Line search, PSO).
+ * mathlib WASM demo — Optimization (Simplex, Line search, PSO, L-BFGS-B).
  */
 import {
   initLib, byId, showError, needBuild, needRebuild,
@@ -11,19 +11,26 @@ try {
   const { WasmMatrix, WasmVector, WasmSimplexResult } = lib;
   const lineSearchBacktracking = lib.lineSearchBacktracking;
   const psoMinimize = lib.psoMinimize;
+  const lbfgsbMinimize = lib.lbfgsbMinimize;
+  const lmMinimize = lib.lmMinimize;
 
   // —— Simplex ——
+  // A is column-major (matches WasmMatrix.fromArray); display uses same layout.
   const SIMPLEX_EXAMPLES = [
+    { c: [1, 1], A: [1, 1], rows: 1, cols: 2, b: [1] }, // min x1+x2 s.t. x1+x2=1, x>=0 => obj=1
     { c: [1, 1], A: [1, 1, 2, 0], rows: 2, cols: 2, b: [4, 2] },
-    { c: [2, 1], A: [1, 1, 1, 0], rows: 2, cols: 2, b: [6, 4] },
     { c: [2, 1, 1], A: [1, 2, 1, 1, 1, 0], rows: 2, cols: 3, b: [6, 5] },
   ];
   const simplexResults = SIMPLEX_EXAMPLES.map((ex) => {
-    const c = WasmVector.fromArray(ex.c);
-    const A = WasmMatrix.fromArray(ex.rows, ex.cols, ex.A);
-    const b = WasmVector.fromArray(ex.b);
-    const s = new WasmSimplexResult(c, A, b);
-    return { ...ex, status: s.getStatus(), obj: s.getObjective(), x: s.getX().toArray() };
+    try {
+      const c = WasmVector.fromArray(ex.c);
+      const A = WasmMatrix.fromArray(ex.rows, ex.cols, ex.A);
+      const b = WasmVector.fromArray(ex.b);
+      const s = new WasmSimplexResult(c, A, b);
+      return { ...ex, status: s.getStatus(), obj: s.getObjective(), x: s.getX().toArray(), error: null };
+    } catch (e) {
+      return { ...ex, status: null, obj: null, x: null, error: e.message || String(e) };
+    }
   });
   function renderSimplexOut(i) {
     const ex = SIMPLEX_EXAMPLES[i];
@@ -31,7 +38,9 @@ try {
     const cBlock = "<div class=\"simplex-block\"><span class=\"simplex-label\">c′</span>" + renderMatrixHTMLWithColors(1, ex.c.length, ex.c, { decimals: 2 }) + "</div>";
     const aBlock = "<div class=\"simplex-block\"><span class=\"simplex-label\">A</span>" + renderMatrixHTMLWithColors(ex.rows, ex.cols, ex.A, { colorBy: "value", decimals: 2 }) + "</div>";
     const bBlock = "<div class=\"simplex-block\"><span class=\"simplex-label\">b</span>" + renderMatrixHTMLWithColors(ex.b.length, 1, ex.b, { decimals: 2 }) + "</div>";
-    const statusLine = "Status: " + r.status + " · Objective: " + r.obj.toFixed(4) + " · x: [" + r.x.map((x) => x.toFixed(4)).join(", ") + "]";
+    const statusLine = r.error
+      ? "<span class=\"error\">Error: " + r.error + "</span>"
+      : "Status: " + r.status + " · Objective: " + r.obj.toFixed(4) + " · x: [" + r.x.map((x) => x.toFixed(4)).join(", ") + "]";
     byId("out-simplex").innerHTML = "<div class=\"simplex-tables\">" + cBlock + aBlock + bBlock + "</div><p class=\"simplex-result\">" + statusLine + "</p>";
   }
   bindExampleSelector("simplex-examples", ["Example 1", "Example 2", "Example 3"], (i) => renderSimplexOut(i));
@@ -381,6 +390,178 @@ try {
       });
     }
     updatePsoOutput(psoResults[0]);
+  }
+
+  // —— Levenberg-Marquardt ——
+  if (typeof lmMinimize !== "function") {
+    byId("out-lm").textContent = needRebuild;
+  } else {
+    const LM_EXAMPLES = [
+      { name: "Line fit (0,0),(1,1),(2,2)", xs: [0, 1, 2], ys: [0, 1, 2] },
+      { name: "Line fit + noise", xs: [0, 1, 2, 3], ys: [0.1, 1.2, 1.9, 3.1] },
+      { name: "Line fit sloped", xs: [0, 1, 2], ys: [1, 3, 5] },
+    ];
+    function runLmForExample(ex) {
+      const m = ex.xs.length;
+      const n = 2;
+      const residualFn = (x) => {
+        const [a, b] = [x[0], x[1]];
+        const r = [];
+        for (let i = 0; i < m; i++) r.push(ex.ys[i] - (a * ex.xs[i] + b));
+        return new Float64Array(r);
+      };
+      const jacobianFn = (x) => {
+        const jac = [];
+        for (let i = 0; i < m; i++) jac.push(-ex.xs[i]);
+        for (let i = 0; i < m; i++) jac.push(-1);
+        return new Float64Array(jac);
+      };
+      const x0 = [0.5, 0.5];
+      const res = lmMinimize(x0, m, n, residualFn, jacobianFn, 100, 1e-8);
+      return { ...ex, a: res.getBestPosition()[0], b: res.getBestPosition()[1], iters: res.getIterations(), resSq: res.getResidualNormSq() };
+    }
+    const lmResults = LM_EXAMPLES.map((ex) => runLmForExample(ex));
+    function drawLmCanvas(r) {
+      const canvas = byId("canvas-lm");
+      if (!canvas) return;
+      const w = canvas.width, h = canvas.height;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, w, h);
+      const pad = 40;
+      const plotW = w - 2 * pad, plotH = h - 2 * pad;
+      const xMin = Math.min(...r.xs, 0) - 0.5;
+      const xMax = Math.max(...r.xs, 0) + 0.5;
+      const yMin = Math.min(...r.ys, 0) - 0.5;
+      const yMax = Math.max(...r.ys, 0) + 0.5;
+      const toPx = (xx, yy) => [
+        pad + ((xx - xMin) / (xMax - xMin)) * plotW,
+        pad + plotH - ((yy - yMin) / (yMax - yMin)) * plotH,
+      ];
+      ctx.strokeStyle = "#0d6efd";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const y0 = r.a * xMin + r.b;
+      const y1 = r.a * xMax + r.b;
+      const [px0, py0] = toPx(xMin, y0);
+      const [px1, py1] = toPx(xMax, y1);
+      ctx.moveTo(px0, py0);
+      ctx.lineTo(px1, py1);
+      ctx.stroke();
+      ctx.fillStyle = "#fd7e14";
+      for (let i = 0; i < r.xs.length; i++) {
+        const [px, py] = toPx(r.xs[i], r.ys[i]);
+        ctx.beginPath();
+        ctx.arc(px, py, 5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    function updateLmOutput(i) {
+      const r = lmResults[i];
+      byId("out-lm").textContent =
+        r.name + "\ny = " + r.a.toFixed(4) + "x + " + r.b.toFixed(4) + "  (" + r.iters + " iters, ||r||² = " + r.resSq.toExponential(4) + ")";
+      drawLmCanvas(r);
+    }
+    bindExampleSelector("lm-examples", LM_EXAMPLES.map((e) => e.name), (i) => updateLmOutput(i));
+    updateLmOutput(0);
+  }
+
+  // —— L-BFGS-B ——
+  if (typeof lbfgsbMinimize !== "function") {
+    byId("out-lbfgsb").textContent = needRebuild;
+  } else {
+    const LBFGSB_EXAMPLES = [
+      { name: "Sphere", costFn: (pos) => pos[0] * pos[0] + pos[1] * pos[1], gradientFn: (pos) => new Float64Array([2 * pos[0], 2 * pos[1]]), costAt: (x, y) => x * x + y * y },
+      { name: "Shifted", costFn: (pos) => (pos[0] - 1) ** 2 + (pos[1] - 1) ** 2, gradientFn: (pos) => new Float64Array([2 * (pos[0] - 1), 2 * (pos[1] - 1)]), costAt: (x, y) => (x - 1) ** 2 + (y - 1) ** 2 },
+      { name: "Rastrigin", costFn: (pos) => 20 + pos[0] ** 2 + pos[1] ** 2 - 10 * (Math.cos(2 * Math.PI * pos[0]) + Math.cos(2 * Math.PI * pos[1])), gradientFn: (pos) => new Float64Array([2 * pos[0] + 20 * Math.PI * Math.sin(2 * Math.PI * pos[0]), 2 * pos[1] + 20 * Math.PI * Math.sin(2 * Math.PI * pos[1])]), costAt: (x, y) => 20 + x * x + y * y - 10 * (Math.cos(2 * Math.PI * x) + Math.cos(2 * Math.PI * y)) },
+      { name: "Rosenbrock", costFn: (pos) => (1 - pos[0]) ** 2 + 100 * (pos[1] - pos[0] ** 2) ** 2, gradientFn: (pos) => new Float64Array([-2 * (1 - pos[0]) - 400 * pos[0] * (pos[1] - pos[0] * pos[0]), 200 * (pos[1] - pos[0] * pos[0])]), costAt: (x, y) => (1 - x) ** 2 + 100 * (y - x * x) ** 2 },
+    ];
+    const lower = [-5, -5];
+    const upper = [5, 5];
+    const maxIters = 500;
+    function runLbfgsbForExample(ex, x0) {
+      const res = lbfgsbMinimize(x0, lower, upper, ex.costFn, ex.gradientFn, maxIters, 1e-8, 10);
+      return { ...ex, bestPos: res.getBestPosition(), bestCost: res.getBestCost(), iterations: res.getIterations() };
+    }
+    let lbfgsbResults = LBFGSB_EXAMPLES.map((ex) => runLbfgsbForExample(ex, [0, 0]));
+    function drawLbfgsbCanvas(ex) {
+      const canvas = byId("canvas-lbfgsb");
+      if (!canvas) return;
+      const w = canvas.width, h = canvas.height, gridSize = 50;
+      const xMin = -5, xMax = 5, yMin = -5, yMax = 5;
+      let cMin = Infinity, cMax = -Infinity;
+      for (let i = 0; i < gridSize; i++) {
+        for (let j = 0; j < gridSize; j++) {
+          const x = xMin + (j / (gridSize - 1)) * (xMax - xMin);
+          const y = yMax - (i / (gridSize - 1)) * (yMax - yMin);
+          const c = ex.costAt(x, y);
+          cMin = Math.min(cMin, c);
+          cMax = Math.max(cMax, c);
+        }
+      }
+      const cRange = cMax - cMin || 1;
+      const imgData = canvas.getContext("2d").createImageData(w, h);
+      const cellW = w / gridSize, cellH = h / gridSize;
+      for (let i = 0; i < gridSize; i++) {
+        for (let j = 0; j < gridSize; j++) {
+          const x = xMin + (j / (gridSize - 1)) * (xMax - xMin);
+          const y = yMax - (i / (gridSize - 1)) * (yMax - yMin);
+          const v = (ex.costAt(x, y) - cMin) / cRange;
+          const [r, g, b] = heightToRgb(v);
+          const px = Math.floor(j * cellW), py = Math.floor(i * cellH);
+          const pxe = Math.min(w, Math.ceil((j + 1) * cellW)), pye = Math.min(h, Math.ceil((i + 1) * cellH));
+          for (let yy = py; yy < pye; yy++)
+            for (let xx = px; xx < pxe; xx++) {
+              const idx = (yy * w + xx) * 4;
+              imgData.data[idx] = r;
+              imgData.data[idx + 1] = g;
+              imgData.data[idx + 2] = b;
+              imgData.data[idx + 3] = 255;
+            }
+        }
+      }
+      const ctx = canvas.getContext("2d");
+      ctx.putImageData(imgData, 0, 0);
+      const toPx = (xx, yy) => [((xx - xMin) / (xMax - xMin)) * w, ((yMax - yy) / (yMax - yMin)) * h];
+      const [bx, by] = toPx(ex.bestPos[0], ex.bestPos[1]);
+      const crossR = 8;
+      ctx.strokeStyle = "#fff";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(bx - crossR, by);
+      ctx.lineTo(bx + crossR, by);
+      ctx.moveTo(bx, by - crossR);
+      ctx.lineTo(bx, by + crossR);
+      ctx.stroke();
+      ctx.strokeStyle = "#0d6efd";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(bx - crossR, by);
+      ctx.lineTo(bx + crossR, by);
+      ctx.moveTo(bx, by - crossR);
+      ctx.lineTo(bx, by + crossR);
+      ctx.stroke();
+    }
+    let currentLbfgsbIndex = 0;
+    function updateLbfgsbOutput(r) {
+      byId("out-lbfgsb").textContent =
+        r.name + " on [-5,5]², " + r.iterations + " iters\nbest: [" + r.bestPos.map((x) => x.toFixed(4)).join(", ") + "]  cost: " + r.bestCost.toFixed(6);
+      drawLbfgsbCanvas(r);
+    }
+    const lbfgsbLabels = LBFGSB_EXAMPLES.map((e) => e.name);
+    bindExampleSelector("lbfgsb-examples", lbfgsbLabels, (i) => {
+      currentLbfgsbIndex = i;
+      updateLbfgsbOutput(lbfgsbResults[i]);
+    });
+    const lbfgsbRunBtn = byId("lbfgsb-run");
+    if (lbfgsbRunBtn) {
+      lbfgsbRunBtn.addEventListener("click", () => {
+        const ex = LBFGSB_EXAMPLES[currentLbfgsbIndex];
+        lbfgsbResults[currentLbfgsbIndex] = runLbfgsbForExample(ex, [0, 0]);
+        updateLbfgsbOutput(lbfgsbResults[currentLbfgsbIndex]);
+      });
+    }
+    updateLbfgsbOutput(lbfgsbResults[0]);
   }
 } catch (e) {
   const out = byId("out-simplex");

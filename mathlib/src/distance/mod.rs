@@ -61,15 +61,11 @@ pub fn euclidean_rows(data: &Matrix<f64>, i: usize, j: usize) -> f64 {
 // --- Manhattan (L1) ---
 
 /// Manhattan distance between two vectors: `sum_i` |a[i] - b[i]|.
+/// Uses CPU backend (SIMD when the `simd` feature is enabled).
 #[must_use]
 pub fn manhattan(a: &Vector<f64>, b: &Vector<f64>) -> f64 {
     assert_eq!(a.rows(), b.rows());
-    let n = a.rows();
-    let mut sum = 0.0;
-    for i in 0..n {
-        sum += (a.get(i) - b.get(i)).abs();
-    }
-    sum
+    crate::cpu::abs_diff_sum_f64(a.data(), b.data())
 }
 
 /// Manhattan distance between row `i` and row `j` of matrix `data`.
@@ -166,18 +162,11 @@ pub fn cosine_distance_rows(data: &Matrix<f64>, i: usize, j: usize) -> f64 {
 // --- Chebyshev (L_infinity) ---
 
 /// Chebyshev distance: `max_i` |a[i] - b[i]|.
+/// Uses CPU backend (SIMD when the `simd` feature is enabled).
 #[must_use]
 pub fn chebyshev(a: &Vector<f64>, b: &Vector<f64>) -> f64 {
     assert_eq!(a.rows(), b.rows());
-    let n = a.rows();
-    let mut max_d = 0.0_f64;
-    for i in 0..n {
-        let d = (a.get(i) - b.get(i)).abs();
-        if d > max_d {
-            max_d = d;
-        }
-    }
-    max_d
+    crate::cpu::max_abs_diff_f64(a.data(), b.data())
 }
 
 /// Chebyshev distance between row `i` and row `j` of matrix `data`.

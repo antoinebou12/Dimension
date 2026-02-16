@@ -1,13 +1,30 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
+export const get_armature_node_count: () => number;
+export const get_armature_tree: () => [number, number];
+export const get_available_solvers: () => [number, number];
+export const get_debug_kinematics: () => number;
+export const get_ee_position: () => [number, number];
+export const get_end_effector_index: () => number;
+export const get_hessian_snapshot: () => any;
+export const get_ik_solver: () => [number, number];
+export const get_target_position: () => [number, number];
 export const main_js: () => void;
+export const randomize_target: () => void;
+export const reset_scene: () => void;
+export const set_active_chain: (a: number, b: number) => void;
+export const set_arm_preset: (a: number, b: number) => void;
+export const set_debug_kinematics: (a: number) => void;
+export const set_end_effector: (a: number) => void;
+export const set_ik_solver: (a: number, b: number) => void;
+export const set_target_to_ee: () => void;
 export const main: (a: number, b: number) => number;
 export const wasm_bindgen__closure__destroy__h8f0f474f2df844ba: (a: number, b: number) => void;
-export const wasm_bindgen__closure__destroy__h5792b0208d28b9fd: (a: number, b: number) => void;
+export const wasm_bindgen__closure__destroy__h3f39fac15915859d: (a: number, b: number) => void;
 export const wasm_bindgen__convert__closures_____invoke__h96c701c382b3865f: (a: number, b: number, c: any) => void;
-export const wasm_bindgen__convert__closures_____invoke__h13b32e622435a094: (a: number, b: number, c: any) => void;
-export const wasm_bindgen__convert__closures_____invoke__ha96def812071b3a1: (a: number, b: number) => void;
+export const wasm_bindgen__convert__closures_____invoke__h48de626b701d7077: (a: number, b: number, c: any) => void;
+export const wasm_bindgen__convert__closures_____invoke__h79525ab102b83bc3: (a: number, b: number) => void;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_exn_store: (a: number) => void;

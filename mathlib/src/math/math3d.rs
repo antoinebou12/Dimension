@@ -286,6 +286,30 @@ pub fn vector3_cross(a: &Vector3f, b: &Vector3f) -> Vector3f {
     out
 }
 
+/// Cross product of two 3D vectors (f64): a × b.
+///
+/// Used by kinematics (Hessian IK and chain) for the K:r correction term.
+/// Single 3D cross is scalar; batched SIMD can be added later in `cpu::simd` if needed.
+///
+/// # Examples
+///
+/// ```
+/// use mathlib::math3d::vec3_cross_f64;
+/// let a = [1.0_f64, 0.0, 0.0];
+/// let b = [0.0_f64, 1.0, 0.0];
+/// let c = vec3_cross_f64(&a, &b);
+/// assert!((c[2] - 1.0).abs() < 1e-10); // a × b = (0, 0, 1)
+/// ```
+#[must_use]
+#[inline]
+pub fn vec3_cross_f64(a: &[f64; 3], b: &[f64; 3]) -> [f64; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
 // --- Orthonormal basis -------------------------------------------------------
 
 /// Trait for computing an orthonormal basis from a single vector.

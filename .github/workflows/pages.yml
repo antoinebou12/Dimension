@@ -1,4 +1,4 @@
-# Build wasm-demo and deploy to GitHub Pages.
+# Build unified website and deploy to GitHub Pages.
 # Enable in repo: Settings → Pages → Build and deployment → GitHub Actions.
 name: GitHub Pages
 
@@ -22,7 +22,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+        with:
+          targets: wasm32-unknown-unknown
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -32,19 +37,21 @@ jobs:
       - name: Install wasm-pack
         run: cargo install wasm-pack --locked
 
-      - name: Build WASM package
-        working-directory: mathlib
-        run: |
-          wasm-pack build --target web --features wasm
-          cp -r pkg demo/wasm-demo/
+      - name: Install just
+        run: cargo install just --locked
+
+      - name: Build unified website
+        run: just website-build
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
+        with:
+          enablement: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: mathlib/demo
+          path: website
 
       - name: Deploy to GitHub Pages
         id: deploy

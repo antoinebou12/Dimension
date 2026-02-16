@@ -1,4 +1,4 @@
-//! BVH motion capture parser (gti320-style).
+//! BVH motion capture parser.
 //!
 //! Case-insensitive keywords: HIERARCHY, ROOT, JOINT, End Site, OFFSET, CHANNELS,
 //! MOTION, Frames, Frame Time.

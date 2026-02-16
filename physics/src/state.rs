@@ -4,6 +4,17 @@ use crate::body::RigidBody;
 use crate::particle::Particle;
 use crate::softbody::SoftBody;
 
+/// Solver used for bilateral (positional) rigid constraints.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub enum RigidBilateralSolver {
+    /// Projected Gauss–Seidel (sequential constraint solve).
+    #[default]
+    Pgs,
+    /// Matrix-free conjugate gradient for the Schur complement system.
+    ConjugateGradient,
+}
+
 /// Solver configuration.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -22,6 +33,20 @@ pub struct PhysicsConfig {
     pub sleep_threshold: f32,
     /// Gravity vector applied to all dynamic bodies each substep.
     pub gravity: [f32; 3],
+    /// Coulomb friction coefficient for rigid contacts (0 = frictionless).
+    pub contact_friction: f32,
+    /// Restitution coefficient for rigid contacts (0 = inelastic, 1 = perfectly elastic).
+    pub contact_restitution: f32,
+    /// Rolling friction coefficient for rigid contacts (0 = none).
+    pub contact_rolling_friction: f32,
+    /// Solver for bilateral (positional) constraints.
+    pub rigid_bilateral_solver: RigidBilateralSolver,
+    /// Max iterations for CG when `rigid_bilateral_solver` is `ConjugateGradient`.
+    pub cg_max_iter: u32,
+    /// Tolerance for CG convergence (squared residual).
+    pub cg_tolerance: f32,
+    /// Baumgarte damping for velocity-level RHS: `-γ φ / h` (e.g. 0.3).
+    pub constraint_gamma: f32,
 }
 
 impl Default for PhysicsConfig {
@@ -34,6 +59,13 @@ impl Default for PhysicsConfig {
             sor_omega: 1.2,
             sleep_threshold: 1e-6,
             gravity: [0.0, -9.81, 0.0],
+            contact_friction: 0.5,
+            contact_restitution: 0.1,
+            contact_rolling_friction: 0.02,
+            rigid_bilateral_solver: RigidBilateralSolver::default(),
+            cg_max_iter: 50,
+            cg_tolerance: 1e-12,
+            constraint_gamma: 0.3,
         }
     }
 }

@@ -31,8 +31,10 @@ pub mod hooks;
 pub mod integration;
 pub mod neohookean;
 pub mod particle;
+pub mod schur_cg;
 pub mod softbody;
 pub mod solver;
+pub mod spatial;
 pub mod state;
 pub mod tet;
 
@@ -49,5 +51,5 @@ pub use integration::{ExplicitEulerIntegrator, Integrator, PbdIntegrator, XpbdIn
 pub use neohookean::TetSolveResult;
 pub use particle::Particle;
 pub use softbody::SoftBody;
-pub use state::{PhysicsConfig, PhysicsState};
+pub use state::{PhysicsConfig, PhysicsState, RigidBilateralSolver};
 pub use tet::TetMesh;

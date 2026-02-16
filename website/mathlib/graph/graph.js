@@ -370,18 +370,19 @@ try {
         dists = n <= 400 ? new Array(n).fill(Infinity) : [];
         gridEdgesForDraw = n <= 400 ? buildGridEdgesForDraw(mode.rows, mode.cols) : [];
       } else {
-        gridEdgesForDraw = buildGridEdgesForDraw(mode.rows, mode.cols);
-        const g = WasmGraph.fromEdges(n, gridEdgesForDraw);
+        const gridEdges = buildGridEdgesForDraw(mode.rows, mode.cols);
+        const g = WasmGraph.fromEdges(n, gridEdges);
         const dres = g.dijkstra(source);
         dists = dres.getDistances();
         path = dres.pathTo(target);
         distVal = dists[target] ?? Infinity;
+        gridEdgesForDraw = n <= 400 ? buildGridEdgesForDraw(mode.rows, mode.cols) : [];
       }
       const elapsed = performance.now() - t0;
 
       if (canvas) {
         const ctx = canvas.getContext("2d");
-        drawGridGraphOnCanvas(ctx, canvas.width, canvas.height, mode.rows, mode.cols, gridEdgesForDraw || [], path, dists, source, target);
+        drawGridGraphOnCanvas(ctx, canvas.width, canvas.height, mode.rows, mode.cols, gridEdgesForDraw, path, dists, source, target);
       }
 
       if (out) {

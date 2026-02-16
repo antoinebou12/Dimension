@@ -38,7 +38,7 @@ if (window.location.protocol === "file:") {
 } else {
   try {
     const lib = await initLib();
-    const { WasmMatrix, WasmMatrix32, WasmVector, WasmCholesky, WasmLu } = lib;
+    const { WasmMatrix, WasmMatrix32, WasmVector, WasmCholesky, WasmLu, WasmQr } = lib;
     const initGpuAsync = lib.initGpuAsync;
     const gpuAvailable = lib.gpuAvailable;
     const gpuMatmulAvailable = typeof lib.gpuMatmulAvailable === "function" ? lib.gpuMatmulAvailable : null;
@@ -1022,6 +1022,49 @@ if (window.location.protocol === "file:") {
     }
     bindExampleSelector("lu-examples", ["Example 1", "Example 2", "Example 3 (3×3)", "Example 4 (4×4)"], updateLuOutput);
     updateLuOutput(0);
+
+    // —— QR ——
+    const QR_EXAMPLES = [
+      { A: [1, 0, 0, 1], b: [1, 1], rows: 2, cols: 2 },
+      { A: [1, 1, 0, 1, 0, 1], b: [1, 1, 1], rows: 3, cols: 2 },
+      { A: [1, 0, 1, 2, 2, 0, 0, 1, 1], b: [1, 2, 2], rows: 3, cols: 3 },
+    ];
+    const qrResults = QR_EXAMPLES.map((ex) => {
+      try {
+        const A = WasmMatrix.fromArray(ex.rows, ex.cols, ex.A);
+        const b = WasmVector.fromArray(ex.b);
+        const qr = new WasmQr(A);
+        const x = qr.solve(b).toArray();
+        const Q = qr.getQ();
+        const R = qr.getR();
+        return { A, b: ex.b, x, Q: Q.toArray(), R: R.toArray(), rows: ex.rows, cols: ex.cols, qRows: Q.rows, qCols: Q.cols, rRows: R.rows, rCols: R.cols, err: null };
+      } catch (e) {
+        return { ...ex, err: e.message };
+      }
+    });
+    function updateQrOutput(i) {
+      const r = qrResults[i];
+      if (r.err) {
+        byId("out-qr").innerHTML = "<span class=\"error\">" + r.err + "</span>";
+        return;
+      }
+      byId("out-qr").innerHTML =
+        "<div class=\"matrix-block\"><strong>A (" + r.rows + "×" + r.cols + "):</strong>" +
+          renderMatrixHTMLWithColors(r.rows, r.cols, r.A.toArray(), { colorBy: "value" }) + "</div>" +
+        "<div class=\"matrix-block\"><strong>Q:</strong>" +
+          renderMatrixHTMLWithColors(r.qRows, r.qCols, r.Q, { colorBy: "value", decimals: 3 }) + "</div>" +
+        "<div class=\"matrix-block\"><strong>R:</strong>" +
+          renderMatrixHTMLWithColors(r.rRows, r.rCols, r.R, { colorBy: "value", decimals: 3 }) + "</div>" +
+        "<div class=\"vector-inline\"><strong>b:</strong> [" + r.b.map((x) => Number(x).toFixed(2)).join(", ") + "]</div>" +
+        "<div class=\"vector-inline\"><strong>x (least-squares):</strong> [" + r.x.map((x) => x.toFixed(4)).join(", ") + "]</div>";
+      drawVectorBarsGeneric("canvas-qr-x", r.x);
+    }
+    if (typeof WasmQr !== "undefined") {
+      bindExampleSelector("qr-examples", ["QR 2×2", "QR 3×2 (tall)", "QR 3×3"], updateQrOutput);
+      updateQrOutput(0);
+    } else {
+      byId("out-qr").innerHTML = "<span class=\"error\">WasmQr not available (rebuild with wasm)</span>";
+    }
 
     // —— Sparse (CSR diagram) ——
     const SPARSE_TRIPLETS = [[0, 0, 1], [0, 2, 2], [1, 1, 3], [2, 0, 4]];

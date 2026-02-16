@@ -5,6 +5,8 @@
 pub mod conjugate_gradient;
 pub mod gauss_newton;
 pub mod gradient_descent;
+pub mod lbfgsb;
+pub mod levenberg_marquardt;
 pub mod linesearch;
 pub mod muon;
 pub mod pso;
@@ -15,6 +17,10 @@ pub use conjugate_gradient::{
 pub use gauss_newton::{GaussNewtonOptions, GaussNewtonResult, gauss_newton};
 pub use gradient_descent::{
     GradientDescentOptions, GradientDescentResult, LineSearchVariant, gradient_descent,
+};
+pub use lbfgsb::{LbfgsbOptions, LbfgsbResult, lbfgsb};
+pub use levenberg_marquardt::{
+    LevenbergMarquardtOptions, LevenbergMarquardtResult, levenberg_marquardt,
 };
 pub use linesearch::{LineSearchOptions, armijo, backtracking, wolfe};
 pub use muon::muon_step;

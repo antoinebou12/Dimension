@@ -1,13 +1,16 @@
-//! WasmPsoResult for particle swarm optimization and line search from JavaScript.
+//! WasmPsoResult for particle swarm optimization, L-BFGS-B, and line search from JavaScript.
 //!
 //! Cost function is passed as a JS callback: `(position: Float64Array) => number`.
+//! Gradient for L-BFGS-B: `(position: Float64Array) => Float64Array` (returns gradient vector).
 //! Uses a sequential PSO implementation (no Sync bound) for wasm.
 
 use js_sys::Float64Array;
 use wasm_bindgen::prelude::*;
 
-use crate::argmin::PsoOptions;
+use crate::argmin::levenberg_marquardt::{LevenbergMarquardtOptions, levenberg_marquardt};
 use crate::argmin::linesearch::{self, LineSearchOptions};
+use crate::argmin::{LbfgsbOptions, PsoOptions, lbfgsb};
+use crate::{Matrix, Storage};
 
 /// Result of PSO: best position, cost, and iterations.
 #[wasm_bindgen]
@@ -77,6 +80,100 @@ impl WasmPsoResultWithHistory {
     pub fn get_history_costs(&self) -> Vec<f64> {
         self.history_costs.clone()
     }
+}
+
+/// Result of L-BFGS-B: best position, cost, and iterations.
+#[wasm_bindgen]
+pub struct WasmLbfgsbResult {
+    best_position: Vec<f64>,
+    best_cost: f64,
+    iterations: u32,
+}
+
+#[wasm_bindgen]
+impl WasmLbfgsbResult {
+    /// Best position found (within bounds).
+    #[wasm_bindgen(js_name = getBestPosition)]
+    pub fn get_best_position(&self) -> Vec<f64> {
+        self.best_position.clone()
+    }
+
+    /// Cost at best position.
+    #[wasm_bindgen(js_name = getBestCost)]
+    pub fn get_best_cost(&self) -> f64 {
+        self.best_cost
+    }
+
+    /// Number of iterations performed.
+    #[wasm_bindgen(js_name = getIterations)]
+    pub fn get_iterations(&self) -> u32 {
+        self.iterations
+    }
+}
+
+/// Run L-BFGS-B to minimize a cost function over a box.
+///
+/// `x0`: initial point (length must match lower/upper).
+/// `cost_fn`: JS function `(position: Float64Array) => number`.
+/// `gradient_fn`: JS function `(position: Float64Array) => Float64Array` (returns gradient at position).
+/// Optional `max_iters` (default 1000), `tol` (default 1e-8), `m` (L-BFGS history size, default 10).
+#[wasm_bindgen(js_name = lbfgsbMinimize)]
+pub fn lbfgsb_minimize(
+    x0: Vec<f64>,
+    lower: Vec<f64>,
+    upper: Vec<f64>,
+    cost_fn: &js_sys::Function,
+    gradient_fn: &js_sys::Function,
+    max_iters: Option<u32>,
+    tol: Option<f64>,
+    m: Option<u32>,
+) -> Result<WasmLbfgsbResult, JsError> {
+    if x0.len() != lower.len() || lower.len() != upper.len() {
+        return Err(JsError::new(
+            "x0, lower, and upper must have the same length",
+        ));
+    }
+    if x0.is_empty() {
+        return Err(JsError::new("x0 must not be empty"));
+    }
+
+    let eval_cost = |x: &[f64]| -> f64 {
+        let arr = Float64Array::new_with_length(x.len() as u32);
+        arr.copy_from(x);
+        cost_fn
+            .call1(&JsValue::NULL, &arr)
+            .ok()
+            .and_then(|v| v.as_f64())
+            .unwrap_or(f64::INFINITY)
+    };
+
+    let eval_gradient = |x: &[f64], g: &mut [f64]| {
+        let arr = Float64Array::new_with_length(x.len() as u32);
+        arr.copy_from(x);
+        if let Ok(val) = gradient_fn.call1(&JsValue::NULL, &arr) {
+            if let Some(grad_arr) = val.dyn_ref::<Float64Array>() {
+                let len = grad_arr.length().min(g.len() as u32);
+                for i in 0..len {
+                    g[i as usize] = grad_arr.get_index(i);
+                }
+            }
+        }
+    };
+
+    let opts = LbfgsbOptions {
+        max_iters: max_iters.unwrap_or(1000) as usize,
+        tol: tol.unwrap_or(1e-8),
+        m: m.unwrap_or(10) as usize,
+        ..Default::default()
+    };
+
+    let result = lbfgsb(&x0, &lower, &upper, &eval_cost, &eval_gradient, &opts);
+
+    Ok(WasmLbfgsbResult {
+        best_position: result.x,
+        best_cost: result.cost,
+        iterations: result.iterations as u32,
+    })
 }
 
 /// Deterministic RNG (xorshift64) for reproducible PSO.
@@ -426,4 +523,89 @@ pub fn line_search_backtracking(
         &mut x_plus_alpha_d,
     );
     Ok(alpha)
+}
+
+/// Result of Levenberg-Marquardt.
+#[wasm_bindgen]
+pub struct WasmLmResult {
+    best_position: Vec<f64>,
+    residual_norm_sq: f64,
+    iterations: u32,
+}
+
+#[wasm_bindgen]
+impl WasmLmResult {
+    #[wasm_bindgen(js_name = getBestPosition)]
+    pub fn get_best_position(&self) -> Vec<f64> {
+        self.best_position.clone()
+    }
+    #[wasm_bindgen(js_name = getResidualNormSq)]
+    pub fn get_residual_norm_sq(&self) -> f64 {
+        self.residual_norm_sq
+    }
+    #[wasm_bindgen(js_name = getIterations)]
+    pub fn get_iterations(&self) -> u32 {
+        self.iterations
+    }
+}
+
+/// Levenberg-Marquardt for nonlinear least squares.
+/// residual: (x: Float64Array) => Float64Array (length m)
+/// jacobian: (x: Float64Array) => Float64Array (length m*n, column-major, m rows × n cols)
+#[wasm_bindgen(js_name = lmMinimize)]
+pub fn lm_minimize(
+    x0: Vec<f64>,
+    m: usize,
+    n: usize,
+    residual_fn: &js_sys::Function,
+    jacobian_fn: &js_sys::Function,
+    max_iters: Option<u32>,
+    tol: Option<f64>,
+) -> Result<WasmLmResult, JsError> {
+    if x0.len() != n {
+        return Err(JsError::new("x0 length must equal n"));
+    }
+    if m < n {
+        return Err(JsError::new("m must be >= n for least squares"));
+    }
+    let residual = |x: &[f64]| -> Vec<f64> {
+        let arr = Float64Array::new_with_length(x.len() as u32);
+        arr.copy_from(x);
+        let out = residual_fn.call1(&JsValue::NULL, &arr).ok();
+        if let Some(v) = out {
+            if let Some(arr) = v.dyn_ref::<Float64Array>() {
+                return arr.to_vec();
+            }
+        }
+        vec![f64::INFINITY; m]
+    };
+    let jacobian = |x: &[f64]| -> Matrix<f64> {
+        let arr = Float64Array::new_with_length(x.len() as u32);
+        arr.copy_from(x);
+        let out = jacobian_fn.call1(&JsValue::NULL, &arr).ok();
+        let mut jac = Matrix::with_storage(m, n, Storage::Column);
+        if let Some(v) = out {
+            if let Some(arr) = v.dyn_ref::<Float64Array>() {
+                let data = arr.to_vec();
+                if data.len() >= m * n {
+                    for (i, &val) in data.iter().take(m * n).enumerate() {
+                        jac.data_mut()[i] = val;
+                    }
+                }
+            }
+        }
+        jac
+    };
+    let opts = LevenbergMarquardtOptions {
+        max_iters: max_iters.unwrap_or(200) as usize,
+        tol: tol.unwrap_or(1e-8),
+        ..Default::default()
+    };
+    let result = levenberg_marquardt(&x0, residual, jacobian, &opts)
+        .map_err(|e| JsError::new(&e.to_string()))?;
+    Ok(WasmLmResult {
+        best_position: result.x,
+        residual_norm_sq: result.residual_norm_sq,
+        iterations: result.iterations as u32,
+    })
 }
