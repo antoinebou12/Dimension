@@ -309,9 +309,9 @@ fn column_segment(matrix: &Matrix<f64>, col: usize, row_offset: usize) -> [f64; 
 }
 
 fn add_segment(matrix: &mut Matrix<f64>, col: usize, row_offset: usize, value: &[f64; 3]) {
-    for r in 0..3 {
+    for (r, &v) in value.iter().enumerate() {
         let current = matrix.get(row_offset + r, col);
-        matrix.set(row_offset + r, col, current + value[r]);
+        matrix.set(row_offset + r, col, current + v);
     }
 }
 

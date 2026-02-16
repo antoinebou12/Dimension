@@ -6,6 +6,7 @@
 [files]
 extend-exclude = [
     ".git/",
+    ".skill/",             # external skill/rules (examples with intentional typos)
     "**/wasm-demo/pkg/",  # wasm-bindgen generated JS (hash suffixes trigger false positives)
     "website/**/pkg/",
     "**/pkg/",
@@ -45,6 +46,7 @@ iz = "iz"   # z-axis index (e.g. for iz in 0..nz) or inertia I_z
 gti = "gti" # e.g. gti320-style format name
 fo = "fo"   # e.g. CSS class fragments in font/binaries
 Nd = "Nd"   # NdArray, NdArrayDevice (Burn/ndarray backend names)
+consts = "consts"   # std::f32::consts / std::f64::consts (Rust API)
 
 # WGSL shaders (render/shaders/*.wgsl)
 [type.wgsl]

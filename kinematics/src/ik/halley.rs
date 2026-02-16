@@ -108,7 +108,7 @@ impl<'a> HalleyIk<'a> {
             }
 
             let ee_pos = world_position(&current_tf);
-            let (jacobian, link_types) = build_geometric_jacobian(self.armature, &path, &ee_pos);
+            let (jacobian, is_prismatic) = build_geometric_jacobian(self.armature, &path, &ee_pos);
             if jacobian.cols() == 0 {
                 break;
             }
@@ -133,7 +133,7 @@ impl<'a> HalleyIk<'a> {
             scale_vector(&mut scaled, 0.5);
 
             let mut corrected_jacobian = jacobian.clone();
-            hessian_product(&jacobian, &scaled, &link_types, &mut corrected_jacobian);
+            hessian_product(&jacobian, &scaled, &is_prismatic, &mut corrected_jacobian);
             let halley_step = damped_least_squares(&corrected_jacobian, &error_f64, self.lambda_sq)
                 .unwrap_or_else(|_| newton_step.clone());
 
@@ -144,7 +144,16 @@ impl<'a> HalleyIk<'a> {
                         best_state = self.armature.pack();
                     }
                 }
-                None => break,
+                None => {
+                    if let Some(new_err) = self.try_step(&newton_step, err_norm) {
+                        if new_err < best_err {
+                            best_err = new_err;
+                            best_state = self.armature.pack();
+                        }
+                    } else {
+                        break;
+                    }
+                }
             }
         }
 
