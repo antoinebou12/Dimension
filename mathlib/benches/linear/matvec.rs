@@ -1,7 +1,8 @@
 //! Benchmarks for matrix-vector multiplication.
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::{SparseMatrixCCS, SparseMatrixCDS, SparseMatrixCRS, SparseStorage};
+use std::hint::black_box;
 
 #[path = "common.rs"]
 mod common;

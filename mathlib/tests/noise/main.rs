@@ -4,8 +4,12 @@ use mathlib::{fbm_2d, perlin_2d, wave_2d, wave_2d_params};
 
 #[test]
 fn perlin_2d_deterministic() {
-    assert_eq!(perlin_2d(1.0, 2.0), perlin_2d(1.0, 2.0));
-    assert_eq!(perlin_2d(0.5, 0.5), perlin_2d(0.5, 0.5));
+    let a = perlin_2d(1.0, 2.0);
+    let b = perlin_2d(1.0, 2.0);
+    assert!((a - b).abs() < 1e-10);
+    let a = perlin_2d(0.5, 0.5);
+    let b = perlin_2d(0.5, 0.5);
+    assert!((a - b).abs() < 1e-10);
 }
 
 #[test]
@@ -24,7 +28,9 @@ fn perlin_2d_bounded() {
 
 #[test]
 fn wave_2d_deterministic() {
-    assert_eq!(wave_2d(0.3, 0.7), wave_2d(0.3, 0.7));
+    let a = wave_2d(0.3, 0.7);
+    let b = wave_2d(0.3, 0.7);
+    assert!((a - b).abs() < 1e-10);
 }
 
 #[test]

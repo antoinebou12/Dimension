@@ -1,10 +1,11 @@
 //! Benchmarks for computer-graphics recipes.
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::{
     Perspective3, from_euler_angles, from_scaled_axis, look_at_rh, model_view_projection,
     new_perspective, new_scaling, new_translation, transform_point, transform_vector, vector3,
 };
+use std::hint::black_box;
 
 pub fn bench_cg_construction(c: &mut Criterion) {
     let mut group = c.benchmark_group("cg_construction");

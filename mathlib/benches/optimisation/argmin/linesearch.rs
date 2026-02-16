@@ -1,7 +1,8 @@
 //! Benchmarks for line search (backtracking, Armijo, Wolfe).
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::{LineSearchOptions, armijo, backtracking, wolfe};
+use std::hint::black_box;
 
 fn quadratic_cost(x: &[f64]) -> f64 {
     x[0] * x[0] + x[1] * x[1]

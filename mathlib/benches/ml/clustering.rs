@@ -1,7 +1,8 @@
 //! Benchmarks for K-means and DBSCAN clustering.
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group};
 use mathlib::{Matrix, Storage, dbscan, kmeans};
+use std::hint::black_box;
 use std::time::Duration;
 
 fn synthetic_data(n_samples: usize, n_features: usize) -> Matrix<f64> {

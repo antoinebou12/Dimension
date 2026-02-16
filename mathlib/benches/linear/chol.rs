@@ -1,7 +1,8 @@
 //! Benchmarks for Cholesky decomposition and solve.
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::{Cholesky, Matrix, Storage, Vector};
+use std::hint::black_box;
 
 /// Symmetric positive definite: diagonal dominant with small off-diagonal.
 fn make_spd(n: usize) -> Matrix<f64> {

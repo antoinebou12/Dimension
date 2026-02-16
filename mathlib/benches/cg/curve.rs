@@ -1,7 +1,8 @@
 //! Benchmarks for 3D curve evaluation (linear, Bezier, Hermite, B-spline).
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::math::curve::{bezier_curve, bspline_curve, hermite_curve, linear_curve};
+use std::hint::black_box;
 
 pub fn benches(c: &mut Criterion) {
     let mut group = c.benchmark_group("curve");

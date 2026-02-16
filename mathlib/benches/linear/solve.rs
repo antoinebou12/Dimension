@@ -1,7 +1,8 @@
 //! Benchmarks for general linear solve Ax = b and damped least-squares.
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::{Matrix, Storage, Vector, damped_least_squares, solve};
+use std::hint::black_box;
 
 fn make_square(n: usize) -> Matrix<f64> {
     let mut a = Matrix::with_storage(n, n, Storage::Column);

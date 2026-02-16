@@ -3,9 +3,10 @@
 //! Benchmarks adjacency triplet construction, CRS/CCS build from graph, and SpMV.
 //! Run with `--features gpu` or `--features simd` to exercise wgpu/SIMD paths.
 
-use criterion::{BenchmarkId, Criterion, black_box};
+use criterion::{BenchmarkId, Criterion};
 use mathlib::graph::{adjacency_ccs, adjacency_crs, adjacency_triplets, tree_adjacency_crs};
 use mathlib::{Graph, SparseStorage, Tree, Vector};
+use std::hint::black_box;
 
 use super::{graph_helpers_grid, graph_helpers_random_graph};
 

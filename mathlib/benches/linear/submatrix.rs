@@ -1,7 +1,8 @@
 //! Benchmarks for submatrix and block API.
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group};
 use mathlib::Matrix;
+use std::hint::black_box;
 
 #[path = "common.rs"]
 mod common;

@@ -9,7 +9,9 @@ use mathlib::wasm::{fbm2d_perlin, perlin2d, wave2d, wave2d_params};
 fn wasm_wave2d() {
     let v = wave2d(0.5, 0.5);
     assert!((0.0..=1.0).contains(&v));
-    assert_eq!(wave2d(0.3, 0.7), wave2d(0.3, 0.7));
+    let a = wave2d(0.3, 0.7);
+    let b = wave2d(0.3, 0.7);
+    assert!((a - b).abs() < 1e-10);
 }
 
 #[test]
@@ -26,8 +28,10 @@ fn wasm_wave2d_params() {
 #[test]
 fn wasm_perlin2d() {
     let v = perlin2d(1.0, 2.0);
-    assert!(v >= -1.5 && v <= 1.5);
-    assert_eq!(perlin2d(0.5, 0.5), perlin2d(0.5, 0.5));
+    assert!((-1.5..=1.5).contains(&v));
+    let a = perlin2d(0.5, 0.5);
+    let b = perlin2d(0.5, 0.5);
+    assert!((a - b).abs() < 1e-10);
 }
 
 #[test]

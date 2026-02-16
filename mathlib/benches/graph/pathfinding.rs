@@ -1,7 +1,8 @@
 //! Pathfinding benchmarks: Dijkstra, A*, D* Lite.
 
-use criterion::{BenchmarkId, Criterion, black_box};
+use criterion::{BenchmarkId, Criterion};
 use mathlib::{Graph, astar, dijkstra, dstar_lite};
+use std::hint::black_box;
 
 use super::{graph_helpers_grid, graph_helpers_random_graph};
 

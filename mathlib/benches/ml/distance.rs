@@ -1,9 +1,10 @@
 //! Benchmarks for distance metrics (euclidean_rows, cosine_similarity, minkowski).
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group};
 use mathlib::{
     Matrix, Storage, Vector, cosine_similarity, euclidean_rows, minkowski, squared_euclidean_rows,
 };
+use std::hint::black_box;
 
 fn synthetic_matrix(rows: usize, cols: usize) -> Matrix<f64> {
     let mut m = Matrix::with_storage(rows, cols, Storage::Column);

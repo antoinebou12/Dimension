@@ -1,7 +1,8 @@
 //! Benchmarks for DCT.
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group};
 use mathlib::{dct2_forward, dct2_inverse};
+use std::hint::black_box;
 
 fn bench_dct(c: &mut Criterion) {
     let mut group = c.benchmark_group("dct");

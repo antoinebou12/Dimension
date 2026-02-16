@@ -1,9 +1,10 @@
 //! Benchmarks for conjugate gradient (linear and nonlinear).
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group};
 use mathlib::structure::Storage;
 use mathlib::{Matrix, Vector};
 use mathlib::{NonlinearCgOptions, nonlinear_cg, solve_cg};
+use std::hint::black_box;
 
 fn make_spd(n: usize) -> Matrix<f64> {
     let mut a = Matrix::with_storage(n, n, Storage::Column);

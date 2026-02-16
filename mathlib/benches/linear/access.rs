@@ -1,7 +1,8 @@
 //! Benchmarks for element access and format conversion.
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group};
 use mathlib::{SparseMatrixCCS, SparseMatrixCRS, SparseStorage};
+use std::hint::black_box;
 use std::time::Duration;
 
 #[path = "common.rs"]

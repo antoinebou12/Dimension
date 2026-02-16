@@ -1,7 +1,8 @@
 //! Benchmarks for PSO (sphere cost).
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group};
 use mathlib::{PsoOptions, pso};
+use std::hint::black_box;
 
 fn sphere_cost(x: &[f64]) -> f64 {
     x.iter().map(|v| v * v).sum()

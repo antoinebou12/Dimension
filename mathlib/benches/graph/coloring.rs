@@ -1,7 +1,8 @@
 //! Coloring benchmarks: greedy, DSatur.
 
-use criterion::{BenchmarkId, Criterion, black_box};
+use criterion::{BenchmarkId, Criterion};
 use mathlib::{dsatur_coloring, greedy_vertex_coloring};
+use std::hint::black_box;
 
 use super::graph_helpers_random_undirected;
 

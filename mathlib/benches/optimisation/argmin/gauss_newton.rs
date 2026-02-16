@@ -1,7 +1,8 @@
 //! Benchmarks for Gauss-Newton.
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::{GaussNewtonOptions, gauss_newton};
+use std::hint::black_box;
 
 pub fn bench_gauss_newton(c: &mut Criterion) {
     let mut group = c.benchmark_group("gauss_newton");

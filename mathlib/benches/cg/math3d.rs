@@ -1,11 +1,12 @@
 //! Benchmarks for 3D math: points, homogeneous coords, transforms.
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::{
     Matrix4f, Point3, Vector3f, center, from_homogeneous_point, from_homogeneous_vector,
     make_rotation, matrix4_mul_vector3, matrix4f_inverse, point_to_homogeneous, transform_vector,
     vector_to_homogeneous,
 };
+use std::hint::black_box;
 
 fn sample_matrix4() -> Matrix4f {
     let mut m = Matrix4f::with_dimensions(4, 4);

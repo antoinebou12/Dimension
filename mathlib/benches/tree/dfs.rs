@@ -1,7 +1,8 @@
 //! DFS benchmarks.
 
-use criterion::{BenchmarkId, Criterion, black_box};
+use criterion::{BenchmarkId, Criterion};
 use mathlib::{dfs_postorder, dfs_preorder};
+use std::hint::black_box;
 
 use super::helpers;
 

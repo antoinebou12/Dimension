@@ -1,7 +1,8 @@
 //! Benchmarks for LU decomposition and solve.
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::{Lu, Matrix, Storage, Vector};
+use std::hint::black_box;
 
 fn make_square(n: usize) -> Matrix<f64> {
     let mut a = Matrix::with_storage(n, n, Storage::Column);

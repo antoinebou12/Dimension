@@ -1,7 +1,8 @@
 //! Benchmarks for gradient descent.
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group};
 use mathlib::{GradientDescentOptions, gradient_descent};
+use std::hint::black_box;
 
 pub fn bench_gradient_descent(c: &mut Criterion) {
     let mut group = c.benchmark_group("gradient_descent");

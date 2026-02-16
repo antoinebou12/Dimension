@@ -29,8 +29,8 @@ use crate::structure::{SparseMatrixCCS, SparseMatrixCRS, SparseStorage, Triplet}
 /// # Examples
 ///
 /// ```
-/// use crate::graph::{Graph, adjacency_triplets, adjacency_crs};
-/// use crate::SparseStorage;
+/// use mathlib::graph::{Graph, adjacency_triplets, adjacency_crs};
+/// use mathlib::structure::SparseStorage;
 /// let mut g = Graph::new(3);
 /// g.add_edge(0, 1, 2.0);
 /// g.add_edge(1, 2, 1.0);
@@ -141,8 +141,8 @@ pub fn laplacian_crs(graph: &Graph) -> SparseMatrixCRS<Weight> {
 /// # Examples
 ///
 /// ```
-/// use crate::graph::{Tree, tree_adjacency_triplets, tree_adjacency_crs};
-/// use crate::SparseStorage;
+/// use mathlib::graph::{Tree, tree_adjacency_triplets, tree_adjacency_crs};
+/// use mathlib::structure::SparseStorage;
 /// let mut t: Tree<()> = Tree::new(0);
 /// t.add_child(0, 1);
 /// t.add_child(0, 2);
@@ -186,8 +186,8 @@ pub fn tree_adjacency_crs<T>(tree: &Tree<T>) -> SparseMatrixCRS<Weight> {
 /// # Examples
 ///
 /// ```
-/// use crate::graph::laplacian_2d_grid_triplets;
-/// use crate::structure::{SparseMatrixCRS, SparseStorage, Triplet};
+/// use mathlib::graph::laplacian_2d_grid_triplets;
+/// use mathlib::structure::{SparseMatrixCRS, SparseStorage, Triplet};
 /// let t = laplacian_2d_grid_triplets(2, 2);
 /// assert_eq!(t.len(), 12); // 4 diag + 8 off-diag (each edge counted once per endpoint)
 /// let n = 4;

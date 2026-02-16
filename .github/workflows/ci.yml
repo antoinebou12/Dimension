@@ -28,6 +28,9 @@ jobs:
       - name: Test (mathlib)
         run: cargo test -p mathlib
 
+      - name: Doc test (mathlib)
+        run: cargo test -p mathlib --doc
+
       - name: Build examples (mathlib)
         run: cargo build -p mathlib --examples
 

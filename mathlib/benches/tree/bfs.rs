@@ -1,7 +1,8 @@
 //! BFS benchmarks.
 
-use criterion::{BenchmarkId, Criterion, black_box};
+use criterion::{BenchmarkId, Criterion};
 use mathlib::bfs;
+use std::hint::black_box;
 
 use super::helpers;
 

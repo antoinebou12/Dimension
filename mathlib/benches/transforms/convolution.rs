@@ -1,7 +1,8 @@
 //! Benchmarks for convolution.
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group};
 use mathlib::{Matrix, Storage, conv_1d, conv_1d_same, conv_2d};
+use std::hint::black_box;
 
 fn bench_convolution(c: &mut Criterion) {
     let mut group = c.benchmark_group("convolution");

@@ -12,8 +12,9 @@
 
 #![cfg(feature = "gpu")]
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use mathlib::{Matrix, SparseMatrixCRS, SparseStorage, Storage, Triplet, Vector};
+use std::hint::black_box;
 
 fn generate_sparse_f32(n: usize, density: f64) -> Vec<Triplet<f32>> {
     let mut triplets = Vec::new();

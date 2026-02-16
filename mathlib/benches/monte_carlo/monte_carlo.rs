@@ -1,7 +1,8 @@
 //! Benchmarks for Monte Carlo (estimate_pi, integrate_1d).
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::{estimate_pi, integrate_1d};
+use std::hint::black_box;
 
 fn bench_monte_carlo(c: &mut Criterion) {
     let mut group = c.benchmark_group("monte_carlo");

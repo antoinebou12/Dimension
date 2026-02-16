@@ -1,8 +1,9 @@
 //! Benchmarks for Muon step.
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group};
 use mathlib::structure::Storage;
 use mathlib::{Matrix, muon_step};
+use std::hint::black_box;
 
 fn make_matrix_2d(n: usize, m: usize, fill: f64) -> Matrix<f64> {
     let mut a = Matrix::with_storage(n, m, Storage::Column);

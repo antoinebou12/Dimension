@@ -1,8 +1,9 @@
 //! Benchmarks for dual quaternion (compose, transform_point, to_matrix4).
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::cg::vector3;
 use mathlib::{DualQuat4f, Quat4f};
+use std::hint::black_box;
 
 pub fn bench_dual_quaternion(c: &mut Criterion) {
     let mut group = c.benchmark_group("dual_quaternion");

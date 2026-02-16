@@ -1,7 +1,8 @@
 //! Benchmarks for Haar wavelets.
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group};
 use mathlib::{dwt_haar_forward, dwt_haar_inverse};
+use std::hint::black_box;
 
 fn bench_wavelets(c: &mut Criterion) {
     let mut group = c.benchmark_group("wavelets_haar");

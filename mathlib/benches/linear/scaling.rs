@@ -1,7 +1,8 @@
 //! Benchmarks for scaling behavior across different matrix sizes.
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group};
 use mathlib::{SparseMatrixCRS, SparseStorage};
+use std::hint::black_box;
 
 #[path = "common.rs"]
 mod common;

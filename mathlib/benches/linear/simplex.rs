@@ -1,7 +1,8 @@
 //! Benchmarks for simplex (linear programming) solver.
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::{Matrix, Storage, Vector, simplex_solve};
+use std::hint::black_box;
 
 /// Build a small feasible LP: min c'x s.t. Ax = b, x >= 0 (standard form).
 /// Returns (c, A, b) with A m×n.

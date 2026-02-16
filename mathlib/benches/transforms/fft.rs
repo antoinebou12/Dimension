@@ -1,7 +1,8 @@
 //! Benchmarks for FFT.
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group};
 use mathlib::{Complex64, fft_forward, fft_forward_real, fft_inverse};
+use std::hint::black_box;
 
 fn bench_fft(c: &mut Criterion) {
     let mut group = c.benchmark_group("fft");

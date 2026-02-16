@@ -1,7 +1,8 @@
 //! Benchmarks for noise (wave_2d, perlin_2d, fbm_2d).
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::noise::{fbm_2d, perlin_2d, wave_2d};
+use std::hint::black_box;
 
 fn bench_noise(c: &mut Criterion) {
     let mut group = c.benchmark_group("noise");

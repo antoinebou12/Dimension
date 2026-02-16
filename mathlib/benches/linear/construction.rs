@@ -1,7 +1,8 @@
 //! Benchmarks for sparse matrix construction from triplets.
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group};
+use criterion::{BenchmarkId, Criterion, criterion_group};
 use mathlib::{SparseMatrixCCS, SparseMatrixCDS, SparseMatrixCRS, SparseStorage};
+use std::hint::black_box;
 use std::time::Duration;
 
 #[path = "common.rs"]

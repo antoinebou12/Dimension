@@ -1,1 +1,33 @@
-{"name":"neural","type":"module","collaborators":["Dimension"],"description":"Neural inverse kinematics: train (Burn) and run (Burn/ONNX) models for chain IK; WASM and wgpu friendly","version":"0.1.0","license":"MIT","repository":{"type":"git","url":"https://github.com/dimension/dimension"},"files":["neural_bg.wasm","neural.js","neural.d.ts"],"main":"neural.js","types":"neural.d.ts","sideEffects":["./snippets/*"],"keywords":["ik","inverse-kinematics","neural","burn","onnx","wasm","wgpu"]}
+{
+    "name": "neural",
+    "type": "module",
+    "collaborators": [
+        "Dimension"
+    ],
+    "description": "Neural inverse kinematics: train (Burn) and run (Burn/ONNX) models for chain IK; WASM and wgpu friendly",
+    "version": "0.1.0",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/dimension/dimension"
+    },
+    "files": [
+        "neural_bg.wasm",
+        "neural.js",
+        "neural.d.ts"
+    ],
+    "main": "neural.js",
+    "types": "neural.d.ts",
+    "sideEffects": [
+        "./snippets/*"
+    ],
+    "keywords": [
+        "ik",
+        "inverse-kinematics",
+        "neural",
+        "burn",
+        "onnx",
+        "wasm",
+        "wgpu"
+    ]
+}

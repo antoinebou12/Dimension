@@ -2,8 +2,9 @@
 
 #![cfg(feature = "genetic")]
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::CmaEsBuilder;
+use std::hint::black_box;
 
 /// Sphere: minimize Σ xᵢ²; optimum at 0.
 fn sphere(x: &[f64]) -> f64 {

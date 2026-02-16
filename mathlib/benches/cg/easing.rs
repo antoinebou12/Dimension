@@ -1,8 +1,9 @@
 //! Benchmarks for easing (linear, sine, cubic, bounce, hermite, bspline) and quaternion slerp.
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::easing::{bspline, ease_in_out_cubic, ease_in_sine, ease_out_bounce, hermite, linear};
 use mathlib::{Quat4f, Vector3f};
+use std::hint::black_box;
 
 fn axis_y() -> Vector3f {
     let mut v = Vector3f::with_capacity(3);

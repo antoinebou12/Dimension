@@ -4,9 +4,10 @@
 //! With parallel: cargo bench --bench parallel_comparison --features parallel
 //! With full: cargo bench --bench parallel_comparison --features full
 
-use criterion::{BenchmarkId, Criterion, black_box, criterion_group, criterion_main};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use mathlib::prelude::*;
 use mathlib::{clustering, distance, graph::*, stats};
+use std::hint::black_box;
 
 fn bench_kmeans(c: &mut Criterion) {
     let mut group = c.benchmark_group("kmeans");

@@ -1,7 +1,8 @@
 //! Benchmarks for quaternion (from_axis_angle, to_rotation_matrix4) and trig (sin, cos, atan2, degrees, radians).
 
-use criterion::{Criterion, black_box, criterion_group};
+use criterion::{Criterion, criterion_group};
 use mathlib::{Quat4f, Vector, Vector3f, trig};
+use std::hint::black_box;
 
 fn axis_y() -> Vector3f {
     let mut v = Vector3f::with_capacity(3);
