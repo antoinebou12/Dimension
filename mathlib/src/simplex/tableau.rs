@@ -265,6 +265,8 @@ fn pivot(
         let mut temp = vec![0.0_f64; cols];
         scalar_mul_f64(1.0 / pivot_val, &pivot_copy, &mut temp);
         data[pivot_start..pivot_start + cols].copy_from_slice(&temp);
+        // Use normalized pivot row (in temp) for elimination: row_i -= fac * normalized_pivot_row
+        pivot_copy.copy_from_slice(&temp);
         let mut row_buf = vec![0.0_f64; cols];
         for i in 0..=num_constraint_rows {
             if i == leave_row {
