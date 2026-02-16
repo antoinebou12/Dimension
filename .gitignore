@@ -41,6 +41,7 @@ mathlib/pkg/
 mathlib/wasm-demo/pkg/
 !mathlib/wasm-demo/index.html
 !website/geometry-index.html
+!website/index.html
 
 # Coverage (tarpaulin, cargo-llvm-cov, grcov)
 coverage/
