@@ -33,6 +33,8 @@ rady = "rady"
 iz = "iz"    # z-axis index or inertia I_z
 fo = "fo"    # e.g. CSS class fragments in binaries
 Nd = "Nd"    # NdArray, NdArrayDevice (Burn backend)
+consts = "consts"   # std::f32::consts / std::f64::consts (Rust API)
+Comput = "Comput"  # SIAM J. Sci. Comput. (abbreviation for Computing)
 
 # Case insensitive, matches inside word.
 [default.extend-words]

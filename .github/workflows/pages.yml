@@ -40,6 +40,9 @@ jobs:
       - name: Install just
         run: cargo install just --locked
 
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli --locked
+
       - name: Build unified website
         run: just website-build
 
