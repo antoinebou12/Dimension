@@ -692,8 +692,6 @@ fn schedule_frame(
                         IkSolverType::Ccd => "CCD",
                         IkSolverType::Halley => "Halley",
                         IkSolverType::Hessian => "Hessian",
-                        #[cfg(feature = "neural")]
-                        IkSolverType::Neural => "Neural",
                     };
                     crate::wasm_debug::log(&format!(
                         "[kinematics] solver={} EE={}",
@@ -762,8 +760,6 @@ fn schedule_frame(
                         IkSolverType::Ccd => "ccd".to_string(),
                         IkSolverType::Halley => "halley".to_string(),
                         IkSolverType::Hessian => "hessian".to_string(),
-                        #[cfg(feature = "neural")]
-                        IkSolverType::Neural => "neural".to_string(),
                     }
                 });
                 CURRENT_EE_IDX.with(|c| *c.borrow_mut() = chain.end_effector_idx as u32);
@@ -853,15 +849,6 @@ pub fn set_ik_solver(name: &str) {
         IkSolverType::Hessian
     } else if name.eq_ignore_ascii_case("fabrik_sqp") {
         IkSolverType::FabrikSqp
-    } else if name.eq_ignore_ascii_case("neural") {
-        #[cfg(feature = "neural")]
-        {
-            IkSolverType::Neural
-        }
-        #[cfg(not(feature = "neural"))]
-        {
-            IkSolverType::Fabrik
-        }
     } else {
         IkSolverType::Fabrik
     };
@@ -908,9 +895,6 @@ pub fn get_ik_solver() -> String {
 /// Return comma-separated list of solver names available on this build.
 #[must_use]
 pub fn get_available_solvers() -> String {
-    #[cfg(feature = "neural")]
-    return "fabrik,fabrik_sqp,jacobian,ccd,halley,hessian,neural".to_string();
-    #[cfg(not(feature = "neural"))]
     "fabrik,fabrik_sqp,jacobian,ccd,halley,hessian".to_string()
 }
 

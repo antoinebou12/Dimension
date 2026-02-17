@@ -63,11 +63,9 @@ export interface InitOutput {
     readonly spawn_jelly: () => void;
     readonly spawn_sphere: () => void;
     readonly main: (a: number, b: number) => number;
-    readonly wasm_bindgen__closure__destroy__h8f0f474f2df844ba: (a: number, b: number) => void;
-    readonly wasm_bindgen__closure__destroy__h4207447d512d3099: (a: number, b: number) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h96c701c382b3865f: (a: number, b: number, c: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h04258a0b986c3318: (a: number, b: number, c: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h0f0f986c11098b6d: (a: number, b: number) => void;
+    readonly wasm_bindgen__closure__destroy__h10f167144040dd12: (a: number, b: number) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h16ce8a352a8d472c: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__hd056974acd1e2972: (a: number, b: number) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;

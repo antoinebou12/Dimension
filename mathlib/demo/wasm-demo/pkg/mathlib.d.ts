@@ -616,12 +616,6 @@ export class WasmPca {
      * Project data onto principal components. Returns projected matrix (samples × components).
      */
     transform(data: WasmMatrix): WasmMatrix;
-    /**
-     * Project f32 data onto principal components using GPU matmul. Returns a Promise that resolves
-     * to the projected matrix (samples × components) or null if GPU is not available or fails.
-     * Call after initGpuAsync(). Falls back to sync transform() with f64 data if result is null.
-     */
-    transformF32GpuAsync(data: WasmMatrix32): Promise<any>;
 }
 
 /**
@@ -894,12 +888,6 @@ export class WasmVector {
 }
 
 /**
- * Element-wise add of two f32 buffers (vectors or flat matrices) on the GPU (async).
- * Returns a Promise that resolves to Float32Array or null if GPU is not initialized or lengths differ.
- */
-export function addF32GpuAsync(a: Float32Array, b: Float32Array): Promise<any>;
-
-/**
  * Apply window to signal. Returns windowed signal (signal[i] * window[i]).
  */
 export function applyWindow(signal: Float64Array, window: Float64Array): Float64Array;
@@ -955,12 +943,6 @@ export function diffCentral(f: Function, x: number, h: number): number;
 export function dotF32(a: Float32Array, b: Float32Array): number;
 
 /**
- * Dot product of two f32 vectors on the GPU (async). Returns a Promise that resolves to
- * the scalar result or null if GPU is not initialized or the operation fails.
- */
-export function dotF32GpuAsync(a: Float32Array, b: Float32Array): Promise<any>;
-
-/**
  * Haar DWT forward (even length).
  */
 export function dwtHaarForward(signal: Float64Array): Float64Array;
@@ -1002,21 +984,6 @@ export function fftInverse(spectrum: Float64Array): Float64Array;
 export function gaussLegendreQuad(f: Function, a: number, b: number, n: number): number;
 
 /**
- * Returns whether the GPU backend is initialized and available for f32 ops.
- */
-export function gpuAvailable(): boolean;
-
-/**
- * Returns the last GPU init failure message, if any. Call after initGpuAsync() resolves to false for a clearer error.
- */
-export function gpuLastError(): string | undefined;
-
-/**
- * Returns whether f32 matmul actually uses the GPU. When true, async matmul is available.
- */
-export function gpuMatmulAvailable(): boolean;
-
-/**
  * Hamming window.
  */
 export function hamming(len: number): Float64Array;
@@ -1031,12 +998,6 @@ export function hann(len: number): Float64Array;
  * `h` is clamped to [0, 1]. Returns [r, g, b] in 0..255.
  */
 export function heightToRgb(h: number): Uint8Array;
-
-/**
- * Initializes the GPU backend asynchronously (WebGPU). Resolve with `true` if initialization
- * succeeded, `false` otherwise. Call this before relying on GPU-accelerated matmul in the demo.
- */
-export function initGpuAsync(): Promise<any>;
 
 /**
  * Integrates ∫ₐᵇ x² dx by Monte Carlo (uniform sampling). For demo use; ∫₀¹ x² dx = 1/3.
@@ -1070,28 +1031,9 @@ export function lineSearchBacktracking(x: Float64Array, d: Float64Array, f: numb
 export function lmMinimize(x0: Float64Array, m: number, n: number, residual_fn: Function, jacobian_fn: Function, max_iters?: number | null, tol?: number | null): WasmLmResult;
 
 /**
- * Multiplies two f32 matrices on the GPU (async readback). Returns a Promise that resolves to
- * the result matrix or null if GPU is not initialized or the operation fails. Call initGpuAsync()
- * first. On the browser this uses WebGPU; on native uses the same GPU backend.
- */
-export function matmulF32GpuAsync(a: WasmMatrix32, b: WasmMatrix32): Promise<any>;
-
-/**
- * Matrix-vector product A×v on the GPU (async). Returns a Promise that resolves to
- * the result vector as Float32Array or null if GPU is not initialized or the operation fails.
- */
-export function matvecF32GpuAsync(a: WasmMatrix32, v: Float32Array): Promise<any>;
-
-/**
  * Newton's method. f: x => f(x), df: x => f'(x).
  */
 export function newtonRoot(f: Function, df: Function, x0: number, tol: number, max_iter: number): WasmRootResult;
-
-/**
- * Euclidean norm of an f32 vector on the GPU (async). Returns a Promise that resolves to
- * the scalar result or null if GPU is not initialized or the operation fails.
- */
-export function normF32GpuAsync(v: Float32Array): Promise<any>;
 
 /**
  * 2D Perlin noise at (x, y). Output is approximately in [-1, 1].
@@ -1119,12 +1061,6 @@ export function psoMinimizeWithHistory(lower: Float64Array, upper: Float64Array,
  * RK4 ODE integration.
  */
 export function rk4Ode(dydt: Function, y0: Float64Array, t0: number, dt: number, n: number): WasmOdeResult;
-
-/**
- * Scalar multiply (scale) of an f32 buffer on the GPU (async).
- * Returns a Promise that resolves to Float32Array or null if GPU is not initialized.
- */
-export function scaleF32GpuAsync(alpha: number, a: Float32Array): Promise<any>;
 
 /**
  * Secant method. f: x => f(x).
@@ -1160,23 +1096,126 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
-    readonly fbm2dPerlin: (a: number, b: number, c: number, d: number, e: number) => number;
-    readonly wave2d: (a: number, b: number) => number;
-    readonly wave2dParams: (a: number, b: number, c: number, d: number) => number;
-    readonly perlin2d: (a: number, b: number) => number;
-    readonly __wbg_wasmdistance_free: (a: number, b: number) => void;
+    readonly NOISE_LABEL: () => number;
+    readonly __wbg_wasmastarresult_free: (a: number, b: number) => void;
+    readonly __wbg_wasmbfsresult_free: (a: number, b: number) => void;
+    readonly __wbg_wasmcg_free: (a: number, b: number) => void;
+    readonly __wbg_wasmcholesky_free: (a: number, b: number) => void;
+    readonly __wbg_wasmdbscan_free: (a: number, b: number) => void;
+    readonly __wbg_wasmdijkstraresult_free: (a: number, b: number) => void;
+    readonly __wbg_wasmdstarliteresult_free: (a: number, b: number) => void;
+    readonly __wbg_wasmdualquat_free: (a: number, b: number) => void;
+    readonly __wbg_wasmgraph_free: (a: number, b: number) => void;
+    readonly __wbg_wasmkmeans_free: (a: number, b: number) => void;
+    readonly __wbg_wasmlbfgsbresult_free: (a: number, b: number) => void;
+    readonly __wbg_wasmlu_free: (a: number, b: number) => void;
     readonly __wbg_wasmmatrix32_free: (a: number, b: number) => void;
-    readonly __wbg_wasmmatrix_free: (a: number, b: number) => void;
+    readonly __wbg_wasmoderesult_free: (a: number, b: number) => void;
+    readonly __wbg_wasmpca_free: (a: number, b: number) => void;
+    readonly __wbg_wasmpsoresultwithhistory_free: (a: number, b: number) => void;
+    readonly __wbg_wasmqr_free: (a: number, b: number) => void;
+    readonly __wbg_wasmrootresult_free: (a: number, b: number) => void;
+    readonly __wbg_wasmsimplexresult_free: (a: number, b: number) => void;
     readonly __wbg_wasmsvd_free: (a: number, b: number) => void;
-    readonly __wbg_wasmsvm_free: (a: number, b: number) => void;
-    readonly __wbg_wasmsvmrbf_free: (a: number, b: number) => void;
     readonly __wbg_wasmsvmrbfresult_free: (a: number, b: number) => void;
     readonly __wbg_wasmsvmresult_free: (a: number, b: number) => void;
+    readonly __wbg_wasmvector_free: (a: number, b: number) => void;
+    readonly applyWindow: (a: number, b: number, c: number, d: number) => [number, number, number, number];
+    readonly bisectionRoot: (a: any, b: number, c: number, d: number) => number;
+    readonly bisectionRootResult: (a: any, b: number, c: number, d: number, e: number) => number;
+    readonly blackman: (a: number) => [number, number];
+    readonly brentRoot: (a: any, b: number, c: number, d: number, e: number) => number;
+    readonly conv1d: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly conv1dSame: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly dct2Forward: (a: number, b: number) => [number, number, number, number];
+    readonly dct2Inverse: (a: number, b: number) => [number, number, number, number];
+    readonly diffCentral: (a: any, b: number, c: number) => number;
+    readonly dotF32: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly dwtHaarForward: (a: number, b: number) => [number, number];
+    readonly dwtHaarInverse: (a: number, b: number) => [number, number];
+    readonly estimatePi: (a: bigint, b: bigint) => number;
+    readonly eulerOde: (a: any, b: any, c: number, d: number, e: number) => number;
+    readonly fbm2dPerlin: (a: number, b: number, c: number, d: number, e: number) => number;
+    readonly fftForwardReal: (a: number, b: number) => [number, number, number, number];
+    readonly fftInverse: (a: number, b: number) => [number, number, number, number];
+    readonly gaussLegendreQuad: (a: any, b: number, c: number, d: number) => number;
+    readonly hamming: (a: number) => [number, number];
+    readonly hann: (a: number) => [number, number];
+    readonly heightToRgb: (a: number) => [number, number];
+    readonly integrateXSquared: (a: number, b: number, c: bigint, d: bigint) => number;
+    readonly lbfgsbMinimize: (a: number, b: number, c: number, d: number, e: number, f: number, g: any, h: any, i: number, j: number, k: number, l: number) => [number, number, number];
+    readonly lineSearchBacktracking: (a: number, b: number, c: number, d: number, e: number, f: number, g: any) => [number, number, number];
+    readonly lmMinimize: (a: number, b: number, c: number, d: number, e: any, f: any, g: number, h: number, i: number) => [number, number, number];
+    readonly newtonRoot: (a: any, b: any, c: number, d: number, e: number) => number;
+    readonly psoMinimize: (a: number, b: number, c: number, d: number, e: number, f: number, g: any, h: number) => [number, number, number];
+    readonly psoMinimizeWithHistory: (a: number, b: number, c: number, d: number, e: number, f: number, g: any, h: number) => [number, number, number];
+    readonly rk4Ode: (a: any, b: any, c: number, d: number, e: number) => number;
+    readonly secantRoot: (a: any, b: number, c: number, d: number, e: number) => number;
+    readonly simpsonQuad: (a: any, b: number, c: number, d: number) => number;
+    readonly trapezoidalQuad: (a: any, b: number, c: number, d: number) => number;
+    readonly tukey: (a: number, b: number) => [number, number];
+    readonly wasmastarresult_getDist: (a: number) => number;
+    readonly wasmastarresult_getPath: (a: number) => [number, number];
+    readonly wasmastarresult_getPredecessors: (a: number) => [number, number];
+    readonly wasmastarresult_pathTo: (a: number, b: number) => [number, number];
+    readonly wasmbfsresult_getDepth: (a: number) => [number, number];
+    readonly wasmbfsresult_getOrder: (a: number) => [number, number];
+    readonly wasmcg_lookAtLh: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => number;
+    readonly wasmcg_lookAtRh: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => number;
+    readonly wasmcg_newOrthographic: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
+    readonly wasmcg_newPerspective: (a: number, b: number, c: number, d: number) => number;
+    readonly wasmcg_newTranslation: (a: number, b: number, c: number) => number;
+    readonly wasmcholesky_getL: (a: number) => number;
+    readonly wasmcholesky_new: (a: number) => [number, number, number];
+    readonly wasmcholesky_solve: (a: number, b: number) => [number, number, number];
+    readonly wasmdbscan_getLabels: (a: number) => [number, number];
+    readonly wasmdbscan_isNoise: (a: number, b: number) => number;
+    readonly wasmdbscan_nClusters: (a: number) => number;
+    readonly wasmdbscan_new: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmdijkstraresult_distanceTo: (a: number, b: number) => number;
+    readonly wasmdijkstraresult_getDistances: (a: number) => [number, number];
+    readonly wasmdijkstraresult_getPredecessors: (a: number) => [number, number];
+    readonly wasmdijkstraresult_pathTo: (a: number, b: number) => [number, number];
     readonly wasmdistance_chebyshev: (a: number, b: number) => [number, number, number];
     readonly wasmdistance_cosineDistance: (a: number, b: number) => [number, number, number];
     readonly wasmdistance_cosineSimilarity: (a: number, b: number) => [number, number, number];
     readonly wasmdistance_manhattan: (a: number, b: number) => [number, number, number];
     readonly wasmdistance_minkowski: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmdstarliteresult_getPath: (a: number) => [number, number];
+    readonly wasmdualquat_fromArray: (a: number, b: number) => [number, number, number];
+    readonly wasmdualquat_fromRotationAndTranslation: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly wasmdualquat_identity: () => number;
+    readonly wasmdualquat_mul: (a: number, b: number) => number;
+    readonly wasmdualquat_toArray: (a: number) => [number, number];
+    readonly wasmdualquat_toMatrix4: (a: number) => number;
+    readonly wasmdualquat_transformPoint: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly wasmgraph_addEdge: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly wasmgraph_addEdgeUndirected: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly wasmgraph_astar: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmgraph_astarGrid: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
+    readonly wasmgraph_astarWithCoords: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly wasmgraph_bfs: (a: number, b: number) => [number, number, number];
+    readonly wasmgraph_dfsPostorder: (a: number, b: number) => [number, number, number, number];
+    readonly wasmgraph_dfsPreorder: (a: number, b: number) => [number, number, number, number];
+    readonly wasmgraph_dijkstra: (a: number, b: number) => [number, number, number];
+    readonly wasmgraph_dsaturColoring: (a: number) => [number, number];
+    readonly wasmgraph_dstarLite: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmgraph_fromEdges: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmgraph_fromGrid2d: (a: number, b: number) => [number, number, number];
+    readonly wasmgraph_fromGrid2dEdgeWeights: (a: number, b: number, c: number, d: number) => [number, number, number];
+    readonly wasmgraph_greedyVertexColoring: (a: number) => [number, number];
+    readonly wasmgraph_isBipartite: (a: number) => [number, number];
+    readonly wasmgraph_new: (a: number) => number;
+    readonly wasmgraph_numEdges: (a: number) => number;
+    readonly wasmgraph_numNodes: (a: number) => number;
+    readonly wasmkmeans_getCentroids: (a: number) => number;
+    readonly wasmkmeans_getLabels: (a: number) => [number, number];
+    readonly wasmkmeans_new: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmlbfgsbresult_getBestPosition: (a: number) => [number, number];
+    readonly wasmlu_determinant: (a: number) => number;
+    readonly wasmlu_getLU: (a: number) => number;
+    readonly wasmlu_new: (a: number) => [number, number, number];
+    readonly wasmlu_solve: (a: number, b: number) => [number, number, number];
     readonly wasmmatrix32_add: (a: number, b: number) => [number, number, number];
     readonly wasmmatrix32_cols: (a: number) => number;
     readonly wasmmatrix32_fromArray: (a: number, b: number, c: number, d: number) => [number, number, number];
@@ -1212,6 +1251,29 @@ export interface InitOutput {
     readonly wasmmatrix_svdEconAsync: (a: number) => any;
     readonly wasmmatrix_toArray: (a: number) => [number, number];
     readonly wasmmatrix_transpose: (a: number) => number;
+    readonly wasmoderesult_getT: (a: number) => [number, number];
+    readonly wasmoderesult_getY: (a: number) => [number, number];
+    readonly wasmoderesult_getYAt: (a: number, b: number) => [number, number];
+    readonly wasmpca_getComponents: (a: number) => number;
+    readonly wasmpca_getExplainedVariance: (a: number) => number;
+    readonly wasmpca_getMean: (a: number) => number;
+    readonly wasmpca_nComponents: (a: number) => number;
+    readonly wasmpca_new: (a: number, b: number) => number;
+    readonly wasmpca_transform: (a: number, b: number) => [number, number, number];
+    readonly wasmpsoresultwithhistory_getBestPosition: (a: number) => [number, number];
+    readonly wasmpsoresultwithhistory_getHistoryCosts: (a: number) => [number, number];
+    readonly wasmpsoresultwithhistory_getHistoryPositions: (a: number) => [number, number];
+    readonly wasmpsoresultwithhistory_getIterations: (a: number) => number;
+    readonly wasmqr_getQ: (a: number) => number;
+    readonly wasmqr_getR: (a: number) => number;
+    readonly wasmqr_new: (a: number) => [number, number, number];
+    readonly wasmqr_solve: (a: number, b: number) => [number, number, number];
+    readonly wasmrootresult_getConverged: (a: number) => number;
+    readonly wasmrootresult_getFx: (a: number) => number;
+    readonly wasmrootresult_getIterations: (a: number) => number;
+    readonly wasmsimplexresult_getStatus: (a: number) => [number, number];
+    readonly wasmsimplexresult_getX: (a: number) => number;
+    readonly wasmsimplexresult_new: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmsvd_getSigma: (a: number) => number;
     readonly wasmsvd_getU: (a: number) => number;
     readonly wasmsvd_getV: (a: number) => number;
@@ -1222,21 +1284,15 @@ export interface InitOutput {
     readonly wasmsvmrbfresult_getSupportVectors: (a: number) => number;
     readonly wasmsvmrbfresult_predict: (a: number, b: number, c: number) => number;
     readonly wasmsvmrbfresult_predictAll: (a: number, b: number) => [number, number];
-    readonly wasmsvmresult_getBias: (a: number) => number;
     readonly wasmsvmresult_getWeights: (a: number) => number;
     readonly wasmsvmresult_predict: (a: number, b: number, c: number) => number;
     readonly wasmsvmresult_predictAll: (a: number, b: number) => [number, number];
-    readonly wasmmatrix_cols: (a: number) => number;
-    readonly wasmmatrix_rows: (a: number) => number;
-    readonly __wbg_wasmvector_free: (a: number, b: number) => void;
-    readonly dotF32: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly wasmvector_add: (a: number, b: number) => [number, number, number];
     readonly wasmvector_dot: (a: number, b: number) => [number, number, number];
     readonly wasmvector_euclideanDistance: (a: number, b: number) => [number, number, number];
     readonly wasmvector_fromArray: (a: number, b: number) => number;
     readonly wasmvector_get: (a: number, b: number) => number;
     readonly wasmvector_isEmpty: (a: number) => number;
-    readonly wasmvector_len: (a: number) => number;
     readonly wasmvector_lerp: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmvector_new: (a: number) => number;
     readonly wasmvector_norm: (a: number) => number;
@@ -1244,171 +1300,39 @@ export interface InitOutput {
     readonly wasmvector_set: (a: number, b: number, c: number) => void;
     readonly wasmvector_sub: (a: number, b: number) => [number, number, number];
     readonly wasmvector_toArray: (a: number) => [number, number];
-    readonly __wbg_wasmlbfgsbresult_free: (a: number, b: number) => void;
-    readonly __wbg_wasmlmresult_free: (a: number, b: number) => void;
-    readonly __wbg_wasmoderesult_free: (a: number, b: number) => void;
-    readonly __wbg_wasmpsoresult_free: (a: number, b: number) => void;
-    readonly __wbg_wasmpsoresultwithhistory_free: (a: number, b: number) => void;
-    readonly __wbg_wasmrootresult_free: (a: number, b: number) => void;
-    readonly bisectionRoot: (a: any, b: number, c: number, d: number) => number;
-    readonly bisectionRootResult: (a: any, b: number, c: number, d: number, e: number) => number;
-    readonly brentRoot: (a: any, b: number, c: number, d: number, e: number) => number;
-    readonly diffCentral: (a: any, b: number, c: number) => number;
-    readonly eulerOde: (a: any, b: any, c: number, d: number, e: number) => number;
-    readonly gaussLegendreQuad: (a: any, b: number, c: number, d: number) => number;
-    readonly lbfgsbMinimize: (a: number, b: number, c: number, d: number, e: number, f: number, g: any, h: any, i: number, j: number, k: number, l: number) => [number, number, number];
-    readonly lineSearchBacktracking: (a: number, b: number, c: number, d: number, e: number, f: number, g: any) => [number, number, number];
-    readonly lmMinimize: (a: number, b: number, c: number, d: number, e: any, f: any, g: number, h: number, i: number) => [number, number, number];
-    readonly newtonRoot: (a: any, b: any, c: number, d: number, e: number) => number;
-    readonly psoMinimize: (a: number, b: number, c: number, d: number, e: number, f: number, g: any, h: number) => [number, number, number];
-    readonly psoMinimizeWithHistory: (a: number, b: number, c: number, d: number, e: number, f: number, g: any, h: number) => [number, number, number];
-    readonly rk4Ode: (a: any, b: any, c: number, d: number, e: number) => number;
-    readonly secantRoot: (a: any, b: number, c: number, d: number, e: number) => number;
-    readonly simpsonQuad: (a: any, b: number, c: number, d: number) => number;
-    readonly trapezoidalQuad: (a: any, b: number, c: number, d: number) => number;
+    readonly wave2d: (a: number, b: number) => number;
+    readonly wave2dParams: (a: number, b: number, c: number, d: number) => number;
+    readonly perlin2d: (a: number, b: number) => number;
+    readonly wasmdstarliteresult_getDist: (a: number) => number;
+    readonly wasmkmeans_nClusters: (a: number) => number;
     readonly wasmlbfgsbresult_getBestCost: (a: number) => number;
-    readonly wasmlbfgsbresult_getBestPosition: (a: number) => [number, number];
     readonly wasmlbfgsbresult_getIterations: (a: number) => number;
-    readonly wasmlmresult_getBestPosition: (a: number) => [number, number];
-    readonly wasmoderesult_getT: (a: number) => [number, number];
-    readonly wasmoderesult_getY: (a: number) => [number, number];
-    readonly wasmoderesult_getYAt: (a: number, b: number) => [number, number];
-    readonly wasmpsoresult_getBestPosition: (a: number) => [number, number];
-    readonly wasmpsoresultwithhistory_getBestPosition: (a: number) => [number, number];
-    readonly wasmpsoresultwithhistory_getHistoryCosts: (a: number) => [number, number];
-    readonly wasmpsoresultwithhistory_getHistoryPositions: (a: number) => [number, number];
-    readonly wasmpsoresultwithhistory_getIterations: (a: number) => number;
-    readonly wasmrootresult_getConverged: (a: number) => number;
-    readonly wasmrootresult_getFx: (a: number) => number;
-    readonly wasmrootresult_getIterations: (a: number) => number;
     readonly wasmlmresult_getIterations: (a: number) => number;
     readonly wasmlmresult_getResidualNormSq: (a: number) => number;
+    readonly wasmmatrix_cols: (a: number) => number;
+    readonly wasmmatrix_rows: (a: number) => number;
     readonly wasmpsoresult_getBestCost: (a: number) => number;
     readonly wasmpsoresult_getIterations: (a: number) => number;
     readonly wasmpsoresultwithhistory_getBestCost: (a: number) => number;
     readonly wasmrootresult_getX: (a: number) => number;
-    readonly __wbg_wasmastarresult_free: (a: number, b: number) => void;
-    readonly __wbg_wasmbfsresult_free: (a: number, b: number) => void;
-    readonly __wbg_wasmcg_free: (a: number, b: number) => void;
-    readonly __wbg_wasmdijkstraresult_free: (a: number, b: number) => void;
-    readonly __wbg_wasmdstarliteresult_free: (a: number, b: number) => void;
-    readonly __wbg_wasmgraph_free: (a: number, b: number) => void;
-    readonly applyWindow: (a: number, b: number, c: number, d: number) => [number, number, number, number];
-    readonly blackman: (a: number) => [number, number];
-    readonly conv1d: (a: number, b: number, c: number, d: number) => [number, number];
-    readonly conv1dSame: (a: number, b: number, c: number, d: number) => [number, number];
-    readonly dct2Forward: (a: number, b: number) => [number, number, number, number];
-    readonly dct2Inverse: (a: number, b: number) => [number, number, number, number];
-    readonly dwtHaarForward: (a: number, b: number) => [number, number];
-    readonly dwtHaarInverse: (a: number, b: number) => [number, number];
-    readonly fftForwardReal: (a: number, b: number) => [number, number, number, number];
-    readonly fftInverse: (a: number, b: number) => [number, number, number, number];
-    readonly hamming: (a: number) => [number, number];
-    readonly hann: (a: number) => [number, number];
-    readonly tukey: (a: number, b: number) => [number, number];
-    readonly wasmastarresult_getDist: (a: number) => number;
-    readonly wasmastarresult_getPath: (a: number) => [number, number];
-    readonly wasmastarresult_getPredecessors: (a: number) => [number, number];
-    readonly wasmastarresult_pathTo: (a: number, b: number) => [number, number];
-    readonly wasmbfsresult_getDepth: (a: number) => [number, number];
-    readonly wasmbfsresult_getOrder: (a: number) => [number, number];
-    readonly wasmcg_lookAtLh: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => number;
-    readonly wasmcg_lookAtRh: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => number;
-    readonly wasmcg_newOrthographic: (a: number, b: number, c: number, d: number, e: number, f: number) => number;
-    readonly wasmcg_newPerspective: (a: number, b: number, c: number, d: number) => number;
-    readonly wasmcg_newTranslation: (a: number, b: number, c: number) => number;
-    readonly wasmdijkstraresult_distanceTo: (a: number, b: number) => number;
-    readonly wasmdijkstraresult_getDistances: (a: number) => [number, number];
-    readonly wasmdijkstraresult_getPredecessors: (a: number) => [number, number];
-    readonly wasmdijkstraresult_pathTo: (a: number, b: number) => [number, number];
-    readonly wasmdstarliteresult_getPath: (a: number) => [number, number];
-    readonly wasmgraph_addEdge: (a: number, b: number, c: number, d: number) => [number, number];
-    readonly wasmgraph_addEdgeUndirected: (a: number, b: number, c: number, d: number) => [number, number];
-    readonly wasmgraph_astar: (a: number, b: number, c: number) => [number, number, number];
-    readonly wasmgraph_astarGrid: (a: number, b: number, c: number, d: number, e: number) => [number, number, number];
-    readonly wasmgraph_astarWithCoords: (a: number, b: number, c: number, d: number) => [number, number, number];
-    readonly wasmgraph_bfs: (a: number, b: number) => [number, number, number];
-    readonly wasmgraph_dfsPostorder: (a: number, b: number) => [number, number, number, number];
-    readonly wasmgraph_dfsPreorder: (a: number, b: number) => [number, number, number, number];
-    readonly wasmgraph_dijkstra: (a: number, b: number) => [number, number, number];
-    readonly wasmgraph_dsaturColoring: (a: number) => [number, number];
-    readonly wasmgraph_dstarLite: (a: number, b: number, c: number) => [number, number, number];
-    readonly wasmgraph_fromEdges: (a: number, b: number, c: number) => [number, number, number];
-    readonly wasmgraph_fromGrid2d: (a: number, b: number) => [number, number, number];
-    readonly wasmgraph_fromGrid2dEdgeWeights: (a: number, b: number, c: number, d: number) => [number, number, number];
-    readonly wasmgraph_greedyVertexColoring: (a: number) => [number, number];
-    readonly wasmgraph_isBipartite: (a: number) => [number, number];
-    readonly wasmgraph_new: (a: number) => number;
-    readonly wasmgraph_numEdges: (a: number) => number;
-    readonly wasmgraph_numNodes: (a: number) => number;
-    readonly wasmdstarliteresult_getDist: (a: number) => number;
-    readonly NOISE_LABEL: () => number;
-    readonly __wbg_wasmcholesky_free: (a: number, b: number) => void;
-    readonly __wbg_wasmdbscan_free: (a: number, b: number) => void;
-    readonly __wbg_wasmdualquat_free: (a: number, b: number) => void;
-    readonly __wbg_wasmkmeans_free: (a: number, b: number) => void;
-    readonly __wbg_wasmlu_free: (a: number, b: number) => void;
-    readonly __wbg_wasmpca_free: (a: number, b: number) => void;
-    readonly __wbg_wasmqr_free: (a: number, b: number) => void;
-    readonly __wbg_wasmsimplexresult_free: (a: number, b: number) => void;
-    readonly addF32GpuAsync: (a: number, b: number, c: number, d: number) => any;
-    readonly dotF32GpuAsync: (a: number, b: number, c: number, d: number) => any;
-    readonly gpuAvailable: () => number;
-    readonly gpuLastError: () => [number, number];
-    readonly heightToRgb: (a: number) => [number, number];
-    readonly matmulF32GpuAsync: (a: number, b: number) => any;
-    readonly matvecF32GpuAsync: (a: number, b: number, c: number) => any;
-    readonly normF32GpuAsync: (a: number, b: number) => any;
-    readonly scaleF32GpuAsync: (a: number, b: number, c: number) => any;
-    readonly wasmcholesky_getL: (a: number) => number;
-    readonly wasmcholesky_new: (a: number) => [number, number, number];
-    readonly wasmcholesky_solve: (a: number, b: number) => [number, number, number];
-    readonly wasmdbscan_getLabels: (a: number) => [number, number];
-    readonly wasmdbscan_isNoise: (a: number, b: number) => number;
-    readonly wasmdbscan_nClusters: (a: number) => number;
-    readonly wasmdbscan_new: (a: number, b: number, c: number) => [number, number, number];
-    readonly wasmdualquat_fromArray: (a: number, b: number) => [number, number, number];
-    readonly wasmdualquat_fromRotationAndTranslation: (a: number, b: number, c: number, d: number) => [number, number, number];
-    readonly wasmdualquat_identity: () => number;
-    readonly wasmdualquat_mul: (a: number, b: number) => number;
-    readonly wasmdualquat_toArray: (a: number) => [number, number];
-    readonly wasmdualquat_toMatrix4: (a: number) => number;
-    readonly wasmdualquat_transformPoint: (a: number, b: number, c: number, d: number) => [number, number];
-    readonly wasmkmeans_getCentroids: (a: number) => number;
-    readonly wasmkmeans_getLabels: (a: number) => [number, number];
-    readonly wasmkmeans_nClusters: (a: number) => number;
-    readonly wasmkmeans_new: (a: number, b: number, c: number) => [number, number, number];
-    readonly wasmlu_determinant: (a: number) => number;
-    readonly wasmlu_getLU: (a: number) => number;
-    readonly wasmlu_new: (a: number) => [number, number, number];
-    readonly wasmlu_solve: (a: number, b: number) => [number, number, number];
-    readonly wasmpca_getComponents: (a: number) => number;
-    readonly wasmpca_getExplainedVariance: (a: number) => number;
-    readonly wasmpca_getMean: (a: number) => number;
-    readonly wasmpca_nComponents: (a: number) => number;
-    readonly wasmpca_new: (a: number, b: number) => number;
-    readonly wasmpca_transform: (a: number, b: number) => [number, number, number];
-    readonly wasmpca_transformF32GpuAsync: (a: number, b: number) => any;
-    readonly wasmqr_getQ: (a: number) => number;
-    readonly wasmqr_getR: (a: number) => number;
-    readonly wasmqr_new: (a: number) => [number, number, number];
-    readonly wasmqr_solve: (a: number, b: number) => [number, number, number];
     readonly wasmsimplexresult_getObjective: (a: number) => number;
-    readonly wasmsimplexresult_getStatus: (a: number) => [number, number];
-    readonly wasmsimplexresult_getX: (a: number) => number;
-    readonly wasmsimplexresult_new: (a: number, b: number, c: number) => [number, number, number];
-    readonly initGpuAsync: () => any;
-    readonly gpuMatmulAvailable: () => number;
-    readonly integrateXSquared: (a: number, b: number, c: bigint, d: bigint) => number;
-    readonly estimatePi: (a: bigint, b: bigint) => number;
-    readonly wasm_bindgen__closure__destroy__h55207b8a7ae96f12: (a: number, b: number) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__h40e04617837806ff: (a: number, b: number, c: any, d: any) => void;
-    readonly wasm_bindgen__convert__closures_____invoke__hc0d081e945e0be71: (a: number, b: number, c: any) => void;
-    readonly __wbindgen_malloc: (a: number, b: number) => number;
-    readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+    readonly wasmsvmresult_getBias: (a: number) => number;
+    readonly wasmvector_len: (a: number) => number;
+    readonly __wbg_wasmdistance_free: (a: number, b: number) => void;
+    readonly __wbg_wasmsvm_free: (a: number, b: number) => void;
+    readonly __wbg_wasmsvmrbf_free: (a: number, b: number) => void;
+    readonly __wbg_wasmlmresult_free: (a: number, b: number) => void;
+    readonly __wbg_wasmmatrix_free: (a: number, b: number) => void;
+    readonly __wbg_wasmpsoresult_free: (a: number, b: number) => void;
+    readonly wasmpsoresult_getBestPosition: (a: number) => [number, number];
+    readonly wasmlmresult_getBestPosition: (a: number) => [number, number];
+    readonly wasm_bindgen__closure__destroy__h9934fe99a013b987: (a: number, b: number) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h324eba1b66895fda: (a: number, b: number, c: any, d: any) => void;
+    readonly wasm_bindgen__convert__closures_____invoke__h9d6c115563557326: (a: number, b: number, c: any) => void;
     readonly __wbindgen_exn_store: (a: number) => void;
     readonly __externref_table_alloc: () => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;
+    readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __wbindgen_start: () => void;

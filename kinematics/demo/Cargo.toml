@@ -12,7 +12,6 @@ categories = ["graphics", "games", "wasm"]
 [features]
 default = []
 bvh = ["dep:parse"]
-neural = ["dep:neural"]
 simd = ["kinematics/simd"]
 
 [dependencies]
@@ -21,7 +20,6 @@ render = { path = "../../render" }
 mathlib = { path = "../../mathlib" }
 rand = "0.8"
 parse = { path = "../../parse", optional = true, features = ["bvh"] }
-neural = { path = "../../neural", optional = true, default-features = false, features = ["onnx"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }

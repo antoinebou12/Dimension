@@ -23,11 +23,9 @@ export const set_entity_world_position: (a: number, b: number, c: number, d: num
 export const set_gizmo_mode: (a: number, b: number) => void;
 export const set_selected_entity: (a: number) => void;
 export const main: (a: number, b: number) => number;
-export const wasm_bindgen__closure__destroy__h8f0f474f2df844ba: (a: number, b: number) => void;
-export const wasm_bindgen__closure__destroy__h2dfff5868444456c: (a: number, b: number) => void;
-export const wasm_bindgen__convert__closures_____invoke__h96c701c382b3865f: (a: number, b: number, c: any) => void;
-export const wasm_bindgen__convert__closures_____invoke__h123d215eea83d0f1: (a: number, b: number, c: any) => void;
-export const wasm_bindgen__convert__closures_____invoke__ha682be68d5748df8: (a: number, b: number) => void;
+export const wasm_bindgen__closure__destroy__h49c2c8e30cc92599: (a: number, b: number) => void;
+export const wasm_bindgen__convert__closures_____invoke__h338494b43caf1fe0: (a: number, b: number, c: any) => void;
+export const wasm_bindgen__convert__closures_____invoke__h0f7c82f2acc0248f: (a: number, b: number) => void;
 export const __wbindgen_malloc: (a: number, b: number) => number;
 export const __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
 export const __wbindgen_exn_store: (a: number) => void;

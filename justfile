@@ -153,9 +153,6 @@ build-kinematics-demo-wasm-simd: build-wasm _wasm-render-deps
     cd kinematics/demo && {{ _rust }} cargo build --release --target wasm32-unknown-unknown --example kinematics_wasm --features simd
     cd kinematics/demo && wasm-bindgen ../../target/wasm32-unknown-unknown/release/examples/kinematics_wasm.wasm --out-dir wasm-demo/pkg --target web --out-name kinematics_wasm
 
-# Kinematics WASM with Neural IK solver (requires neural crate ONNX; may need NEURAL_IK_ONNX or neural/iknet.onnx)
-build-kinematics-demo-wasm-neural: build-wasm _wasm-render-deps
-    cd kinematics/demo && {{ _rust }} cargo build --release --target wasm32-unknown-unknown --example kinematics_wasm --features neural
     cd kinematics/demo && wasm-bindgen ../../target/wasm32-unknown-unknown/release/examples/kinematics_wasm.wasm --out-dir wasm-demo/pkg --target web --out-name kinematics_wasm
 
 wasm-kinematics-demo: build-kinematics-demo-wasm
@@ -417,31 +414,22 @@ demo-render-stop:
 demo-render-stop:
     powershell -NoProfile -Command "if (Test-Path render/demo/.serve.pid) { $$pid = Get-Content render/demo/.serve.pid; Stop-Process -Id $$pid -ErrorAction SilentlyContinue; Remove-Item render/demo/.serve.pid }; Write-Host 'Stopped (or server was not running).'"
 
-# Neural WASM pkg (NeuralIkWasm bindings; used by website/neural/)
-build-neural-wasm: _require_wasm_pack
-    cd neural && rm -rf pkg && wasm-pack build --target web --no-default-features --features wasm
-
 # Unified website: all WASM demos in website/ (hub at /, demos at /mathlib/, /render/, etc.)
-website-build: wasm-build _wasm-render-build build-kinematics-demo-wasm build-physics-demo-wasm build-geometry-demo-wasm build-neural-wasm _website-populate
+website-build: wasm-build _wasm-render-build build-kinematics-demo-wasm build-physics-demo-wasm build-geometry-demo-wasm _website-populate
 
 # Website build with GPU-enabled mathlib (initGpuAsync, matmulF32GpuAsync, etc.)
-website-build-gpu: wasm-build-gpu _wasm-render-build build-kinematics-demo-wasm build-physics-demo-wasm build-geometry-demo-wasm build-neural-wasm _website-populate
+website-build-gpu: wasm-build-gpu _wasm-render-build build-kinematics-demo-wasm build-physics-demo-wasm build-geometry-demo-wasm _website-populate
 
 # Website build with SIMD-enabled render and kinematics demos (can improve frame rate and Hessian path)
-website-build-simd: wasm-build _wasm-render-build-simd build-kinematics-demo-wasm-simd build-physics-demo-wasm build-geometry-demo-wasm build-neural-wasm _website-populate
+website-build-simd: wasm-build _wasm-render-build-simd build-kinematics-demo-wasm-simd build-physics-demo-wasm build-geometry-demo-wasm _website-populate
+
+# Full Pages pipeline locally: clean → build → fix base path → verify (default repo Dimension for local testing).
+website-pages repo="Dimension":
+    bash ./.github/scripts/prepare-pages-artifact.sh "{{repo}}"
 
 [private]
 _website-populate:
-    mkdir -p website/mathlib website/render website/kinematics website/physics website/geometry website/neural website/neural/embedding website/neural/pkg
-    cp -r mathlib/demo/wasm-demo/* website/mathlib/
-    find website/mathlib -name '*.html' -exec sed -i.bak 's|<base href="/wasm-demo/">|<base href="/mathlib/">|g' {} \;
-    find website/mathlib -name '*.html.bak' -delete
-    cp -r render/demo/wasm-demo/* website/render/
-    cp -r kinematics/demo/wasm-demo/* website/kinematics/
-    cp -r physics/demo/wasm-demo/* website/physics/
-    cp website/geometry-index.html website/geometry/index.html
-    cp -r geometry/demo/wasm-demo/pkg website/geometry/
-    cp -r neural/pkg/* website/neural/pkg/
+    bash ./.github/scripts/website-populate.sh
 
 # Serve website/ locally (hub at /, demos at /mathlib/, /render/, etc.). Port 3000.
 [unix]

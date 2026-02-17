@@ -16,8 +16,6 @@ use mathlib::cg::{
 use mathlib::math3d::matrix4f_inverse;
 use mathlib::math3d::{transform_vector, vector3_cross, Matrix4f, Vector3f};
 use mathlib::Quat4f;
-#[cfg(feature = "neural")]
-use neural::{denormalize_joints, normalize_position, ChainConfig, OnnxIkSession};
 use render::scene::{CurvePoint, EntityId, Primitive, Primitive3D, Transform, World};
 use render::ui::{Button, ControlId, Label, Rect, Window};
 
@@ -54,9 +52,6 @@ pub enum IkSolverType {
     FabrikSqp,
     /// Hessian IK (exact Hessian Newton, Erleben & Andrews MIG 2017).
     Hessian,
-    /// Neural IK (ONNX model, single forward pass). Valid only for Revolute 3-DOF.
-    #[cfg(feature = "neural")]
-    Neural,
 }
 
 /// Arm configuration preset: joint types for the demo armature.
@@ -116,9 +111,6 @@ pub struct ChainState {
     pub color: [f32; 4],
     pub target_color: [f32; 4],
     pub root_offset: [f32; 3],
-    /// Lazy-loaded ONNX session for Neural solver (3-DOF only).
-    #[cfg(feature = "neural")]
-    pub neural_session: Option<OnnxIkSession>,
 }
 
 /// Scene state: two chains (A left, B right), active chain, shared plane for unproject.
@@ -321,8 +313,6 @@ pub fn build_chain(
         color,
         target_color,
         root_offset,
-        #[cfg(feature = "neural")]
-        neural_session: None,
     }
 }
 
@@ -450,8 +440,6 @@ pub fn build_chain_from_armature(
         color,
         target_color,
         root_offset,
-        #[cfg(feature = "neural")]
-        neural_session: None,
     }
 }
 
@@ -841,8 +829,6 @@ fn solver_iters(solver: IkSolverType) -> usize {
         IkSolverType::Halley => 4,
         IkSolverType::FabrikSqp => 8,
         IkSolverType::Hessian => 6,
-        #[cfg(feature = "neural")]
-        IkSolverType::Neural => 1,
     }
 }
 
@@ -911,51 +897,6 @@ fn step_chain_ik(chain: &mut ChainState) {
             HessianIk::new(&mut chain.armature, chain.end_effector_idx, target)
                 .with_max_iters(iters)
                 .solve()
-        }
-        #[cfg(feature = "neural")]
-        IkSolverType::Neural => {
-            let dof = chain.armature.pack().len();
-            if dof != 3 {
-                chain.armature.unpack(&saved_state);
-                err_before
-            } else {
-                if chain.neural_session.is_none() {
-                    let path = std::env::var("NEURAL_IK_ONNX").ok().unwrap_or_else(|| {
-                        let mut p = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-                        p.push("../../neural/iknet.onnx");
-                        p.to_string_lossy().into_owned()
-                    });
-                    chain.neural_session = OnnxIkSession::load_path(&path);
-                }
-                match &chain.neural_session {
-                    None => {
-                        chain.armature.unpack(&saved_state);
-                        err_before
-                    }
-                    Some(session) => {
-                        let chain_config = ChainConfig::new(3, false)
-                            .with_workspace([-1.5, -1.5, -1.5], [1.5, 1.5, 1.5]);
-                        let pos = [local_tx, local_ty, local_tz];
-                        let normalized = normalize_position(pos, &chain_config);
-                        let output = session.predict(&normalized);
-                        if output.len() != 3 {
-                            chain.armature.unpack(&saved_state);
-                            err_before
-                        } else {
-                            let mut joints = [0.0_f32; 3];
-                            denormalize_joints(&output, &chain_config, &mut joints);
-                            chain.armature.unpack(&joints);
-                            let ee_after =
-                                chain.armature.end_effector_position(chain.end_effector_idx);
-                            let err = ((ee_after.get(0) - local_tx).powi(2)
-                                + (ee_after.get(1) - local_ty).powi(2)
-                                + (ee_after.get(2) - local_tz).powi(2))
-                            .sqrt();
-                            err
-                        }
-                    }
-                }
-            }
         }
     };
     if err_after > err_before {
@@ -1189,26 +1130,6 @@ pub fn build_armature_controls_panel(
         Rect::new(x_off + 46.0, y, SOLVER_BTN_W, ROW_H - 2.0),
     ));
     mapping.insert(cid, KinematicsAction::SetSolverType(active, solver_type));
-    #[cfg(feature = "neural")]
-    {
-        x_off += 46.0 + SOLVER_BTN_W + 4.0;
-        let solver_type = IkSolverType::Neural;
-        let is_active = chain.ik_solver_type == solver_type;
-        let text = if is_active { "Neural*" } else { "Neural" };
-        window.add_label(Label::new(
-            ControlId(next_id),
-            Rect::new(x_off, y, 44.0, ROW_H),
-            text.to_string(),
-        ));
-        next_id += 1;
-        let cid = ControlId(next_id);
-        next_id += 1;
-        window.add_button(Button::new(
-            cid,
-            Rect::new(x_off + 46.0, y, SOLVER_BTN_W, ROW_H - 2.0),
-        ));
-        mapping.insert(cid, KinematicsAction::SetSolverType(active, solver_type));
-    }
     y += ROW_H + 2.0;
 
     // Arm preset: Spherical | Revolute | MixedArm | SphericalSnake
@@ -1465,8 +1386,6 @@ pub fn apply_kinematics_action(
                 IkSolverType::Ccd => "Ccd",
                 IkSolverType::Halley => "Halley",
                 IkSolverType::Hessian => "Hessian",
-                #[cfg(feature = "neural")]
-                IkSolverType::Neural => "Neural",
             };
             format!("SetSolverType({:?}, {})", c, name)
         }

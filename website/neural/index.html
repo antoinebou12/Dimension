@@ -3,8 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <base href="/neural/">
-  <title>Neural — WASM demos</title>
+  <title>Neural — Dimension</title>
   <style>
     * { box-sizing: border-box; }
     :root {
@@ -26,42 +25,31 @@
     }
     h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
     .subtitle { color: var(--muted); margin-bottom: 2rem; }
-    .demo-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-      gap: 1rem;
-      list-style: none;
-      padding: 0;
-      margin: 0;
-    }
-    .demo-grid a {
+    .demo-list { list-style: none; padding: 0; margin: 0; }
+    .demo-list a {
       display: block;
-      padding: 1.25rem;
+      padding: 1rem 1.25rem;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       color: inherit;
       text-decoration: none;
+      margin-bottom: 0.5rem;
       transition: border-color 0.15s, background 0.15s;
     }
-    .demo-grid a:hover {
+    .demo-list a:hover {
       border-color: var(--accent);
       background: #2a2a2e;
     }
-    .demo-grid a strong { display: block; margin-bottom: 0.35rem; color: #fff; }
-    .demo-grid a span { font-size: 0.9rem; color: var(--muted); }
-    .back { margin-bottom: 1rem; }
-    .back a { color: var(--accent); text-decoration: none; }
-    .back a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
-  <p class="back"><a href="/">← Dimension demos</a></p>
-  <h1>Neural — WASM demos</h1>
-  <p class="subtitle">Embeddings, neural IK, and ML in the browser.</p>
-  <ul class="demo-grid" role="list">
-    <li><a href="embedding/"><strong>Embedding space</strong><span>Text embeddings in 3D (PCA). Click points, see similar documents.</span></a></li>
-    <li><a href="/kinematics/"><strong>Kinematics (Neural IK)</strong><span>3-joint arm with FABRIK, Halley, and optional Neural solver.</span></a></li>
+  <h1>Neural</h1>
+  <p class="subtitle">Embedding and vectorization for text, image, graph, and point cloud.</p>
+  <ul class="demo-list" role="list">
+    <li><a href="embedding/">Embedding — Text in 3D (PCA) and similar documents</a></li>
+    <li><a href="../mathlib/recommendation/">mathlib Recommendation — Interactive 3D scatter of text embeddings</a></li>
   </ul>
+  <p style="margin-top: 2rem;"><a href="../">← Back to hub</a></p>
 </body>
 </html>

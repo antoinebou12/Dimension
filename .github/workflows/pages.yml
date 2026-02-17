@@ -19,7 +19,7 @@ jobs:
   build-and-deploy:
     environment: github-pages
     runs-on: ubuntu-latest
-    # Sequence: setup Rust → cache/install tools → rebuild website → fix base path → verify → deploy
+    # Sequence: setup Rust → cache/install tools → prepare Pages artifact (clean → build → fix → verify) → deploy
     steps:
       - name: Rust setup
         uses: ./.github/actions/rust-setup
@@ -35,15 +35,8 @@ jobs:
       - name: Install Pages tools
         run: cargo install wasm-pack just wasm-bindgen-cli --locked
 
-      # Sequential rebuild: clean demo dirs then build all WASM demos (no stale output).
-      - name: Rebuild website
-        run: ./.github/scripts/rebuild-website.sh
-
-      - name: Fix base path for Project Pages
-        run: ./.github/scripts/fix-pages-base-path.sh
-
-      - name: Verify site root and demo pages
-        run: ./.github/scripts/verify-pages-artifact.sh
+      - name: Prepare Pages artifact
+        run: bash ./.github/scripts/prepare-pages-artifact.sh
 
       # Pages must be enabled in repo: Settings → Pages → Build and deployment → GitHub Actions.
       # enablement: true would require a PAT; GITHUB_TOKEN cannot create a Pages site.

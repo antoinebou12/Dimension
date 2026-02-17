@@ -3,48 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <base href="/neural/embedding/">
-  <title>Neural — Embedding space</title>
-  <link rel="stylesheet" href="/mathlib/demo.css">
-  <script>if (!window.location.pathname.endsWith('/')) { window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || '')); }</script>
+  <title>Embedding — Dimension</title>
   <style>
-    .embed-layout { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start; }
-    .embed-viz { flex: 0 0 420px; }
-    .embed-side { flex: 1; min-width: 260px; }
-    .embed-side h3 { margin-top: 0; }
-    #embed-list { list-style: none; padding: 0; margin: 0.5rem 0; max-height: 300px; overflow: auto; }
-    #embed-list li { padding: 0.35rem 0.5rem; margin: 2px 0; background: var(--card-bg, #25252a); border-radius: 4px; font-size: 0.9rem; cursor: pointer; }
-    #embed-list li:hover { background: var(--card-hover, #2a2a2e); }
-    #embed-list li.selected { outline: 2px solid var(--accent, #0a84ff); }
-    #query-input { width: 100%; padding: 0.5rem; margin-bottom: 0.5rem; box-sizing: border-box; }
+    * { box-sizing: border-box; }
+    :root {
+      --bg: #1a1a1e;
+      --card: #25252a;
+      --text: #e0e0e0;
+      --muted: #888;
+      --accent: #0a84ff;
+      --border: #333;
+      --radius: 8px;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, sans-serif;
+      padding: 2rem;
+    }
+    h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--muted); margin-bottom: 1.5rem; }
+    .cta {
+      display: inline-block;
+      padding: 1rem 1.5rem;
+      background: var(--accent);
+      color: #fff;
+      text-decoration: none;
+      border-radius: var(--radius);
+      margin-top: 1rem;
+    }
+    .cta:hover { opacity: 0.9; }
   </style>
 </head>
 <body>
-  <h1>Neural — Embedding space</h1>
-  <p class="subtitle">Text embeddings reduced to 3D with PCA. Click a point or pick a query index to see similar documents. <a href="/neural/">← Neural hub</a> <a href="/">← Dimension</a> <span id="theme-toggle-container" class="theme-toggle-wrap"></span></p>
-
-  <div id="error-callout" class="error-callout" style="display: none;">
-    <div class="error-callout-title">Setup required</div>
-    <pre id="error-message"></pre>
-  </div>
-
-  <section class="section">
-    <div class="embed-layout">
-      <div class="embed-viz">
-        <h2><span class="badge">1</span> 3D scatter (PCA)</h2>
-        <p>Each point is a document; axes are first 3 principal components.</p>
-        <canvas id="canvas-embed" width="420" height="340" aria-label="3D scatter of text embeddings"></canvas>
-        <p class="hint">Click a point to select and see similar documents below.</p>
-      </div>
-      <div class="embed-side">
-        <h3>Similar documents (cosine)</h3>
-        <p>Query index (0–N):</p>
-        <input type="number" id="query-input" min="0" value="0" placeholder="Query index">
-        <ul id="embed-list"></ul>
-      </div>
-    </div>
-  </section>
-  <script src="/mathlib/theme.js"></script>
-  <script type="module" src="embedding.js"></script>
+  <h1>Embedding</h1>
+  <p class="subtitle">Text embeddings reduced to 3D with PCA. Click points to see similar documents.</p>
+  <p>The interactive 3D scatter demo uses precomputed text embeddings (MiniLM) and mathlib PCA. Data is shared with the mathlib Recommendation demo.</p>
+  <a href="../../mathlib/recommendation/" class="cta">Open 3D embedding demo →</a>
+  <p style="margin-top: 2rem;"><a href="../">← Back to Neural</a> · <a href="../../">← Back to hub</a></p>
 </body>
 </html>
