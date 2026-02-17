@@ -19,8 +19,9 @@ jobs:
   build-and-deploy:
     environment: github-pages
     runs-on: ubuntu-latest
-    # Sequence: setup Rust → cache/install tools → prepare Pages artifact (clean → build → fix → verify) → deploy
+    # Sequence: checkout → setup Rust → cache/install tools → prepare Pages artifact (clean → build → fix → verify) → deploy
     steps:
+      - uses: actions/checkout@v6
       - name: Rust setup
         uses: ./.github/actions/rust-setup
         with:
