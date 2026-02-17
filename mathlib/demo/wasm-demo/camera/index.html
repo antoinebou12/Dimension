@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mathlib — Camera matrices</title>
+  <link rel="stylesheet" href="../demo.css">
+  <script>if (!window.location.pathname.endsWith('/')) { window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || '')); }</script>
+</head>
+<body>
+  <h1>mathlib — Camera</h1>
+  <p class="subtitle">Perspective and look-at 4×4 matrices (column-major). <a href="../index.html">← Back to hub</a></p>
+
+  <div id="error-callout" class="error-callout" style="display: none;">
+    <div class="error-callout-title">Setup required</div>
+    <pre id="error-message"></pre>
+  </div>
+
+  <section class="section" id="sec-camera">
+    <h2><span class="badge">1</span> Camera matrices</h2>
+    <p>Perspective and look-at view matrices (4×4, column-major). The diagram shows the view frustum in the y–z plane (eye at left, near and far clip planes).</p>
+    <div class="example-selector" id="camera-examples"></div>
+    <div class="camera-visual-wrap">
+      <div class="camera-frustum-wrap">
+        <div class="plot-wrap">
+          <canvas id="canvas-frustum" width="480" height="260" aria-label="View frustum cross-section (y-z)"></canvas>
+        </div>
+        <p class="plot-caption">Frustum cross-section (y–z): eye → near/far planes, FOV.</p>
+      </div>
+      <div id="out-camera" class="camera-matrices-wrap">—</div>
+    </div>
+  </section>
+
+  <script src="../theme.js"></script>
+  <script type="module" src="camera.js"></script>
+</body>
+</html>

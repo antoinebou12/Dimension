@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mathlib — Graph (pathfinding, coloring, tree)</title>
+  <link rel="stylesheet" href="../demo.css">
+  <script>if (!window.location.pathname.endsWith('/')) { window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || '')); }</script>
+</head>
+<body>
+  <h1>mathlib — Graph</h1>
+  <p class="subtitle">Dijkstra, A*, D* Lite, vertex coloring, BFS/DFS. <a href="../index.html">← Back to hub</a> <span id="theme-toggle-container" class="theme-toggle-wrap"></span></p>
+
+  <div id="error-callout" class="error-callout" style="display: none;">
+    <div class="error-callout-title">Setup required</div>
+    <pre id="error-message"></pre>
+  </div>
+
+  <section class="section graph-section" id="sec-graph">
+    <div class="section-title">Pathfinding</div>
+    <h2><span class="badge">1</span> Dijkstra, A*, D* Lite</h2>
+    <p>Build graph from edges [u, v, w]; run Dijkstra, A*, or D* Lite from source; show distances and path to target.</p>
+    <div class="graph-examples" id="graph-examples" aria-label="Graph example"></div>
+    <div class="graph-algorithms" id="graph-algorithms" aria-label="Pathfinding algorithm"></div>
+    <div class="plot-wrap">
+      <canvas id="canvas-graph" width="360" height="300" aria-label="Graph with nodes and shortest path"></canvas>
+      <div class="plot-caption">Edge weights in gray; shortest path in blue.</div>
+    </div>
+    <pre id="out-graph">—</pre>
+  </section>
+
+  <section class="section graph-section" id="sec-graph-coloring">
+    <div class="section-title">Coloring</div>
+    <h2><span class="badge">2</span> Vertex coloring</h2>
+    <p>Greedy and DSatur coloring; bipartite check.</p>
+    <div class="example-selector" id="coloring-examples" aria-label="Coloring example"></div>
+    <div class="example-selector" id="coloring-algos" aria-label="Coloring algorithm"></div>
+    <div class="plot-wrap">
+      <canvas id="canvas-coloring" width="360" height="300" aria-label="Graph with vertex colors"></canvas>
+      <div class="plot-caption">Vertex colors from greedy, DSatur, or bipartite.</div>
+    </div>
+    <pre id="out-coloring">—</pre>
+  </section>
+
+  <section class="section graph-section" id="sec-graph-tree">
+    <div class="section-title">Tree traversals</div>
+    <h2><span class="badge">3</span> BFS / DFS</h2>
+    <p>Breadth-first and depth-first traversal from a source.</p>
+    <div class="example-selector" id="tree-examples" aria-label="Tree example"></div>
+    <div class="example-selector" id="tree-algos" aria-label="Tree algorithm"></div>
+    <div class="plot-wrap">
+      <canvas id="canvas-tree" width="360" height="300" aria-label="Graph with BFS/DFS order"></canvas>
+      <div class="plot-caption">Visit order and depth (BFS) or order (DFS).</div>
+    </div>
+    <pre id="out-tree">—</pre>
+  </section>
+
+  <section class="section graph-section" id="sec-grid-pathfinding">
+    <div class="section-title">Grid pathfinding</div>
+    <h2><span class="badge">4</span> Grid pathfinding</h2>
+    <p>4-connected grid with edge weights. Source (green S) = top-left, target (red T) = bottom-right. Edges colored by weight: green = low cost, red = high cost (e.g. 1000). Shortest path in blue. A* runs in Rust/WASM.</p>
+    <div class="example-selector" id="grid-mode-buttons" aria-label="Grid size"></div>
+    <p><button type="button" id="grid-add-random">Random weights</button> — new random weights (1–9 and some 1000 barriers).</p>
+    <div class="plot-wrap">
+      <canvas id="canvas-grid-path" width="400" height="400" aria-label="Grid graph with shortest path and edge weights"></canvas>
+      <div class="plot-caption">Weights on edges; path in blue; legend shows weight range (low → high).</div>
+    </div>
+    <pre id="out-grid-path">—</pre>
+  </section>
+
+  <script src="../theme.js"></script>
+  <script type="module" src="graph.js"></script>
+</body>
+</html>

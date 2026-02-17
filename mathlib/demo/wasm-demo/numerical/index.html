@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mathlib — Numerical (roots, quadrature, differentiation, ODE)</title>
+  <link rel="stylesheet" href="../demo.css">
+  <script>if (!window.location.pathname.endsWith('/')) { window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || '')); }</script>
+</head>
+<body>
+  <h1>mathlib — Numerical</h1>
+  <p class="subtitle">Root-finding, quadrature, numerical differentiation, ODE solvers. <a href="../index.html">← Back to hub</a> <span id="theme-toggle-container" class="theme-toggle-wrap"></span></p>
+
+  <div id="error-callout" class="error-callout" style="display: none;">
+    <div class="error-callout-title">Setup required</div>
+    <pre id="error-message"></pre>
+  </div>
+
+  <section class="section" id="sec-roots">
+    <div class="section-title">Root-finding</div>
+    <h2><span class="badge">1</span> Roots of f(x) = 0</h2>
+    <p>Bisection, Newton, secant, and Brent's method.</p>
+    <div class="example-selector" id="roots-examples"></div>
+    <p>Method: <select id="roots-method"><option value="bisection">Bisection</option><option value="newton">Newton</option><option value="secant">Secant</option><option value="brent">Brent</option></select></p>
+    <div class="plot-wrap">
+      <canvas id="canvas-roots" width="400" height="240" aria-label="f(x) and root"></canvas>
+      <div class="plot-caption">f(x) on [a,b]; dot = found root.</div>
+    </div>
+    <pre id="out-roots">—</pre>
+  </section>
+
+  <section class="section" id="sec-quadrature">
+    <div class="section-title">Quadrature</div>
+    <h2><span class="badge">2</span> Deterministic integration</h2>
+    <p>Trapezoidal, Simpson, and Gauss–Legendre rules.</p>
+    <div class="example-selector" id="quad-examples"></div>
+    <p>Rule: <select id="quad-rule"><option value="trapezoidal">Trapezoidal</option><option value="simpson">Simpson</option><option value="gauss">Gauss–Legendre</option></select> n: <input type="number" id="quad-n" value="20" min="2" max="100"></p>
+    <div class="plot-wrap">
+      <canvas id="canvas-quad" width="400" height="200" aria-label="f(x) and integral"></canvas>
+      <div class="plot-caption">f(x) on [a,b]; shaded = approximate integral.</div>
+    </div>
+    <pre id="out-quad">—</pre>
+  </section>
+
+  <section class="section" id="sec-diff">
+    <div class="section-title">Differentiation</div>
+    <h2><span class="badge">3</span> Numerical derivative</h2>
+    <p>Central finite difference: f'(x) ≈ (f(x+h) - f(x-h)) / (2h).</p>
+    <div class="example-selector" id="diff-examples"></div>
+    <p>h: <input type="text" id="diff-h" value="1e-5" style="width:6em"> x range: [<input type="text" id="diff-a" value="0" style="width:4em">, <input type="text" id="diff-b" value="2" style="width:4em">]</p>
+    <div class="plot-wrap">
+      <canvas id="canvas-diff" width="400" height="220" aria-label="f and f'"></canvas>
+      <div class="plot-caption">f(x) (blue) and f'(x) via finite diff (orange).</div>
+    </div>
+    <pre id="out-diff">—</pre>
+  </section>
+
+  <section class="section" id="sec-ode">
+    <div class="section-title">ODE</div>
+    <h2><span class="badge">4</span> ODE solvers: Euler vs RK4</h2>
+    <p>dy/dt = f(t,y). Compare Forward Euler and RK4.</p>
+    <div class="example-selector" id="ode-examples"></div>
+    <p>dt: <input type="text" id="ode-dt" value="0.1" style="width:4em"> steps: <input type="number" id="ode-n" value="50" min="5" max="500"></p>
+    <div class="plot-wrap">
+      <canvas id="canvas-ode" width="400" height="220" aria-label="y(t) vs t"></canvas>
+      <div class="plot-caption">y(t): Euler (blue), RK4 (orange), exact if known (dashed).</div>
+    </div>
+    <pre id="out-ode">—</pre>
+  </section>
+
+  <script src="../theme.js"></script>
+  <script type="module" src="numerical.js"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mathlib — Viz (heightmap)</title>
+  <link rel="stylesheet" href="../demo.css">
+  <script>if (!window.location.pathname.endsWith('/')) { window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || '')); }</script>
+</head>
+<body>
+  <h1>mathlib — Viz</h1>
+  <p class="subtitle">Procedural heightmap from noise (waves, FBM Perlin). <a href="../index.html">← Back to hub</a> <span id="theme-toggle-container" class="theme-toggle-wrap"></span></p>
+
+  <div id="error-callout" class="error-callout" style="display: none;">
+    <div class="error-callout-title">Setup required</div>
+    <pre id="error-message"></pre>
+  </div>
+
+  <section class="section" id="sec-viz">
+    <h2><span class="badge">1</span> Heightmap</h2>
+    <p>Procedural terrain-like heightmap using wave2d and FBM Perlin. Same noise as the noise page, different presets.</p>
+    <div class="example-selector" id="viz-examples"></div>
+    <pre id="out-viz">—</pre>
+    <div class="plot-wrap">
+      <canvas id="canvas-viz" width="320" height="280" aria-label="Heightmap"></canvas>
+      <div class="plot-caption">64×64 heightmap</div>
+    </div>
+  </section>
+
+  <script src="../theme.js"></script>
+  <script type="module" src="viz.js"></script>
+</body>
+</html>

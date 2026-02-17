@@ -59,31 +59,6 @@ all-features = true
 # Set to ["-Oz"] to enable if your wasm-opt supports the emitted WASM.
 wasm-opt = false
 
-[profile.release]
-opt-level = 3
-lto = "fat"
-codegen-units = 1
-panic = "abort"
-debug = true
-strip = false
-
-[profile.bench]
-inherits = "release"
-debug = true
-strip = false
-
-[profile.release-wasm]
-inherits = "release"
-debug = false
-strip = true
-
-[profile.dev]
-opt-level = 0
-debug = true
-
-[profile.dev.package."*"]
-opt-level = 3
-
 [dev-dependencies]
 criterion = "0.8"
 image = "0.25"

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mathlib — Noise</title>
+  <link rel="stylesheet" href="../demo.css">
+  <script>if (!window.location.pathname.endsWith('/')) { window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || '')); }</script>
+</head>
+<body>
+  <h1>mathlib — Noise</h1>
+  <p class="subtitle">Wave 2D, Perlin 2D, FBM Perlin heightmap. <a href="../index.html">← Back to hub</a> <span id="theme-toggle-container" class="theme-toggle-wrap"></span></p>
+
+  <div id="error-callout" class="error-callout" style="display: none;">
+    <div class="error-callout-title">Setup required</div>
+    <pre id="error-message"></pre>
+  </div>
+
+  <section class="section" id="sec-noise">
+    <h2><span class="badge">1</span> Noise</h2>
+    <p>Wave 2D, Perlin 2D, and FBM Perlin at sample points; 32×32 heightmap.</p>
+    <div class="example-selector" id="noise-examples"></div>
+    <pre id="out-noise">—</pre>
+    <div class="plot-wrap">
+      <canvas id="canvas-noise" width="320" height="280" aria-label="Noise heightmap"></canvas>
+      <div class="plot-caption">FBM Perlin 32×32</div>
+    </div>
+  </section>
+
+  <script src="../theme.js"></script>
+  <script type="module" src="noise.js"></script>
+</body>
+</html>

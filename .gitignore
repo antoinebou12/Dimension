@@ -42,6 +42,32 @@ mathlib/wasm-demo/pkg/
 !mathlib/wasm-demo/index.html
 !website/geometry-index.html
 !website/index.html
+# Demo shell files (HTML/CSS/JS) so website-build in CI can copy them into website/
+!mathlib/demo/wasm-demo/**/*.html
+!mathlib/demo/wasm-demo/**/*.css
+!mathlib/demo/wasm-demo/**/*.js
+!mathlib/demo/wasm-demo/**/*.json
+!render/demo/wasm-demo/**/*.html
+!render/demo/wasm-demo/**/*.css
+!render/demo/wasm-demo/**/*.js
+!kinematics/demo/wasm-demo/**/*.html
+!kinematics/demo/wasm-demo/**/*.css
+!kinematics/demo/wasm-demo/**/*.js
+!physics/demo/wasm-demo/**/*.html
+!physics/demo/wasm-demo/**/*.css
+!physics/demo/wasm-demo/**/*.js
+!geometry/demo/wasm-demo/**/*.html
+!geometry/demo/wasm-demo/**/*.css
+!geometry/demo/wasm-demo/**/*.js
+!website/neural/**/*.html
+!website/neural/**/*.css
+!website/neural/**/*.js
+# Ignore built pkg/ inside demo dirs (after negations so shell files are tracked)
+mathlib/demo/wasm-demo/pkg/
+render/demo/wasm-demo/pkg/
+kinematics/demo/wasm-demo/pkg/
+physics/demo/wasm-demo/pkg/
+geometry/demo/wasm-demo/pkg/
 
 # Coverage (tarpaulin, cargo-llvm-cov, grcov)
 coverage/

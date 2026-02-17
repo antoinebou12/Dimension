@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mathlib — GPU (WebGPU)</title>
+  <link rel="stylesheet" href="../demo.css">
+  <script>if (!window.location.pathname.endsWith('/')) { window.location.replace(window.location.pathname + '/' + (window.location.search || '')); }</script>
+</head>
+<body>
+  <h1>mathlib — GPU (WebGPU)</h1>
+  <p class="subtitle">Async init and ops: matmul, dot, norm, matvec. Build with <code>just wasm-build-gpu</code>. <a href="../index.html">← Back to hub</a> <span id="theme-toggle-container" class="theme-toggle-wrap"></span></p>
+
+  <div id="error-callout" class="error-callout" style="display: none;">
+    <div class="error-callout-title">Setup required</div>
+    <pre id="error-message"></pre>
+  </div>
+
+  <section class="section">
+    <h2>Init</h2>
+    <p><button type="button" id="gpu-init-btn">Init GPU</button> <span id="gpu-status">—</span></p>
+  </section>
+
+  <section class="section">
+    <h2>Matmul (async)</h2>
+    <p><button type="button" id="matmul-btn">Run 4×4 matmul</button></p>
+    <pre id="matmul-out">—</pre>
+  </section>
+
+  <section class="section">
+    <h2>Dot (async)</h2>
+    <p><button type="button" id="dot-btn">Run dot([1,2,3], [4,5,6])</button></p>
+    <pre id="dot-out">—</pre>
+  </section>
+
+  <section class="section">
+    <h2>Matvec (async)</h2>
+    <p><button type="button" id="matvec-btn">Run A×[1,2]<sup>T</sup></button></p>
+    <pre id="matvec-out">—</pre>
+  </section>
+
+  <script src="../theme.js"></script>
+  <script type="module" src="gpu.js"></script>
+</body>
+</html>

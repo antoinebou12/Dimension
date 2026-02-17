@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mathlib — Optimization (Simplex, Line search, PSO, L-BFGS-B)</title>
+  <link rel="stylesheet" href="../demo.css">
+  <script>if (!window.location.pathname.endsWith('/')) { window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || '')); }</script>
+</head>
+<body>
+  <h1>mathlib — Optimization</h1>
+  <p class="subtitle">Simplex LP, line search backtracking, PSO, L-BFGS-B. <a href="../index.html">← Back to hub</a> <span id="theme-toggle-container" class="theme-toggle-wrap"></span></p>
+
+  <div id="error-callout" class="error-callout" style="display: none;">
+    <div class="error-callout-title">Setup required</div>
+    <pre id="error-message"></pre>
+  </div>
+
+  <section class="section" id="sec-simplex">
+    <div class="section-title">LP</div>
+    <h2><span class="badge">1</span> Simplex (LP)</h2>
+    <p>Minimize c′x s.t. Ax = b, x ≥ 0.</p>
+    <div class="example-selector" id="simplex-examples"></div>
+    <div id="out-simplex" class="simplex-out">—</div>
+  </section>
+
+  <section class="section" id="sec-linesearch">
+    <div class="section-title">Line search</div>
+    <h2><span class="badge">2</span> Backtracking</h2>
+    <p>Minimize f(x) along direction d; Armijo backtracking chooses α.</p>
+    <div class="example-selector" id="linesearch-examples"></div>
+    <pre id="out-linesearch">—</pre>
+    <div class="plot-wrap">
+      <canvas id="canvas-linesearch" width="360" height="220" aria-label="Line search f(x+αd) vs α"></canvas>
+      <div class="plot-caption">f(α) curve (colored by α); vertical lines = trial steps; dot = accepted α.</div>
+    </div>
+    <div class="plot-wrap" id="linesearch-heatmap-wrap" style="display: none;">
+      <canvas id="canvas-linesearch-heatmap" width="280" height="220" aria-label="2D cost surface and search direction"></canvas>
+      <div class="plot-caption">Cost over (x,y); line = x₀ + αd; circle = accepted point.</div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-pso">
+    <div class="section-title">PSO</div>
+    <h2><span class="badge">3</span> Particle swarm optimization</h2>
+    <p>Minimize cost function in 2D with PSO.</p>
+    <div class="example-selector">
+      <div id="pso-examples"></div>
+      <button type="button" id="pso-run">Run</button>
+    </div>
+    <div class="plot-wrap">
+      <canvas id="canvas-pso" width="320" height="280" aria-label="PSO cost surface and trajectory"></canvas>
+      <div class="plot-caption">Cost surface (blue = low, red = high); white line = best-so-far trajectory; cross = final best.</div>
+    </div>
+    <pre id="out-pso">—</pre>
+  </section>
+
+  <section class="section" id="sec-lm">
+    <div class="section-title">Levenberg-Marquardt</div>
+    <h2><span class="badge">4a</span> Nonlinear least squares</h2>
+    <p>Fit curve to data: minimize ||r(x)||². Example: fit y = a*x + b to points.</p>
+    <div class="example-selector" id="lm-examples"></div>
+    <div class="plot-wrap">
+      <canvas id="canvas-lm" width="320" height="220" aria-label="LM curve fit"></canvas>
+      <div class="plot-caption">Data points and fitted line.</div>
+    </div>
+    <pre id="out-lm">—</pre>
+  </section>
+
+  <section class="section" id="sec-lbfgsb">
+    <div class="section-title">L-BFGS-B</div>
+    <h2><span class="badge">5</span> L-BFGS-B (bound-constrained)</h2>
+    <p>Minimize smooth function with gradient and box bounds [lower, upper].</p>
+    <div class="example-selector">
+      <div id="lbfgsb-examples"></div>
+      <button type="button" id="lbfgsb-run">Run</button>
+    </div>
+    <div class="plot-wrap">
+      <canvas id="canvas-lbfgsb" width="320" height="280" aria-label="L-BFGS-B cost surface and solution"></canvas>
+      <div class="plot-caption">Cost surface; cross = solution. Bounds shown as box when not [-5,5]².</div>
+    </div>
+    <pre id="out-lbfgsb">—</pre>
+  </section>
+
+  <script src="../theme.js"></script>
+  <script type="module" src="optimization.js"></script>
+</body>
+</html>

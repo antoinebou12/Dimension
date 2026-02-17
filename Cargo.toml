@@ -1,3 +1,29 @@
 [workspace]
 members = ["mathlib", "render", "parse", "kinematics", "kinematics/demo", "render/demo", "collision", "network", "physics", "physics/demo", "geometry", "geometry/demo", "neural"]
 resolver = "2"
+
+# Profiles apply to all workspace members (avoids "profiles for the non root package will be ignored").
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+debug = true
+strip = false
+
+[profile.bench]
+inherits = "release"
+debug = true
+strip = false
+
+[profile.release-wasm]
+inherits = "release"
+debug = false
+strip = true
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+[profile.dev.package."*"]
+opt-level = 3

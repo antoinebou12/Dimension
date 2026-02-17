@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mathlib — Distance metrics</title>
+  <link rel="stylesheet" href="../demo.css">
+  <script>if (!window.location.pathname.endsWith('/')) { window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || '')); }</script>
+</head>
+<body>
+  <h1>mathlib — Distance</h1>
+  <p class="subtitle">Euclidean, Manhattan, cosine similarity/distance, Chebyshev, Minkowski. <a href="../index.html">← Back to hub</a> <span id="theme-toggle-container" class="theme-toggle-wrap"></span></p>
+
+  <div id="error-callout" class="error-callout" style="display: none;">
+    <div class="error-callout-title">Setup required</div>
+    <pre id="error-message"></pre>
+  </div>
+
+  <section class="section" id="sec-distance">
+    <h2><span class="badge">1</span> Distance metrics</h2>
+    <p>Euclidean, Manhattan, cosine similarity/distance, Chebyshev, Minkowski(p=3) between two vectors.</p>
+    <div class="example-selector" id="distance-examples"></div>
+    <div class="plot-wrap" id="distance-plot-wrap" style="display: none;">
+      <canvas id="canvas-distance" width="280" height="280" aria-label="Two 2D vectors as arrows"></canvas>
+      <div class="plot-caption">2D vectors from origin; metric value shown.</div>
+    </div>
+    <pre id="out-distance">—</pre>
+  </section>
+
+  <script src="../theme.js"></script>
+  <script type="module" src="distance.js"></script>
+</body>
+</html>

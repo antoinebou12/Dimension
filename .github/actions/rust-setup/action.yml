@@ -1,0 +1,33 @@
+# Composite action: checkout + Rust cache + toolchain. Used by CI and Pages.
+name: Rust setup
+description: Checkout repo, restore Rust cache, install stable toolchain (optional WASM target).
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      if: inputs.checkout == 'true'
+      uses: actions/checkout@v6
+
+    - name: Cache Rust
+      uses: Swatinem/rust-cache@v2
+      with:
+        cache-targets: ${{ inputs.cache-targets }}
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ inputs.cache-targets }}
+
+inputs:
+  checkout:
+    description: Run actions/checkout before cache and toolchain
+    required: false
+    default: 'true'
+  working-directory:
+    description: Working directory for subsequent steps (set on job defaults, not here)
+    required: false
+    default: ''
+  cache-targets:
+    description: Extra Rust target (e.g. wasm32-unknown-unknown) for cache and toolchain
+    required: false
+    default: ''

@@ -1,0 +1,32 @@
+{
+  "name": "mathlib",
+  "type": "module",
+  "collaborators": [
+    "Dimension"
+  ],
+  "description": "Linear algebra library: dense/sparse matrices, vectors, SVD, 3D math",
+  "version": "0.1.0",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dimension/dimension"
+  },
+  "files": [
+    "mathlib_bg.wasm",
+    "mathlib.js",
+    "mathlib.d.ts"
+  ],
+  "main": "mathlib.js",
+  "types": "mathlib.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ],
+  "keywords": [
+    "algebra",
+    "linear-algebra",
+    "matrix",
+    "sparse",
+    "simd",
+    "math"
+  ]
+}

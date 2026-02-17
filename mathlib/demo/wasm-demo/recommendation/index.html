@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mathlib — Text in 3D (PCA) / Recommendation</title>
+  <link rel="stylesheet" href="../demo.css">
+  <script>if (!window.location.pathname.endsWith('/')) { window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || '')); }</script>
+  <style>
+    .recommendation-layout { display: flex; gap: 1rem; flex-wrap: wrap; align-items: flex-start; }
+    .recommendation-viz { flex: 0 0 400px; }
+    .recommendation-side { flex: 1; min-width: 260px; }
+    .recommendation-side h3 { margin-top: 0; }
+    #recommendation-list { list-style: none; padding: 0; margin: 0.5rem 0; max-height: 280px; overflow: auto; }
+    #recommendation-list li { padding: 0.35rem 0.5rem; margin: 2px 0; background: var(--card-bg, #25252a); border-radius: 4px; font-size: 0.9rem; cursor: pointer; }
+    #recommendation-list li:hover { background: var(--card-hover, #2a2a2e); }
+    #recommendation-list li.selected { outline: 2px solid var(--accent, #0a84ff); }
+    #query-input { width: 100%; padding: 0.5rem; margin-bottom: 0.5rem; box-sizing: border-box; }
+  </style>
+</head>
+<body>
+  <h1>mathlib — Text in 3D (PCA) / Recommendation</h1>
+  <p class="subtitle">Precomputed text embeddings reduced to 3D with PCA; click a point or use query to see similar documents. <a href="../index.html">← Back to hub</a> <span id="theme-toggle-container" class="theme-toggle-wrap"></span></p>
+
+  <div id="error-callout" class="error-callout" style="display: none;">
+    <div class="error-callout-title">Setup required</div>
+    <pre id="error-message"></pre>
+  </div>
+
+  <section class="section">
+    <div class="recommendation-layout">
+      <div class="recommendation-viz">
+        <h2><span class="badge">1</span> 3D scatter (PCA)</h2>
+        <p>Each point is a document; axes are first 3 principal components.</p>
+        <canvas id="canvas-recommendation" width="400" height="320" aria-label="3D scatter of text embeddings"></canvas>
+        <p class="hint">Click a point to select and see recommendations below.</p>
+      </div>
+      <div class="recommendation-side">
+        <h3>Recommendations (top similar)</h3>
+        <p>Select by index (0–N) or type a query index to use that document as query:</p>
+        <input type="number" id="query-input" min="0" value="0" placeholder="Query index">
+        <ul id="recommendation-list"></ul>
+      </div>
+    </div>
+  </section>
+  <script src="../theme.js"></script>
+  <script type="module" src="recommendation.js"></script>
+</body>
+</html>

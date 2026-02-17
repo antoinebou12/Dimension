@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mathlib — Transforms (FFT, DCT, wavelets, convolution)</title>
+  <link rel="stylesheet" href="../demo.css">
+  <script>if (!window.location.pathname.endsWith('/')) { window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || '')); }</script>
+</head>
+<body>
+  <h1>mathlib — Transforms</h1>
+  <p class="subtitle">FFT, DCT, Haar wavelet, convolution, windows. <a href="../index.html">← Back to hub</a> <span id="theme-toggle-container" class="theme-toggle-wrap"></span></p>
+
+  <div id="error-callout" class="error-callout" style="display: none;">
+    <div class="error-callout-title">Setup required</div>
+    <pre id="error-message"></pre>
+  </div>
+
+  <section class="section" id="sec-transforms">
+    <h2><span class="badge">1</span> Signal transforms</h2>
+    <p>FFT (real), DCT-2, Haar DWT, 1D convolution. Signal length must be power of 2 for FFT/DCT.</p>
+    <div class="example-selector" id="transforms-examples"></div>
+    <pre id="out-transforms">—</pre>
+    <div class="plot-wrap">
+      <canvas id="canvas-transforms-signal" width="400" height="100" aria-label="Input signal"></canvas>
+      <div class="plot-caption">Input signal</div>
+    </div>
+    <div class="plot-wrap">
+      <canvas id="canvas-transforms-output" width="400" height="100" aria-label="Transform output"></canvas>
+      <div class="plot-caption">Output (spectrum / coefficients / result)</div>
+    </div>
+  </section>
+
+  <script src="../theme.js"></script>
+  <script type="module" src="transforms.js"></script>
+</body>
+</html>

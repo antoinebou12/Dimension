@@ -10,14 +10,8 @@ jobs:
   ci:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Rust setup
+        uses: ./.github/actions/rust-setup
 
       - name: Check format
         run: cargo fmt --all -- --check
@@ -41,14 +35,8 @@ jobs:
         working-directory: parse
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Rust setup
+        uses: ./.github/actions/rust-setup
 
       - name: Test parse (all formats)
         run: cargo test --features "json,bjson,toon,xml,obj,mtl,bvh,gltf,ply,image,archive"
@@ -60,14 +48,8 @@ jobs:
         working-directory: mathlib
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Rust setup
+        uses: ./.github/actions/rust-setup
 
       - name: Test with parallel feature
         run: cargo test --features parallel
@@ -82,14 +64,8 @@ jobs:
         working-directory: mathlib
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Rust setup
+        uses: ./.github/actions/rust-setup
 
       - name: Test GPU
         run: cargo test --features gpu --test gpu
@@ -108,14 +84,8 @@ jobs:
   security:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Rust setup
+        uses: ./.github/actions/rust-setup
 
       - name: Install cargo-audit
         run: cargo install cargo-audit --locked
@@ -133,14 +103,8 @@ jobs:
         working-directory: mathlib
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Rust setup
+        uses: ./.github/actions/rust-setup
 
       - name: Install tarpaulin
         run: cargo install cargo-tarpaulin --locked
@@ -170,18 +134,10 @@ jobs:
         working-directory: mathlib
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
+      - name: Rust setup
+        uses: ./.github/actions/rust-setup
         with:
-          targets: wasm32-unknown-unknown
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
+          cache-targets: wasm32-unknown-unknown
 
       - name: Check WASM build (default features)
         run: cargo build --target wasm32-unknown-unknown
@@ -196,18 +152,10 @@ jobs:
         working-directory: mathlib
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
+      - name: Rust setup
+        uses: ./.github/actions/rust-setup
         with:
-          targets: wasm32-unknown-unknown
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: wasm32-unknown-unknown
+          cache-targets: wasm32-unknown-unknown
 
       - name: Install wasm-pack
         run: cargo install wasm-pack --locked

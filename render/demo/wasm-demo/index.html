@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>render-demo — WASM cube, tetrahedron, cylinder</title>
+  <style>
+    :root {
+      --bg-primary: #1a1a1e;
+      --bg-panel: #1e1e22;
+      --bg-toolbar: #25252a;
+      --bg-control: #333;
+      --bg-control-hover: #404040;
+      --text-primary: #e0e0e0;
+      --text-secondary: #d4d4d4;
+      --text-muted: #888;
+      --accent: #0a84ff;
+      --accent-dim: rgba(10, 132, 255, 0.2);
+      --border: #333;
+      --radius: 6px;
+      --radius-sm: 4px;
+      --font-sans: system-ui, -apple-system, Segoe UI, sans-serif;
+      --font-mono: ui-monospace, SF Mono, Consolas, monospace;
+      --shadow-toolbar: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --glass-bg: rgba(0, 0, 0, 0.55);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-primary); font-family: var(--font-sans); }
+    canvas { display: block; width: 100%; height: 100%; object-fit: contain; cursor: grab; }
+    canvas:active { cursor: grabbing; }
+    #error { display: none; max-width: 40rem; padding: 1rem; margin: 1rem; background: var(--bg-panel); color: var(--text-primary); border-radius: var(--radius); font-size: 0.9rem; }
+    #error.visible { display: block; }
+    p.hint { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem; }
+    #stats-overlay {
+      position: fixed; top: 10px; right: 10px; z-index: 10;
+      font-family: var(--font-mono); font-size: 12px; line-height: 1.45;
+      color: var(--text-primary); background: var(--glass-bg); padding: 8px 12px; border-radius: var(--radius-sm);
+      pointer-events: none; user-select: none;
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+    }
+    #toolbar {
+      flex: 0 0 auto; display: flex; align-items: center; gap: 0.75rem 1.25rem; padding: 8px 12px;
+      background: var(--bg-toolbar); color: var(--text-primary); font-size: 13px;
+      box-shadow: var(--shadow-toolbar); border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    #toolbar .toolbar-group { display: flex; align-items: center; gap: 0.5rem; }
+    #toolbar .toolbar-group + .toolbar-group { border-left: 1px solid var(--border); padding-left: 0.75rem; }
+    #toolbar label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; padding: 2px 4px; border-radius: var(--radius-sm); }
+    #toolbar label:hover { background: var(--bg-control); }
+    #toolbar select {
+      background: var(--bg-control); color: var(--text-primary); border: 1px solid var(--border);
+      padding: 5px 8px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px;
+    }
+    #toolbar select:hover { background: var(--bg-control-hover); }
+    #toolbar select:focus { outline: none; border-color: var(--accent); }
+    #toolbar .toolbar-spacer { flex: 1; min-width: 1rem; }
+    #toolbar .hint { color: var(--text-muted); font-size: 12px; }
+    #main { flex: 1; display: flex; min-height: 0; }
+    #main > canvas { flex: 1; min-width: 0; position: relative; display: block; }
+    #tree-panel {
+      display: none; width: 280px; flex-shrink: 0; overflow: auto;
+      background: var(--bg-panel); color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px;
+      padding: 10px 12px; white-space: pre-wrap; border-left: 1px solid var(--border);
+      line-height: 1.5;
+    }
+    #tree-panel.visible { display: block; }
+    #tree-panel .tree-line { cursor: pointer; padding: 4px 6px; border-radius: var(--radius-sm); margin: 0 -4px; transition: background 0.15s ease; }
+    #tree-panel .tree-line:hover { background: var(--bg-control); }
+    #tree-panel .tree-line.selected {
+      background: linear-gradient(90deg, var(--accent-dim) 0%, rgba(10, 132, 255, 0.08) 100%);
+      border-left: 3px solid var(--accent);
+      margin-left: -7px;
+      padding-left: 9px;
+    }
+    #tree-panel .tree-line .tree-depth { display: inline-block; min-width: 1ch; color: var(--text-muted); }
+    #editor-panel {
+      display: none; width: 240px; flex-shrink: 0; padding: 12px; border-left: 1px solid var(--border);
+      background: var(--bg-panel); color: var(--text-secondary); font-size: 12px;
+      overflow-y: auto;
+    }
+    #editor-panel.visible { display: flex; flex-direction: column; gap: 10px; }
+    #editor-panel .editor-section { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    #editor-panel .editor-section:last-of-type { border-bottom: 0; }
+    #editor-panel .editor-hint { margin: 0 0 8px 0; color: var(--text-muted); font-size: 11px; line-height: 1.35; }
+    #editor-panel .editor-section-title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    #editor-panel select { width: 100%; background: var(--bg-control); color: var(--text-primary); border: 1px solid var(--border); padding: 5px 6px; border-radius: var(--radius-sm); }
+    #editor-panel select:focus { outline: none; border-color: var(--accent); }
+    #editor-panel select:disabled { opacity: 0.6; cursor: not-allowed; }
+    #editor-panel input[type="number"] { width: 4.5rem; background: var(--bg-control); color: var(--text-primary); border: 1px solid var(--border); padding: 5px 6px; border-radius: var(--radius-sm); }
+    #editor-panel input:focus { outline: none; border-color: var(--accent); }
+    #editor-panel input:disabled { opacity: 0.6; cursor: not-allowed; }
+    #editor-panel .position-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    #editor-panel .position-row label { display: flex; align-items: center; gap: 4px; }
+    #editor-panel .position-row label span { min-width: 1ch; color: var(--text-muted); }
+    #editor-panel button {
+      padding: 6px 12px; background: var(--bg-control); color: var(--text-primary); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); cursor: pointer; font-size: 12px;
+    }
+    #editor-panel button:hover { background: var(--bg-control-hover); }
+    #editor-panel button:active { filter: brightness(0.95); }
+    #editor-panel button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #editor-panel .transform-section select { font-weight: 500; }
+  </style>
+</head>
+<body>
+  <header id="toolbar" role="toolbar" aria-label="Editor toolbar">
+    <div class="toolbar-group" aria-label="Scene">
+      <span>Scene</span>
+      <select id="world-select" aria-label="World">
+        <option value="default">Default (cube, tetrahedron, cylinder)</option>
+        <option value="curves">Curves (line, Bézier, Hermite, B-spline)</option>
+        <option value="allshapes">All shapes</option>
+        <option value="aabb2d">2D (AABB/Circle)</option>
+      </select>
+    </div>
+    <div class="toolbar-group" aria-label="View">
+      <label>
+        <input type="checkbox" id="show-tree" aria-label="Show primitive tree"> Tree
+      </label>
+      <label>
+        <input type="checkbox" id="show-editor" aria-label="Show editor panel"> Editor
+      </label>
+    </div>
+    <div class="toolbar-spacer" aria-hidden="true"></div>
+    <span class="hint">Use Editor panel for material and transform when visible.</span>
+  </header>
+  <div id="main">
+  <div id="tree-panel" aria-live="polite" role="log">(tree will appear when enabled)</div>
+  <div id="editor-panel">
+    <p class="editor-hint">Click object to select; Shift+click when dragging. Or click in the tree. Ctrl+drag = camera only. Edit position below or drag the gizmo handles to transform.</p>
+
+    <section class="editor-section transform-section" aria-labelledby="transform-heading">
+      <div class="editor-section-title" id="transform-heading">Transform</div>
+      <label>Mode: <select id="gizmo-mode-select" aria-label="Gizmo mode">
+        <option value="translate">Translate</option>
+        <option value="rotate">Rotate</option>
+        <option value="scale">Scale</option>
+      </select></label>
+      <div class="editor-section-title">Position (local)</div>
+      <div class="position-row">
+        <label><span>X</span><input type="number" id="local-x" step="0.01" aria-label="Local X"></label>
+        <label><span>Y</span><input type="number" id="local-y" step="0.01" aria-label="Local Y"></label>
+        <label><span>Z</span><input type="number" id="local-z" step="0.01" aria-label="Local Z"></label>
+      </div>
+      <div class="editor-section-title">Rotation (Euler, deg)</div>
+      <div class="position-row">
+        <label><span>X</span><input type="number" id="local-rx" step="1" aria-label="Roll"></label>
+        <label><span>Y</span><input type="number" id="local-ry" step="1" aria-label="Pitch"></label>
+        <label><span>Z</span><input type="number" id="local-rz" step="1" aria-label="Yaw"></label>
+      </div>
+      <div class="editor-section-title">Scale</div>
+      <div class="position-row">
+        <label><span>X</span><input type="number" id="local-sx" step="0.1" min="0.01" aria-label="Scale X"></label>
+        <label><span>Y</span><input type="number" id="local-sy" step="0.1" min="0.01" aria-label="Scale Y"></label>
+        <label><span>Z</span><input type="number" id="local-sz" step="0.1" min="0.01" aria-label="Scale Z"></label>
+      </div>
+      <div class="editor-section-title">Position (world)</div>
+      <div class="position-row">
+        <label><span>X</span><input type="number" id="world-x" step="0.01" aria-label="World X"></label>
+        <label><span>Y</span><input type="number" id="world-y" step="0.01" aria-label="World Y"></label>
+        <label><span>Z</span><input type="number" id="world-z" step="0.01" aria-label="World Z"></label>
+      </div>
+    </section>
+
+    <section class="editor-section selection-section" aria-labelledby="selection-heading">
+      <div class="editor-section-title" id="selection-heading">Selection</div>
+      <label>Material: <select id="material-select" aria-label="Material"><option value="">—</option></select></label>
+      <button type="button" id="remove-entity">Remove selected</button>
+    </section>
+
+    <section class="editor-section" aria-labelledby="add-heading">
+      <div class="editor-section-title" id="add-heading">Add object</div>
+      <label>Primitive: <select id="primitive-select" aria-label="Primitive"><option value="">—</option></select></label>
+      <button type="button" id="add-entity">Add object</button>
+    </section>
+  </div>
+  <canvas id="canvas" width="800" height="600"></canvas>
+  </div>
+  <div id="stats-overlay" aria-live="polite">FPS: —  CPU: — ms  GPU: N/A  Elements: —</div>
+  <div id="error">
+    <strong>Setup required</strong>
+    <p id="error-message"></p>
+  </div>
+  <script type="module">
+    window.set_stats_overlay = function(fps, cpu_ms, gpu_ms, elements) {
+      const el = document.getElementById('stats-overlay');
+      if (!el) return;
+      const gpuStr = gpu_ms >= 0 ? gpu_ms.toFixed(2) + ' ms' : 'N/A';
+      el.textContent = 'FPS: ' + fps.toFixed(1) + '  CPU: ' + cpu_ms.toFixed(2) + ' ms  GPU: ' + gpuStr + '  Elements: ' + Math.round(elements);
+    };
+    window.show_render_error = function(msg) {
+      const el = document.getElementById('error');
+      const msgEl = document.getElementById('error-message');
+      if (el && msgEl) {
+        msgEl.textContent = String(msg);
+        el.classList.add('visible');
+      }
+    };
+    let wasmModule = null;
+    let treeInterval = null;
+    try {
+      const pkg = await import('./pkg/render_wasm.js');
+      wasmModule = pkg;
+      await pkg.default();
+    } catch (e) {
+      const el = document.getElementById('error');
+      const msg = document.getElementById('error-message');
+      if (el && msg) {
+        msg.textContent = String(e);
+        el.classList.add('visible');
+      }
+    }
+    const worldSelect = document.getElementById('world-select');
+    if (worldSelect && wasmModule && typeof wasmModule.set_demo === 'function') {
+      worldSelect.addEventListener('change', () => {
+        wasmModule.set_demo(worldSelect.value);
+      });
+    }
+    const showTreeCb = document.getElementById('show-tree');
+    const treePanel = document.getElementById('tree-panel');
+    const NO_ENTITY = wasmModule && typeof wasmModule.get_no_entity === 'function' ? wasmModule.get_no_entity() : 0xFFFFffff;
+    function parseEntityIdFromLine(line) {
+      const m = line.match(/^\s*(\d+):/);
+      return m ? parseInt(m[1], 10) : null;
+    }
+    const DEG2RAD = Math.PI / 180;
+    function radToDeg(r) { return r * (180 / Math.PI); }
+    // Event delegation: one listener on the panel so clicks work even when innerHTML is replaced
+    if (treePanel) {
+      treePanel.addEventListener('click', (e) => {
+        const line = e.target.closest('.tree-line[data-entity-id]');
+        if (line && wasmModule && typeof wasmModule.set_selected_entity === 'function') {
+          const id = parseInt(line.getAttribute('data-entity-id'), 10);
+          if (!Number.isNaN(id)) wasmModule.set_selected_entity(id);
+        }
+      });
+    }
+    let lastTreeDisplay = '';
+    let lastTreeSelection = null;
+    function updateTreePanel() {
+      if (!treePanel || !wasmModule || typeof wasmModule.get_primitive_tree !== 'function') return;
+      try {
+        const raw = wasmModule.get_primitive_tree() || '';
+        const display = (!raw || !raw.trim()) ? '(loading…)' : raw;
+        const selectedId = typeof wasmModule.get_selected_entity === 'function' ? wasmModule.get_selected_entity() : NO_ENTITY;
+        if (display === lastTreeDisplay && selectedId === lastTreeSelection) return;
+        lastTreeDisplay = display;
+        lastTreeSelection = selectedId;
+        const lines = display.split('\n');
+        treePanel.innerHTML = lines.map((line) => {
+          const id = parseEntityIdFromLine(line);
+          if (id === null) return '<div class="tree-line">' + escapeHtml(line) + '</div>';
+          const cls = 'tree-line' + (id === selectedId ? ' selected' : '');
+          const indentMatch = line.match(/^(\s*)/);
+          const indent = indentMatch ? indentMatch[1] : '';
+          const content = line.trimStart();
+          return '<div class="' + cls + '" data-entity-id="' + id + '" role="button" tabindex="0">' + escapeHtml(indent) + '<span class="tree-content">' + escapeHtml(content) + '</span></div>';
+        }).join('');
+      } catch (_) {}
+    }
+    function escapeHtml(s) {
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+    if (showTreeCb && treePanel && wasmModule && typeof wasmModule.get_primitive_tree === 'function') {
+      showTreeCb.addEventListener('change', () => {
+        const show = showTreeCb.checked;
+        treePanel.classList.toggle('visible', show);
+        treePanel.style.whiteSpace = 'pre-wrap';
+        treePanel.style.fontFamily = 'ui-monospace, monospace';
+        if (show) {
+          updateTreePanel();
+          treeInterval = setInterval(updateTreePanel, 100);
+        } else {
+          if (treeInterval) clearInterval(treeInterval);
+          treeInterval = null;
+        }
+      });
+    }
+    const showEditorCb = document.getElementById('show-editor');
+    const editorPanel = document.getElementById('editor-panel');
+    const gizmoModeSelect = document.getElementById('gizmo-mode-select');
+    const materialSelect = document.getElementById('material-select');
+    const primitiveSelect = document.getElementById('primitive-select');
+    const removeBtn = document.getElementById('remove-entity');
+    const addBtn = document.getElementById('add-entity');
+    const localX = document.getElementById('local-x');
+    const localY = document.getElementById('local-y');
+    const localZ = document.getElementById('local-z');
+    const localRx = document.getElementById('local-rx');
+    const localRy = document.getElementById('local-ry');
+    const localRz = document.getElementById('local-rz');
+    const localSx = document.getElementById('local-sx');
+    const localSy = document.getElementById('local-sy');
+    const localSz = document.getElementById('local-sz');
+    const worldX = document.getElementById('world-x');
+    const worldY = document.getElementById('world-y');
+    const worldZ = document.getElementById('world-z');
+    const PRIMITIVE_OPTIONS = [
+      { value: 'cube', label: 'Cube' },
+      { value: 'tetrahedron', label: 'Tetrahedron' },
+      { value: 'cylinder', label: 'Cylinder' },
+      { value: 'sphere', label: 'Sphere' },
+      { value: 'cone', label: 'Cone' },
+      { value: 'capsule', label: 'Capsule' },
+      { value: 'line', label: 'Line' },
+      { value: 'bezier', label: 'Bézier' },
+      { value: 'hermite', label: 'Hermite' },
+      { value: 'bspline', label: 'B-spline' }
+    ];
+    function updateEditorPanel() {
+      if (!wasmModule || !editorPanel || !editorPanel.classList.contains('visible')) return;
+      try {
+        const sel = typeof wasmModule.get_selected_entity === 'function' ? wasmModule.get_selected_entity() : NO_ENTITY;
+        const hasSelection = sel !== NO_ENTITY && sel !== 0;
+        if (gizmoModeSelect && typeof wasmModule.get_gizmo_mode === 'function') {
+          const mode = wasmModule.get_gizmo_mode();
+          if (['translate', 'rotate', 'scale'].includes(mode)) gizmoModeSelect.value = mode;
+        }
+        if (materialSelect) {
+          const names = (typeof wasmModule.get_material_names === 'function' ? wasmModule.get_material_names() : '').split('\n').filter(Boolean);
+          const cur = materialSelect.value;
+          materialSelect.innerHTML = '<option value="">None (vertex color)</option>' + names.map((n) => '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>').join('');
+          if (cur && names.indexOf(cur) !== -1) materialSelect.value = cur;
+          materialSelect.disabled = !hasSelection;
+        }
+        if (primitiveSelect) {
+          const cur = primitiveSelect.value;
+          if (primitiveSelect.options.length <= 1) {
+            PRIMITIVE_OPTIONS.forEach((o) => {
+              primitiveSelect.appendChild(new Option(o.label, o.value));
+            });
+          }
+          if (PRIMITIVE_OPTIONS.some((o) => o.value === cur)) primitiveSelect.value = cur;
+          primitiveSelect.disabled = !hasSelection;
+        }
+        if (removeBtn) removeBtn.disabled = !hasSelection;
+        const active = document.activeElement;
+        const localInputsFocused = active && (active === localX || active === localY || active === localZ);
+        const rotInputsFocused = active && (active === localRx || active === localRy || active === localRz);
+        const scaleInputsFocused = active && (active === localSx || active === localSy || active === localSz);
+        const worldInputsFocused = active && (active === worldX || active === worldY || active === worldZ);
+        const now = Date.now();
+        const skipLocalOverwrite = localInputsFocused || (lastApplyLocalMs && (now - lastApplyLocalMs) < APPLY_DEBOUNCE_MS);
+        const skipRotOverwrite = rotInputsFocused || (lastApplyRotMs && (now - lastApplyRotMs) < APPLY_DEBOUNCE_MS);
+        const skipScaleOverwrite = scaleInputsFocused || (lastApplyScaleMs && (now - lastApplyScaleMs) < APPLY_DEBOUNCE_MS);
+        const skipWorldOverwrite = worldInputsFocused || (lastApplyWorldMs && (now - lastApplyWorldMs) < APPLY_DEBOUNCE_MS);
+        if (localX && localY && localZ && typeof wasmModule.get_selected_entity_local_position === 'function') {
+          if (!skipLocalOverwrite) {
+            const s = wasmModule.get_selected_entity_local_position();
+            if (s) {
+              const parts = s.split(',');
+              if (parts.length === 3) {
+                localX.value = parts[0].trim();
+                localY.value = parts[1].trim();
+                localZ.value = parts[2].trim();
+              }
+            } else if (!hasSelection) {
+              localX.value = localY.value = localZ.value = '';
+            }
+          }
+          localX.disabled = localY.disabled = localZ.disabled = !hasSelection;
+        }
+        if (localRx && localRy && localRz && typeof wasmModule.get_selected_entity_local_rotation === 'function') {
+          if (!skipRotOverwrite) {
+            const s = wasmModule.get_selected_entity_local_rotation();
+            if (s) {
+              const parts = s.split(',');
+              if (parts.length === 3) {
+                const rx = parseFloat(parts[0]), ry = parseFloat(parts[1]), rz = parseFloat(parts[2]);
+                if (!Number.isNaN(rx)) localRx.value = radToDeg(rx).toFixed(2);
+                if (!Number.isNaN(ry)) localRy.value = radToDeg(ry).toFixed(2);
+                if (!Number.isNaN(rz)) localRz.value = radToDeg(rz).toFixed(2);
+              }
+            } else if (!hasSelection) {
+              localRx.value = localRy.value = localRz.value = '';
+            }
+          }
+          localRx.disabled = localRy.disabled = localRz.disabled = !hasSelection;
+        }
+        if (localSx && localSy && localSz && typeof wasmModule.get_selected_entity_local_scale === 'function') {
+          if (!skipScaleOverwrite) {
+            const s = wasmModule.get_selected_entity_local_scale();
+            if (s) {
+              const parts = s.split(',');
+              if (parts.length === 3) {
+                localSx.value = parts[0].trim();
+                localSy.value = parts[1].trim();
+                localSz.value = parts[2].trim();
+              }
+            } else if (!hasSelection) {
+              localSx.value = localSy.value = localSz.value = '';
+            }
+          }
+          localSx.disabled = localSy.disabled = localSz.disabled = !hasSelection;
+        }
+        if (worldX && worldY && worldZ && typeof wasmModule.get_selected_entity_world_position === 'function') {
+          if (!skipWorldOverwrite) {
+            const s = wasmModule.get_selected_entity_world_position();
+            if (s) {
+              const parts = s.split(',');
+              if (parts.length === 3) {
+                worldX.value = parts[0].trim();
+                worldY.value = parts[1].trim();
+                worldZ.value = parts[2].trim();
+              }
+            } else if (!hasSelection) {
+              worldX.value = worldY.value = worldZ.value = '';
+            }
+          }
+          worldX.disabled = worldY.disabled = worldZ.disabled = !hasSelection;
+        }
+      } catch (_) {}
+    }
+    let editorInterval = null;
+    if (showEditorCb && editorPanel) {
+      showEditorCb.addEventListener('change', () => {
+        editorPanel.classList.toggle('visible', showEditorCb.checked);
+        if (showEditorCb.checked) {
+          updateEditorPanel();
+          editorInterval = setInterval(updateEditorPanel, 100);
+        } else {
+          if (editorInterval) clearInterval(editorInterval);
+          editorInterval = null;
+        }
+      });
+    }
+    if (materialSelect && wasmModule) {
+      materialSelect.addEventListener('change', () => {
+        const id = wasmModule.get_selected_entity();
+        if (id !== NO_ENTITY && wasmModule.set_entity_material) wasmModule.set_entity_material(id, materialSelect.value || '');
+      });
+    }
+    if (primitiveSelect && wasmModule) {
+      primitiveSelect.addEventListener('change', () => {
+        const id = wasmModule.get_selected_entity();
+        if (id !== NO_ENTITY && primitiveSelect.value && wasmModule.set_entity_primitive) wasmModule.set_entity_primitive(id, primitiveSelect.value);
+      });
+    }
+    function refreshTreeAndEditor() {
+      updateTreePanel();
+      updateEditorPanel();
+    }
+    if (removeBtn && wasmModule) {
+      removeBtn.addEventListener('click', () => {
+        if (wasmModule.remove_selected_entity) wasmModule.remove_selected_entity();
+        requestAnimationFrame(() => requestAnimationFrame(() =>
+          requestAnimationFrame(refreshTreeAndEditor)));
+      });
+    }
+    if (addBtn && wasmModule) {
+      addBtn.addEventListener('click', () => {
+        const prim = (primitiveSelect && primitiveSelect.value) ? primitiveSelect.value : 'cube';
+        if (wasmModule.add_entity) wasmModule.add_entity(prim);
+        requestAnimationFrame(() => requestAnimationFrame(() =>
+          requestAnimationFrame(refreshTreeAndEditor)));
+      });
+    }
+    let lastApplyLocalMs = 0;
+    let lastApplyRotMs = 0;
+    let lastApplyScaleMs = 0;
+    let lastApplyWorldMs = 0;
+    const APPLY_DEBOUNCE_MS = 250;
+    function applyLocalPosition() {
+      if (!wasmModule || !wasmModule.set_entity_local_position) return;
+      const id = wasmModule.get_selected_entity();
+      if (id === NO_ENTITY || !localX || !localY || !localZ) return;
+      const x = parseFloat(localX.value);
+      const y = parseFloat(localY.value);
+      const z = parseFloat(localZ.value);
+      if (!Number.isNaN(x) && !Number.isNaN(y) && !Number.isNaN(z)) {
+        wasmModule.set_entity_local_position(id, x, y, z);
+        lastApplyLocalMs = Date.now();
+      }
+    }
+    function applyLocalRotation() {
+      if (!wasmModule || !wasmModule.set_entity_local_rotation) return;
+      const id = wasmModule.get_selected_entity();
+      if (id === NO_ENTITY || !localRx || !localRy || !localRz) return;
+      const rx = parseFloat(localRx.value) * DEG2RAD;
+      const ry = parseFloat(localRy.value) * DEG2RAD;
+      const rz = parseFloat(localRz.value) * DEG2RAD;
+      if (!Number.isNaN(rx) && !Number.isNaN(ry) && !Number.isNaN(rz)) {
+        wasmModule.set_entity_local_rotation(id, rx, ry, rz);
+        lastApplyRotMs = Date.now();
+      }
+    }
+    function applyLocalScale() {
+      if (!wasmModule || !wasmModule.set_entity_local_scale) return;
+      const id = wasmModule.get_selected_entity();
+      if (id === NO_ENTITY || !localSx || !localSy || !localSz) return;
+      const sx = parseFloat(localSx.value);
+      const sy = parseFloat(localSy.value);
+      const sz = parseFloat(localSz.value);
+      if (!Number.isNaN(sx) && !Number.isNaN(sy) && !Number.isNaN(sz) && sx > 0 && sy > 0 && sz > 0) {
+        wasmModule.set_entity_local_scale(id, sx, sy, sz);
+        lastApplyScaleMs = Date.now();
+      }
+    }
+    function applyWorldPosition() {
+      if (!wasmModule || !wasmModule.set_entity_world_position) return;
+      const id = wasmModule.get_selected_entity();
+      if (id === NO_ENTITY || !worldX || !worldY || !worldZ) return;
+      const x = parseFloat(worldX.value);
+      const y = parseFloat(worldY.value);
+      const z = parseFloat(worldZ.value);
+      if (!Number.isNaN(x) && !Number.isNaN(y) && !Number.isNaN(z)) {
+        wasmModule.set_entity_world_position(id, x, y, z);
+        lastApplyWorldMs = Date.now();
+      }
+    }
+    if (localX && localY && localZ) {
+      [localX, localY, localZ].forEach((el) => el.addEventListener('change', applyLocalPosition));
+      [localX, localY, localZ].forEach((el) => el.addEventListener('blur', applyLocalPosition));
+    }
+    if (localRx && localRy && localRz) {
+      [localRx, localRy, localRz].forEach((el) => el.addEventListener('change', applyLocalRotation));
+      [localRx, localRy, localRz].forEach((el) => el.addEventListener('blur', applyLocalRotation));
+    }
+    if (localSx && localSy && localSz) {
+      [localSx, localSy, localSz].forEach((el) => el.addEventListener('change', applyLocalScale));
+      [localSx, localSy, localSz].forEach((el) => el.addEventListener('blur', applyLocalScale));
+    }
+    if (worldX && worldY && worldZ) {
+      [worldX, worldY, worldZ].forEach((el) => el.addEventListener('change', applyWorldPosition));
+      [worldX, worldY, worldZ].forEach((el) => el.addEventListener('blur', applyWorldPosition));
+    }
+    if (gizmoModeSelect && wasmModule) {
+      gizmoModeSelect.addEventListener('change', () => {
+        if (wasmModule.set_gizmo_mode) wasmModule.set_gizmo_mode(gizmoModeSelect.value);
+      });
+    }
+  </script>
+</body>
+</html>

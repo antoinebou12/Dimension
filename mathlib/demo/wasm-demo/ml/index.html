@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mathlib — ML (K-means, PCA, SVM, DBSCAN)</title>
+  <link rel="stylesheet" href="../demo.css">
+  <script>if (!window.location.pathname.endsWith('/')) { window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || '')); }</script>
+</head>
+<body>
+  <h1>mathlib — ML</h1>
+  <p class="subtitle">K-means, PCA, SVM, DBSCAN. <a href="../index.html">← Back to hub</a> <span id="theme-toggle-container" class="theme-toggle-wrap"></span></p>
+
+  <div id="error-callout" class="error-callout" style="display: none;">
+    <div class="error-callout-title">Setup required</div>
+    <pre id="error-message"></pre>
+  </div>
+
+  <section class="section" id="sec-kmeans">
+    <div class="section-title">Clustering</div>
+    <h2><span class="badge">1</span> K-means 2D / 3D</h2>
+    <p>Clustering with centroids and labels from WASM.</p>
+    <div class="example-selector" id="kmeans-examples"></div>
+    <pre id="out-kmeans">—</pre>
+    <div class="plot-wrap">
+      <canvas id="canvas-kmeans" width="320" height="280" aria-label="K-means 2D scatter"></canvas>
+      <div class="plot-caption">2D scatter: points and centroids</div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-pca">
+    <div class="section-title">Decompositions</div>
+    <h2><span class="badge">2</span> PCA 2D</h2>
+    <p>PCA with 2 components; mean, explained variance, projected scatter.</p>
+    <div class="example-selector" id="pca-examples"></div>
+    <pre id="out-pca">—</pre>
+    <div class="plot-wrap">
+      <canvas id="canvas-pca" width="320" height="280" aria-label="PCA 2D projection"></canvas>
+      <div class="plot-caption">2D scatter: projected data</div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-svm">
+    <div class="section-title">Classification</div>
+    <h2><span class="badge">3</span> SVM 2D (Linear / RBF)</h2>
+    <p>Binary classification with linear or RBF kernel.</p>
+    <div class="example-selector" id="svm-kernel"></div>
+    <div class="example-selector" id="svm-examples"></div>
+    <pre id="out-svm">—</pre>
+    <div class="plot-wrap">
+      <canvas id="canvas-svm" width="320" height="280" aria-label="SVM 2D decision boundary"></canvas>
+      <div class="plot-caption">2D scatter: points and decision line</div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-dbscan">
+    <div class="section-title">Clustering</div>
+    <h2><span class="badge">4</span> DBSCAN</h2>
+    <p>Density-based clustering; noise shown as open circles.</p>
+    <div class="example-selector" id="dbscan-examples"></div>
+    <pre id="out-dbscan">—</pre>
+    <div class="plot-wrap">
+      <canvas id="canvas-dbscan" width="320" height="280" aria-label="DBSCAN 2D scatter"></canvas>
+      <div class="plot-caption">2D scatter: clusters and noise</div>
+    </div>
+  </section>
+
+  <script src="../theme.js"></script>
+  <script type="module" src="ml.js"></script>
+</body>
+</html>

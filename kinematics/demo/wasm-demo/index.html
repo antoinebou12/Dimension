@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>kinematics-demo — 3-joint arm with IK</title>
+  <style>
+    :root {
+      --bg-primary: #1a1a1e;
+      --bg-panel: #1e1e22;
+      --bg-toolbar: #25252a;
+      --bg-control: #333;
+      --bg-control-hover: #404040;
+      --text-primary: #e0e0e0;
+      --text-secondary: #d4d4d4;
+      --text-muted: #888;
+      --accent: #0a84ff;
+      --accent-dim: rgba(10, 132, 255, 0.2);
+      --border: #333;
+      --radius: 6px;
+      --radius-sm: 4px;
+      --font-sans: system-ui, -apple-system, Segoe UI, sans-serif;
+      --font-mono: ui-monospace, SF Mono, Consolas, monospace;
+      --shadow-toolbar: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --glass-bg: rgba(0, 0, 0, 0.55);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-primary); font-family: var(--font-sans); }
+    canvas { display: block; width: 100%; height: 100%; object-fit: contain; cursor: grab; }
+    canvas:active { cursor: grabbing; }
+    #error { display: none; max-width: 40rem; padding: 1rem; margin: 1rem; background: var(--bg-panel); color: var(--text-primary); border-radius: var(--radius); font-size: 0.9rem; }
+    #error.visible { display: block; }
+    p.hint { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem; }
+    #stats-overlay {
+      position: fixed; top: 10px; right: 10px; z-index: 10;
+      font-family: var(--font-mono); font-size: 12px; line-height: 1.45;
+      color: var(--text-primary); background: var(--glass-bg); padding: 8px 12px; border-radius: var(--radius-sm);
+      pointer-events: none; user-select: none;
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+    }
+    #toolbar {
+      flex: 0 0 auto; display: flex; align-items: center; gap: 0.75rem 1.25rem; padding: 8px 12px;
+      background: var(--bg-toolbar); color: var(--text-primary); font-size: 13px;
+      box-shadow: var(--shadow-toolbar); border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    #toolbar .toolbar-group { display: flex; align-items: center; gap: 0.5rem; }
+    #toolbar .toolbar-group + .toolbar-group { border-left: 1px solid var(--border); padding-left: 0.75rem; }
+    #toolbar label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; padding: 2px 4px; border-radius: var(--radius-sm); }
+    #toolbar label:hover { background: var(--bg-control); }
+    #toolbar select {
+      background: var(--bg-control); color: var(--text-primary); border: 1px solid var(--border);
+      padding: 5px 8px; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px;
+    }
+    #toolbar select:hover { background: var(--bg-control-hover); }
+    #toolbar select:focus { outline: none; border-color: var(--accent); }
+    #toolbar .toolbar-spacer { flex: 1; min-width: 1rem; }
+    #toolbar .hint { color: var(--text-muted); font-size: 12px; }
+    #main { flex: 1; display: flex; min-height: 0; }
+    #main > canvas { flex: 1; min-width: 0; position: relative; display: block; }
+    #tree-panel {
+      display: none; width: 280px; flex-shrink: 0; overflow: auto;
+      background: var(--bg-panel); color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px;
+      padding: 10px 12px; white-space: pre-wrap; border-left: 1px solid var(--border);
+      line-height: 1.5;
+    }
+    #tree-panel.visible { display: block; }
+    #editor-panel {
+      display: none; width: 260px; flex-shrink: 0; padding: 12px; border-left: 1px solid var(--border);
+      background: var(--bg-panel); color: var(--text-secondary); font-size: 12px;
+      overflow-y: auto;
+    }
+    #editor-panel.visible { display: flex; flex-direction: column; gap: 10px; }
+    #editor-panel .editor-section { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    #editor-panel .editor-section:last-of-type { border-bottom: 0; }
+    #editor-panel .editor-hint { margin: 0 0 8px 0; color: var(--text-muted); font-size: 11px; line-height: 1.35; }
+    #editor-panel .editor-section-title { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+    #editor-panel select { width: 100%; background: var(--bg-control); color: var(--text-primary); border: 1px solid var(--border); padding: 5px 6px; border-radius: var(--radius-sm); }
+    #editor-panel select:focus { outline: none; border-color: var(--accent); }
+    #editor-panel button {
+      padding: 6px 12px; background: var(--bg-control); color: var(--text-primary); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); cursor: pointer; font-size: 12px;
+    }
+    #editor-panel button:hover { background: var(--bg-control-hover); }
+    #editor-panel button:active { filter: brightness(0.95); }
+    #editor-panel .readout { font-family: var(--font-mono); font-size: 11px; }
+    #hessian-section { display: none; }
+    #hessian-section.visible { display: flex; flex-direction: column; gap: 6px; }
+    #hessian-heatmap { width: 100%; max-width: 200px; height: 200px; background: var(--bg-control); border-radius: var(--radius-sm); display: block; }
+  </style>
+</head>
+<body>
+  <header id="toolbar" role="toolbar" aria-label="Controls">
+    <div class="toolbar-group" aria-label="IK Solver">
+      <span>Solver</span>
+      <select id="solver-select" aria-label="IK solver"></select>
+    </div>
+    <div class="toolbar-group" aria-label="Chain">
+      <span>Chain</span>
+      <select id="chain-select" aria-label="Active chain">
+        <option value="a">A (left)</option>
+        <option value="b">B (right)</option>
+      </select>
+    </div>
+    <div class="toolbar-group" aria-label="Arm preset">
+      <span>Arm</span>
+      <select id="arm-preset-select" aria-label="Arm preset">
+        <option value="spherical">Spherical</option>
+        <option value="revolute">Revolute</option>
+        <option value="mixed">Mixed</option>
+        <option value="snake">Snake</option>
+      </select>
+    </div>
+    <div class="toolbar-group" aria-label="View">
+      <label>
+        <input type="checkbox" id="show-tree" aria-label="Show armature tree"> Tree
+      </label>
+      <label>
+        <input type="checkbox" id="show-editor" aria-label="Show editor panel"> Editor
+      </label>
+      <label>
+        <input type="checkbox" id="show-debug" aria-label="Enable debug logging"> Debug
+      </label>
+    </div>
+    <div class="toolbar-spacer" aria-hidden="true"></div>
+    <span class="hint" title="Left drag: orbit · Right drag: IK target · Scroll: zoom · 1/2: chain · Tab: toggle · R: random">Left drag: orbit · Right drag: IK target · Scroll: zoom · 1/2: chain · Tab: toggle · R: random</span>
+  </header>
+  <div id="main">
+  <div id="tree-panel" aria-live="polite" role="log">(armature tree will appear when enabled)</div>
+  <div id="editor-panel">
+    <p class="editor-hint">Right-drag in the viewport to move the IK target. Use the controls below to change solver, end-effector, or randomize the target.</p>
+    <section class="editor-section" aria-labelledby="ee-heading">
+      <div class="editor-section-title" id="ee-heading">End-effector</div>
+      <label>Node: <select id="ee-select" aria-label="End-effector node"></select></label>
+      <div class="readout">Position: <span id="ee-position">—</span></div>
+    </section>
+    <section class="editor-section" aria-labelledby="target-heading">
+      <div class="editor-section-title" id="target-heading">Target</div>
+      <div class="readout">Position: <span id="target-position">—</span></div>
+      <button type="button" id="random-target">Random target</button>
+      <button type="button" id="set-target-to-ee">Set target to EE</button>
+      <button type="button" id="reset-scene">Reset scene</button>
+      <div class="editor-section" style="margin-top: 8px;">
+        <div class="editor-section-title">Load BVH</div>
+        <input type="file" id="bvh-file" accept=".bvh" style="font-size: 11px;">
+        <p class="editor-hint" style="margin: 4px 0 0 0;">Replaces the active chain (A/B) with the BVH skeleton.</p>
+      </div>
+    </section>
+    <section class="editor-section" id="hessian-section" aria-labelledby="hessian-heading">
+      <div class="editor-section-title" id="hessian-heading">Hessian (H = J^T J − K·r)</div>
+      <div class="readout">Size: <span id="hessian-size">—</span> × <span id="hessian-size-2">—</span></div>
+      <div class="readout">Error: <span id="hessian-error">—</span></div>
+      <canvas id="hessian-heatmap" width="200" height="200" aria-label="Hessian matrix heatmap"></canvas>
+    </section>
+  </div>
+  <canvas id="canvas" width="800" height="600"></canvas>
+  </div>
+  <div id="stats-overlay" aria-live="polite">FPS: —  CPU: — ms  GPU: N/A  Elements: —</div>
+  <div id="error">
+    <strong>Setup required</strong>
+    <p id="error-message"></p>
+  </div>
+  <script type="module">
+    window.set_stats_overlay = function(fps, cpu_ms, gpu_ms, elements) {
+      const el = document.getElementById('stats-overlay');
+      if (!el) return;
+      const gpuStr = gpu_ms >= 0 ? gpu_ms.toFixed(2) + ' ms' : 'N/A';
+      el.textContent = 'FPS: ' + fps.toFixed(1) + '  CPU: ' + cpu_ms.toFixed(2) + ' ms  GPU: ' + gpuStr + '  Elements: ' + Math.round(elements);
+    };
+    window.show_render_error = function(msg) {
+      const el = document.getElementById('error');
+      const msgEl = document.getElementById('error-message');
+      if (el && msgEl) {
+        msgEl.textContent = String(msg);
+        el.classList.add('visible');
+      }
+    };
+    let wasmModule = null;
+    let treeInterval = null;
+    let editorInterval = null;
+    try {
+      const pkg = await import('./pkg/kinematics_wasm.js');
+      wasmModule = pkg;
+      await pkg.default();
+    } catch (e) {
+      const el = document.getElementById('error');
+      const msg = document.getElementById('error-message');
+      if (el && msg) {
+        msg.textContent = String(e);
+        el.classList.add('visible');
+      }
+    }
+    const solverSelect = document.getElementById('solver-select');
+    function buildSolverOptions() {
+      if (!solverSelect || !wasmModule || typeof wasmModule.get_available_solvers !== 'function') return;
+      const list = wasmModule.get_available_solvers();
+      const names = (list || 'fabrik,jacobian,ccd').split(',').map(s => s.trim()).filter(Boolean);
+      const labels = { fabrik: 'FABRIK', fabrik_sqp: 'FABRIK+SQP', jacobian: 'Jacobian', ccd: 'CCD', halley: 'Halley', hessian: 'Hessian', neural: 'Neural' };
+      solverSelect.innerHTML = '';
+      names.forEach(v => {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = labels[v] || v;
+        solverSelect.appendChild(opt);
+      });
+    }
+    if (solverSelect && wasmModule) {
+      buildSolverOptions();
+      if (typeof wasmModule.set_ik_solver === 'function') {
+        solverSelect.addEventListener('change', () => {
+          wasmModule.set_ik_solver(solverSelect.value);
+        });
+      }
+    }
+    const chainSelect = document.getElementById('chain-select');
+    if (chainSelect && wasmModule && typeof wasmModule.set_active_chain === 'function') {
+      chainSelect.addEventListener('change', () => {
+        wasmModule.set_active_chain(chainSelect.value);
+      });
+    }
+    const armPresetSelect = document.getElementById('arm-preset-select');
+    if (armPresetSelect && wasmModule && typeof wasmModule.set_arm_preset === 'function') {
+      armPresetSelect.addEventListener('change', () => {
+        wasmModule.set_arm_preset(armPresetSelect.value);
+        const ep = document.getElementById('editor-panel');
+        if (ep && ep.classList.contains('visible') && typeof updateEditorPanel === 'function') updateEditorPanel();
+      });
+    }
+    const showTreeCb = document.getElementById('show-tree');
+    const treePanel = document.getElementById('tree-panel');
+    function updateTreePanel() {
+      if (!treePanel || !wasmModule || typeof wasmModule.get_armature_tree !== 'function') return;
+      try {
+        const raw = wasmModule.get_armature_tree() || '';
+        const display = (!raw || !raw.trim()) ? '(loading…)' : raw;
+        treePanel.textContent = display;
+      } catch (_) {}
+    }
+    if (showTreeCb && treePanel && wasmModule && typeof wasmModule.get_armature_tree === 'function') {
+      showTreeCb.addEventListener('change', () => {
+        const show = showTreeCb.checked;
+        treePanel.classList.toggle('visible', show);
+        if (show) {
+          updateTreePanel();
+          treeInterval = setInterval(updateTreePanel, 100);
+        } else {
+          if (treeInterval) clearInterval(treeInterval);
+          treeInterval = null;
+        }
+      });
+    }
+    const showEditorCb = document.getElementById('show-editor');
+    const editorPanel = document.getElementById('editor-panel');
+    const eeSelect = document.getElementById('ee-select');
+    const eePositionEl = document.getElementById('ee-position');
+    const targetPositionEl = document.getElementById('target-position');
+    const randomTargetBtn = document.getElementById('random-target');
+    function updateEditorPanel() {
+      if (!wasmModule || !editorPanel || !editorPanel.classList.contains('visible')) return;
+      try {
+        if (typeof wasmModule.get_ik_solver === 'function') {
+          const solver = wasmModule.get_ik_solver();
+          if (solverSelect && (solver === 'fabrik' || solver === 'fabrik_sqp' || solver === 'jacobian' || solver === 'ccd' || solver === 'halley' || solver === 'hessian' || solver === 'neural')) {
+            solverSelect.value = solver;
+          }
+        }
+        if (typeof wasmModule.get_armature_node_count === 'function' && eeSelect) {
+          const n = wasmModule.get_armature_node_count();
+          const maxEe = Math.max(1, n - 1);
+          const currentEe = typeof wasmModule.get_end_effector_index === 'function' ? wasmModule.get_end_effector_index() : 1;
+          let optionsOk = eeSelect.options.length > 0 && Number(eeSelect.options[eeSelect.options.length - 1].value) === maxEe;
+          if (!optionsOk) {
+            eeSelect.innerHTML = '';
+            for (let i = 1; i <= maxEe; i++) {
+              const opt = document.createElement('option');
+              opt.value = String(i);
+              opt.textContent = String(i);
+              eeSelect.appendChild(opt);
+            }
+          }
+          const val = String(Math.min(currentEe, maxEe));
+          if (eeSelect.value !== val) eeSelect.value = val;
+        }
+        if (typeof wasmModule.get_ee_position === 'function') {
+          const s = wasmModule.get_ee_position();
+          if (eePositionEl) eePositionEl.textContent = s || '—';
+        }
+        if (typeof wasmModule.get_target_position === 'function') {
+          const s = wasmModule.get_target_position();
+          if (targetPositionEl) targetPositionEl.textContent = s || '—';
+        }
+        const hessianSection = document.getElementById('hessian-section');
+        const solver = typeof wasmModule.get_ik_solver === 'function' ? wasmModule.get_ik_solver() : '';
+        if (hessianSection) {
+          if (solver === 'hessian' && typeof wasmModule.get_hessian_snapshot === 'function') {
+            hessianSection.classList.add('visible');
+            try {
+              const snap = wasmModule.get_hessian_snapshot();
+              if (snap && snap.hessian != null) {
+                const n = Number(snap.size) || 0;
+                const err = Number(snap.error);
+                document.getElementById('hessian-size').textContent = String(n);
+                document.getElementById('hessian-size-2').textContent = String(n);
+                const errEl = document.getElementById('hessian-error');
+                if (errEl) errEl.textContent = n > 0 ? err.toExponential(3) : '—';
+                const canvas = document.getElementById('hessian-heatmap');
+                if (canvas && n > 0) {
+                  const data = snap.hessian;
+                  const len = data.length;
+                  let min = Infinity, max = -Infinity;
+                  for (let i = 0; i < len; i++) {
+                    const v = data[i];
+                    if (Number.isFinite(v)) { min = Math.min(min, v); max = Math.max(max, v); }
+                  }
+                  if (min > max) min = max = 0;
+                  const range = max - min || 1;
+                  const side = Math.min(200, Math.max(2, n));
+                  canvas.width = side;
+                  canvas.height = side;
+                  const ctx = canvas.getContext('2d');
+                  if (ctx) {
+                    const cellW = side / n;
+                    const cellH = side / n;
+                    for (let i = 0; i < n; i++) {
+                      for (let j = 0; j < n; j++) {
+                        const v = data[i * n + j];
+                        const t = Number.isFinite(v) ? (v - min) / range : 0.5;
+                        const gray = Math.round(255 * (1 - t));
+                        ctx.fillStyle = 'rgb(' + gray + ',' + gray + ',' + gray + ')';
+                        ctx.fillRect(j * cellW, i * cellH, Math.ceil(cellW) + 1, Math.ceil(cellH) + 1);
+                      }
+                    }
+                  }
+                }
+              } else {
+                document.getElementById('hessian-size').textContent = '—';
+                document.getElementById('hessian-size-2').textContent = '—';
+                document.getElementById('hessian-error').textContent = '—';
+              }
+            } catch (_) {}
+          } else {
+            hessianSection.classList.remove('visible');
+          }
+        }
+      } catch (_) {}
+    }
+    if (showEditorCb && editorPanel) {
+      showEditorCb.addEventListener('change', () => {
+        editorPanel.classList.toggle('visible', showEditorCb.checked);
+        if (showEditorCb.checked) {
+          updateEditorPanel();
+          editorInterval = setInterval(updateEditorPanel, 100);
+        } else {
+          if (editorInterval) clearInterval(editorInterval);
+          editorInterval = null;
+        }
+      });
+    }
+    if (eeSelect && wasmModule && typeof wasmModule.set_end_effector === 'function') {
+      eeSelect.addEventListener('change', () => {
+        const idx = parseInt(eeSelect.value, 10);
+        if (!Number.isNaN(idx)) wasmModule.set_end_effector(idx);
+      });
+    }
+    const showDebugCb = document.getElementById('show-debug');
+    if (showDebugCb && wasmModule && typeof wasmModule.set_debug_kinematics === 'function') {
+      showDebugCb.addEventListener('change', () => {
+        wasmModule.set_debug_kinematics(showDebugCb.checked);
+      });
+      if (location.search.includes('debug=1') || location.search.includes('verbose=1')) {
+        showDebugCb.checked = true;
+        wasmModule.set_debug_kinematics(true);
+      }
+    }
+    if (randomTargetBtn && wasmModule && typeof wasmModule.randomize_target === 'function') {
+      randomTargetBtn.addEventListener('click', () => {
+        wasmModule.randomize_target();
+      });
+    }
+    const setTargetToEeBtn = document.getElementById('set-target-to-ee');
+    if (setTargetToEeBtn && wasmModule && typeof wasmModule.set_target_to_ee === 'function') {
+      setTargetToEeBtn.addEventListener('click', () => {
+        wasmModule.set_target_to_ee();
+      });
+    }
+    const resetSceneBtn = document.getElementById('reset-scene');
+    if (resetSceneBtn && wasmModule && typeof wasmModule.reset_scene === 'function') {
+      resetSceneBtn.addEventListener('click', () => {
+        wasmModule.reset_scene();
+      });
+    }
+    const bvhFileInput = document.getElementById('bvh-file');
+    if (bvhFileInput && wasmModule && typeof wasmModule.load_bvh_from_bytes === 'function') {
+      bvhFileInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const buf = reader.result;
+            const bytes = new Uint8Array(buf);
+            const ok = wasmModule.load_bvh_from_bytes(bytes);
+            if (!ok) console.warn('BVH load failed: parse or conversion error');
+          } catch (err) {
+            console.warn('BVH load error:', err);
+          }
+          e.target.value = '';
+        };
+        reader.readAsArrayBuffer(file);
+      });
+    }
+  </script>
+</body>
+</html>

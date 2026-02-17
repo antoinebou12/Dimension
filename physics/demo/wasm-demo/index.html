@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>physics-demo — XPBD Rigid Bodies</title>
+  <style>
+    :root {
+      --bg-primary: #1a1a1e;
+      --bg-panel: #1e1e22;
+      --bg-toolbar: #25252a;
+      --bg-control: #333;
+      --bg-control-hover: #404040;
+      --text-primary: #e0e0e0;
+      --text-secondary: #d4d4d4;
+      --text-muted: #888;
+      --accent: #0a84ff;
+      --accent-dim: rgba(10, 132, 255, 0.2);
+      --border: #333;
+      --radius: 6px;
+      --radius-sm: 4px;
+      --font-sans: system-ui, -apple-system, Segoe UI, sans-serif;
+      --font-mono: ui-monospace, SF Mono, Consolas, monospace;
+      --shadow-toolbar: 0 1px 3px rgba(0, 0, 0, 0.3);
+      --glass-bg: rgba(0, 0, 0, 0.55);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; height: 100vh; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-primary); font-family: var(--font-sans); }
+    canvas { display: block; width: 100%; height: 100%; object-fit: contain; cursor: grab; }
+    canvas:active { cursor: grabbing; }
+    #error { display: none; max-width: 40rem; padding: 1rem; margin: 1rem; background: var(--bg-panel); color: var(--text-primary); border-radius: var(--radius); font-size: 0.9rem; }
+    #error.visible { display: block; }
+    p.hint { color: var(--text-muted); font-size: 0.85rem; margin-top: 0.5rem; }
+    #stats-overlay {
+      position: fixed; top: 10px; right: 10px; z-index: 10;
+      font-family: var(--font-mono); font-size: 12px; line-height: 1.45;
+      color: var(--text-primary); background: var(--glass-bg); padding: 8px 12px; border-radius: var(--radius-sm);
+      pointer-events: none; user-select: none;
+      backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+    }
+    #toolbar {
+      flex: 0 0 auto; display: flex; align-items: center; gap: 0.75rem 1.25rem; padding: 8px 12px;
+      background: var(--bg-toolbar); color: var(--text-primary); font-size: 13px;
+      box-shadow: var(--shadow-toolbar); border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    #toolbar .toolbar-group { display: flex; align-items: center; gap: 0.5rem; }
+    #toolbar .toolbar-group + .toolbar-group { border-left: 1px solid var(--border); padding-left: 0.75rem; }
+    #toolbar button {
+      padding: 5px 12px; background: var(--bg-control); color: var(--text-primary);
+      border: 1px solid var(--border); border-radius: var(--radius-sm); cursor: pointer; font-size: 13px;
+    }
+    #toolbar button:hover { background: var(--bg-control-hover); }
+    #toolbar button:active { filter: brightness(0.9); }
+    #toolbar button.accent { background: var(--accent); border-color: var(--accent); color: #fff; }
+    #toolbar button.accent:hover { filter: brightness(1.1); }
+    #toolbar button.jelly { background: #e85c3a; border-color: #e85c3a; color: #fff; }
+    #toolbar button.jelly:hover { filter: brightness(1.1); }
+    #toolbar label { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; padding: 2px 4px; border-radius: var(--radius-sm); }
+    #toolbar label:hover { background: var(--bg-control); }
+    #toolbar .toolbar-spacer { flex: 1; min-width: 1rem; }
+    #toolbar .hint { color: var(--text-muted); font-size: 12px; }
+    #toolbar .body-count { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); }
+    #main { flex: 1; display: flex; min-height: 0; }
+    #main > canvas { flex: 1; min-width: 0; position: relative; display: block; }
+    #tree-panel {
+      display: none; width: 320px; flex-shrink: 0; overflow: auto;
+      background: var(--bg-panel); color: var(--text-secondary); font-family: var(--font-mono); font-size: 12px;
+      padding: 10px 12px; white-space: pre-wrap; border-left: 1px solid var(--border);
+      line-height: 1.5;
+    }
+    #tree-panel.visible { display: block; }
+  </style>
+</head>
+<body>
+  <header id="toolbar" role="toolbar" aria-label="Controls">
+    <div class="toolbar-group" aria-label="Spawn">
+      <button type="button" id="btn-sphere" class="accent">Drop Sphere</button>
+      <button type="button" id="btn-box">Drop Box</button>
+      <button type="button" id="btn-jelly" class="jelly">Drop Jelly</button>
+      <button type="button" id="btn-reset">Reset</button>
+    </div>
+    <div class="toolbar-group" aria-label="Info">
+      <span class="body-count" id="body-count">Bodies: 3</span>
+    </div>
+    <div class="toolbar-group" aria-label="View">
+      <label>
+        <input type="checkbox" id="show-tree" aria-label="Show scene tree"> Tree
+      </label>
+      <label>
+        <input type="checkbox" id="show-debug" aria-label="Enable debug logging"> Debug
+      </label>
+    </div>
+    <div class="toolbar-spacer" aria-hidden="true"></div>
+    <span class="hint">S: sphere · B: box · J: jelly · R: reset · Left drag: orbit · Ctrl+drag: pan · Scroll: zoom</span>
+  </header>
+  <div id="main">
+    <div id="tree-panel" aria-live="polite" role="log">(scene tree will appear when enabled)</div>
+    <canvas id="canvas" width="800" height="600"></canvas>
+  </div>
+  <div id="stats-overlay" aria-live="polite">FPS: —  CPU: — ms  Bodies: —</div>
+  <div id="error">
+    <strong>Setup required</strong>
+    <p id="error-message"></p>
+  </div>
+  <script type="module">
+    window.set_stats_overlay = function(fps, cpu_ms, gpu_ms, bodies) {
+      const el = document.getElementById('stats-overlay');
+      if (!el) return;
+      el.textContent = 'FPS: ' + fps.toFixed(1) + '  CPU: ' + cpu_ms.toFixed(2) + ' ms  Bodies: ' + Math.round(bodies);
+      const countEl = document.getElementById('body-count');
+      if (countEl) countEl.textContent = 'Bodies: ' + Math.round(bodies);
+    };
+    window.show_render_error = function(msg) {
+      const el = document.getElementById('error');
+      const msgEl = document.getElementById('error-message');
+      if (el && msgEl) {
+        msgEl.textContent = String(msg);
+        el.classList.add('visible');
+      }
+    };
+    let wasmModule = null;
+    let treeInterval = null;
+    try {
+      const pkg = await import('./pkg/physics_wasm.js');
+      wasmModule = pkg;
+      await pkg.default();
+    } catch (e) {
+      const el = document.getElementById('error');
+      const msg = document.getElementById('error-message');
+      if (el && msg) {
+        msg.textContent = String(e);
+        el.classList.add('visible');
+      }
+    }
+
+    // Toolbar buttons: call WASM exports (pending actions consumed next frame)
+    if (wasmModule) {
+      const btnSphere = document.getElementById('btn-sphere');
+      const btnBox = document.getElementById('btn-box');
+      const btnJelly = document.getElementById('btn-jelly');
+      const btnReset = document.getElementById('btn-reset');
+      if (btnSphere && typeof wasmModule.spawn_sphere === 'function') btnSphere.onclick = () => wasmModule.spawn_sphere();
+      if (btnBox && typeof wasmModule.spawn_box_body === 'function') btnBox.onclick = () => wasmModule.spawn_box_body();
+      if (btnJelly && typeof wasmModule.spawn_jelly === 'function') btnJelly.onclick = () => wasmModule.spawn_jelly();
+      if (btnReset && typeof wasmModule.reset_scene === 'function') btnReset.onclick = () => wasmModule.reset_scene();
+    }
+
+    // Tree panel toggle
+    const showTreeCb = document.getElementById('show-tree');
+    const treePanel = document.getElementById('tree-panel');
+    function updateTreePanel() {
+      if (!treePanel || !wasmModule || typeof wasmModule.get_bodies_tree !== 'function') return;
+      try {
+        const raw = wasmModule.get_bodies_tree() || '';
+        const display = (!raw || !raw.trim()) ? '(loading…)' : raw;
+        treePanel.textContent = display;
+      } catch (_) {}
+    }
+    if (showTreeCb && treePanel && wasmModule && typeof wasmModule.get_bodies_tree === 'function') {
+      showTreeCb.addEventListener('change', () => {
+        const show = showTreeCb.checked;
+        treePanel.classList.toggle('visible', show);
+        if (show) {
+          updateTreePanel();
+          treeInterval = setInterval(updateTreePanel, 100);
+        } else {
+          if (treeInterval) clearInterval(treeInterval);
+          treeInterval = null;
+        }
+      });
+    }
+
+    // Debug toggle
+    const showDebugCb = document.getElementById('show-debug');
+    if (showDebugCb && wasmModule && typeof wasmModule.set_debug_physics === 'function') {
+      showDebugCb.addEventListener('change', () => {
+        wasmModule.set_debug_physics(showDebugCb.checked);
+      });
+      if (location.search.includes('debug=1') || location.search.includes('verbose=1')) {
+        showDebugCb.checked = true;
+        wasmModule.set_debug_physics(true);
+      }
+    }
+  </script>
+</body>
+</html>

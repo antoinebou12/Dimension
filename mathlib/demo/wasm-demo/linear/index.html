@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mathlib — Linear algebra</title>
+  <link rel="stylesheet" href="../demo.css">
+  <script>if (!window.location.pathname.endsWith('/')) { window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || '')); }</script>
+</head>
+<body>
+  <h1>mathlib — Linear algebra</h1>
+  <p class="subtitle">Vectors, matrix multiply, Cholesky, SVD, LU solve. Optional WebGPU comparison for matmul. <a href="../index.html">← Back to hub</a> <span id="theme-toggle-container" class="theme-toggle-wrap"></span></p>
+
+  <div id="error-callout" class="error-callout" style="display: none;">
+    <div class="error-callout-title">Setup required</div>
+    <pre id="error-message"></pre>
+  </div>
+
+  <section class="section" id="sec-vector-cpu-gpu">
+    <div class="section-title">Vector CPU vs GPU</div>
+    <h2><span class="badge">0</span> Vector add, dot, norm (f32)</h2>
+    <p>Run add, dot, and norm on CPU vs GPU (f32). When WebGPU is available, click Init GPU in the Matrix section first, then run the benchmark.</p>
+    <div id="gpu-vector-cpu-gpu-status" class="gpu-status" style="display: none;"><span id="gpu-vector-cpu-gpu-backend">Backend: CPU</span></div>
+    <p>Vector size: <input type="number" id="vector-cpu-gpu-vec-size" value="100000" min="1000" max="100000000" step="1000"> <button type="button" id="vector-cpu-gpu-run">Run CPU vs GPU</button></p>
+    <pre id="out-vector-cpu-gpu">—</pre>
+  </section>
+
+  <section class="section" id="sec-storage">
+    <div class="section-title">Storage</div>
+    <h2><span class="badge">1</span> Column vs Row Major</h2>
+    <p>Column-major: elements in same column are consecutive. mathlib uses column-major (like BLAS, Fortran, MATLAB). In matrix multiply and matvec, <strong>rows</strong> of A are used as dot-product vectors with columns of B or with v; <strong>columns</strong> of A are the vectors that get scaled and summed in A×v. Storage order does not change the math, only how the same numbers are laid out in a flat array.</p>
+    <div class="example-selector" id="storage-examples"></div>
+    <div class="plot-wrap storage-grid-wrap">
+      <canvas id="canvas-storage" width="320" height="200" aria-label="Matrix storage layout"></canvas>
+      <div id="storage-flat-array" class="storage-flat"></div>
+      <div class="plot-caption">Same 3×3 matrix; colors show memory layout</div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-vector">
+    <div class="section-title">Vectors</div>
+    <h2><span class="badge">2</span> Vector add, dot, norm</h2>
+    <p>Two vectors added in WASM. Dot product and norm (GPU-accelerated on native after init).</p>
+    <div id="gpu-vector-status" class="gpu-status" style="display: none;"><span id="gpu-vector-backend">Backend: CPU</span></div>
+    <div class="example-selector" id="vector-examples"></div>
+    <div class="plot-wrap" id="vector-plot-wrap">
+      <canvas id="canvas-vector" width="320" height="100" aria-label="Vector components bar chart"></canvas>
+    </div>
+    <pre id="out-vector">Loading…</pre>
+  </section>
+
+  <section class="section" id="sec-matrix">
+    <div class="section-title">Matrices</div>
+    <h2><span class="badge">2</span> Matrix 2D (A × B)</h2>
+    <p>Two matrices; C = A × B. Column-major storage.</p>
+    <div id="gpu-matrix-status" class="gpu-status" style="display: none;"><span id="gpu-matrix-backend">Backend: CPU</span> <button type="button" id="gpu-init-btn">Init GPU</button></div>
+    <div class="example-selector" id="matrix-examples"></div>
+    <div id="out-matrix">—</div>
+    <div id="out-matrix-formula" class="matrix-formula-block"></div>
+    <div id="sec-matrix-large" class="gpu-large-matrix" style="margin-top: 1rem;">
+      <h3>Large matrix (CPU vs GPU)</h3>
+      <p>Compare CPU (f64), CPU (f32), and GPU (f32) when WebGPU is available. Each run uses a warmup then reports the median of several runs. Thresholds for when to use GPU are configured in Rust (<code>ExecutorThresholds</code>).</p>
+      <p>Size: <select id="large-matrix-size"><option value="64">64×64</option><option value="128">128×128</option><option value="256" selected>256×256</option><option value="512">512×512</option><option value="1024">1024×1024</option><option value="2000">2000×2000</option></select>
+      <button type="button" id="large-matrix-run">Run matmul</button></p>
+      <pre id="out-large-matrix">—</pre>
+      <div class="plot-wrap matmul-chart-wrap" id="matmul-plot-wrap" style="display: none;">
+        <canvas id="canvas-matmul" width="720" height="200" aria-label="Bar chart: CPU vs GPU matmul time in ms"></canvas>
+        <div class="plot-caption">CPU (f64) blue, CPU (f32) teal, GPU (f32) orange — median ms. Benchmark runs in a Web Worker so the page stays responsive.</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-basic-f32">
+    <div class="section-title">Basic f32 ops</div>
+    <h2><span class="badge">3</span> Add, scale, dot, matvec (f32)</h2>
+    <p>Element-wise add, scale, dot product, and matrix×vector using f32. When WebGPU is initialized, these use the same backend as the large matmul above.</p>
+    <div id="gpu-basic-f32-status" class="gpu-status" style="display: none;"><span id="gpu-basic-f32-backend">Backend: CPU</span></div>
+    <div id="out-basic-f32" class="solver-text">—</div>
+    <div class="gpu-large-matrix" style="margin-top: 1rem;">
+      <h3>Basic f32 CPU vs GPU</h3>
+      <p>Vector size: <input type="number" id="basic-f32-vec-size" value="100000" min="1000" max="10000000" step="1000"> Matvec: 256×256. <button type="button" id="basic-f32-bench-run">Run CPU vs GPU</button></p>
+      <p class="solver-text">At small sizes CPU is often faster due to GPU upload/readback cost. Try vector size 1,000,000 or 2,000,000 to see GPU win.</p>
+      <pre id="out-basic-f32-bench">—</pre>
+    </div>
+  </section>
+
+  <section class="section" id="sec-matrix-vector">
+    <div class="section-title">Matrices</div>
+    <h2><span class="badge">3a</span> Matrix × Vector (A × v)</h2>
+    <p>y = A × v. Vectors are column vectors.</p>
+    <div class="example-selector" id="matrix-vector-examples"></div>
+    <div id="out-matrix-vector">—</div>
+    <div class="plot-wrap" id="matrix-vector-plot-wrap">
+      <canvas id="canvas-matrix-vector" width="320" height="100" aria-label="Result vector bar chart"></canvas>
+      <div class="plot-caption">Result vector components</div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-solve">
+    <div class="section-title">Solvers</div>
+    <h2><span class="badge">3b</span> Solve Ax = b (general)</h2>
+    <p>Square matrix A; solve Ax = b via LU (using <code>WasmMatrix.solve(b)</code>).</p>
+    <div class="example-selector" id="solve-examples"></div>
+    <div class="solver-visual-wrap">
+      <div id="out-solve" class="solver-matrices">—</div>
+      <div class="plot-wrap">
+        <canvas id="canvas-solve-x" width="280" height="90" aria-label="Solution vector x"></canvas>
+        <div class="plot-caption">Solution x</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-cholesky">
+    <div class="section-title">Solvers</div>
+    <h2><span class="badge">4</span> Cholesky solve</h2>
+    <p>SPD matrix A, solve Ax = b via Cholesky; show L and solution x.</p>
+    <div class="example-selector" id="cholesky-examples"></div>
+    <div class="solver-visual-wrap">
+      <div id="out-cholesky" class="solver-matrices">—</div>
+      <div class="plot-wrap">
+        <canvas id="canvas-cholesky-x" width="280" height="90" aria-label="Cholesky solution vector x"></canvas>
+        <div class="plot-caption">Solution x</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-svd">
+    <div class="section-title">Decompositions</div>
+    <h2><span class="badge">5</span> SVD</h2>
+    <p>Economical SVD; singular values σ and U, V dimensions.</p>
+    <div class="example-selector" id="svd-examples"></div>
+    <div class="solver-visual-wrap">
+      <div id="out-svd" class="solver-text">—</div>
+      <div class="plot-wrap">
+        <canvas id="canvas-svd-sigma" width="280" height="90" aria-label="SVD singular values"></canvas>
+        <div class="plot-caption">Singular values σ</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-lu">
+    <div class="section-title">Solvers</div>
+    <h2><span class="badge">6</span> LU solve</h2>
+    <p>General square matrix A; solve Ax = b via LU decomposition.</p>
+    <div class="example-selector" id="lu-examples"></div>
+    <div class="solver-visual-wrap">
+      <div id="out-lu" class="solver-matrices">—</div>
+      <div class="plot-wrap">
+        <canvas id="canvas-lu-x" width="280" height="90" aria-label="LU solution vector x"></canvas>
+        <div class="plot-caption">Solution x</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-damped">
+    <div class="section-title">Solvers</div>
+    <h2><span class="badge">6a</span> Damped least squares</h2>
+    <p>Rectangular A (m×n); minimize ‖Ax − b‖² + λ²‖x‖². Use the slider to change λ².</p>
+    <div class="example-selector" id="damped-examples"></div>
+    <p>λ²: <input type="range" id="damped-lambda" min="0" max="100" value="1" step="0.1"> <span id="damped-lambda-value">1</span></p>
+    <div class="solver-visual-wrap">
+      <div id="out-damped" class="solver-matrices">—</div>
+      <div class="plot-wrap">
+        <canvas id="canvas-damped-x" width="280" height="90" aria-label="Damped least-squares solution x"></canvas>
+        <div class="plot-caption">Solution x</div>
+      </div>
+      <div class="plot-wrap" id="damped-linefit-wrap" style="display: none;">
+        <canvas id="canvas-damped-linefit" width="240" height="180" aria-label="Line fit: points and fitted line"></canvas>
+        <div class="plot-caption">Line fit (example 3): points and fitted line y = x[0] + x[1]·t</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-qr">
+    <div class="section-title">Decompositions</div>
+    <h2><span class="badge">6b</span> QR decomposition</h2>
+    <p>A = Q R where Q has orthonormal columns and R is upper triangular. For least squares min ‖Ax − b‖.</p>
+    <div class="example-selector" id="qr-examples"></div>
+    <div class="solver-visual-wrap">
+      <div id="out-qr" class="solver-matrices">—</div>
+      <div class="plot-wrap">
+        <canvas id="canvas-qr-x" width="280" height="90" aria-label="QR least-squares solution x"></canvas>
+        <div class="plot-caption">Solution x</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="sec-sparse">
+    <div class="section-title">Sparse</div>
+    <h2><span class="badge">7</span> Sparse formats (CSR, CCS, COO)</h2>
+    <p>For matrices with few non-zeros, sparse storage saves memory and can speed up operations. <strong>CSR</strong> (Compressed Sparse Row) stores <code>row_ptr</code> (start index per row), <code>col_ind</code> (column index of each entry), and <code>values</code>. <strong>CCS</strong> is column-wise; <strong>COO</strong> is a list of (row, col, value). mathlib provides CRS and other formats.</p>
+    <div id="out-sparse-matrix" class="solver-matrices"></div>
+    <div class="plot-wrap">
+      <canvas id="canvas-sparse-csr" width="340" height="220" aria-label="Sparse matrix and CSR arrays"></canvas>
+      <div class="plot-caption">Example 3×3 sparse matrix and its CSR representation (row_ptr, col_ind, values)</div>
+    </div>
+  </section>
+
+  <script src="../theme.js"></script>
+  <script type="module" src="linear.js"></script>
+</body>
+</html>

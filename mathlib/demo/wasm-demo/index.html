@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <base href="/wasm-demo/">
+  <title>mathlib WASM — Demos</title>
+  <link rel="stylesheet" href="demo.css">
+  <script>
+    // Ensure trailing slash so relative links (linear/, ml/, etc.) resolve correctly
+    if (!window.location.pathname.endsWith('/')) {
+      window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || ''));
+    }
+  </script>
+</head>
+<body>
+  <h1>mathlib WASM — Demos</h1>
+  <p class="subtitle">Vectors, matrices, clustering, solvers, pathfinding, and more — all in WebAssembly.</p>
+
+  <nav class="demo-nav" aria-label="Demo sections">
+    <div class="demo-nav-header">
+      <span class="demo-nav-title">Sections</span>
+      <div id="theme-toggle-container" class="theme-toggle-wrap"></div>
+    </div>
+    <div class="demo-grid" role="list">
+      <a href="linear/" class="demo-grid-card" role="listitem">Linear algebra</a>
+      <a href="gpu/" class="demo-grid-card" role="listitem">GPU (WebGPU)</a>
+      <a href="ml/" class="demo-grid-card" role="listitem">ML (K-means, PCA, SVM, DBSCAN)</a>
+      <a href="optimization/" class="demo-grid-card" role="listitem">Optimization (Simplex, Line search, PSO)</a>
+      <a href="graph/" class="demo-grid-card" role="listitem">Graph (pathfinding, coloring, tree)</a>
+      <a href="distance/" class="demo-grid-card" role="listitem">Distance</a>
+      <a href="monte_carlo/" class="demo-grid-card" role="listitem">Monte Carlo (π, integration)</a>
+      <a href="numerical/" class="demo-grid-card" role="listitem">Numerical (roots, quadrature, ODE, diff)</a>
+      <a href="noise/" class="demo-grid-card" role="listitem">Noise</a>
+      <a href="transforms/" class="demo-grid-card" role="listitem">Transforms (FFT, DCT, wavelets)</a>
+      <a href="camera/" class="demo-grid-card" role="listitem">Camera</a>
+      <a href="viz/" class="demo-grid-card" role="listitem">Viz (heightmap)</a>
+      <a href="recommendation/" class="demo-grid-card" role="listitem">Recommendation (text in 3D PCA)</a>
+    </div>
+  </nav>
+
+  <section class="section">
+    <p>Select a section above to run domain-specific demos. Each page loads the WASM module on demand.</p>
+  </section>
+  <script src="theme.js"></script>
+</body>
+</html>

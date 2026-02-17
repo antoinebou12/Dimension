@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>mathlib — Monte Carlo</title>
+  <link rel="stylesheet" href="../demo.css">
+  <script>if (!window.location.pathname.endsWith('/')) { window.location.replace(window.location.pathname + '/' + (window.location.search || '') + (window.location.hash || '')); }</script>
+</head>
+<body>
+  <h1>mathlib — Monte Carlo</h1>
+  <p class="subtitle">π estimation and optional 1D integration. <a href="../index.html">← Back to hub</a> <span id="theme-toggle-container" class="theme-toggle-wrap"></span></p>
+
+  <div id="error-callout" class="error-callout" style="display: none;">
+    <div class="error-callout-title">Setup required</div>
+    <pre id="error-message"></pre>
+  </div>
+
+  <section class="section" id="sec-monte-carlo">
+    <h2><span class="badge">1</span> π estimation</h2>
+    <p>Estimate π by Monte Carlo: sample points in [-1,1]² and count those inside the unit circle (ratio × 4 ≈ π).</p>
+    <div class="mc-controls">
+      <label for="input-seed">Seed</label>
+      <input type="number" id="input-seed" value="42" min="0" step="1" aria-label="RNG seed">
+      <label for="samples-select">Samples</label>
+      <select id="samples-select" aria-label="Number of samples"></select>
+      <button type="button" id="btn-run">Run</button>
+    </div>
+    <pre id="out-mc">—</pre>
+    <div class="plot-wrap">
+      <canvas id="canvas-mc" width="400" height="400" aria-label="Scatter of points inside (blue) and outside (red) unit circle"></canvas>
+      <div class="plot-caption">Sample points in [-1,1]²; blue inside circle, red outside (same seed as estimate).</div>
+    </div>
+    <h2><span class="badge">2</span> 1D integration (optional)</h2>
+    <p>∫₀¹ x² dx = 1/3 by Monte Carlo uniform sampling. Shown when WASM exports integrateXSquared.</p>
+    <pre id="out-integral">—</pre>
+  </section>
+
+  <script src="../theme.js"></script>
+  <script type="module" src="monte_carlo.js"></script>
+</body>
+</html>
