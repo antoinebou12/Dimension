@@ -18,7 +18,7 @@ simd = ["kinematics/simd"]
 kinematics = { path = ".." }
 render = { path = "../../render" }
 mathlib = { path = "../../mathlib" }
-rand = "0.8"
+rand = "0.10"
 parse = { path = "../../parse", optional = true, features = ["bvh"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
