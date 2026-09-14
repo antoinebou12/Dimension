@@ -33,7 +33,7 @@ par-iter = { version = "2.0", optional = true, default-features = false }
 wasm-bindgen = { version = "0.2", optional = true }
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 mathlib = { path = "../mathlib", default-features = false }
 
 [[bench]]
