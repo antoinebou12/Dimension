@@ -34,7 +34,7 @@ wgpu = { version = "28", optional = true }
 parse = { path = "../parse", optional = true, default-features = false }
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 
 [[bench]]
 name = "geometry"

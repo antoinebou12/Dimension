@@ -52,7 +52,7 @@ tower-http = { version = "0.6", optional = true }
 par-core = { version = "2.0", optional = true, default-features = false, features = ["chili"] }
 
 [dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 tokio-test = "0.4"
 tokio-stream = "0.1"
 tower = "0.5"

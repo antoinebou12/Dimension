@@ -61,7 +61,7 @@ naga = "28"
 # default-features = false avoids rustls/ring so no clang is needed when building this dep.
 wasm-bindgen-cli = { version = "0.2", default-features = false }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
-criterion = "0.5"
+criterion = "0.8"
 pollster = "0.2"
 
 
