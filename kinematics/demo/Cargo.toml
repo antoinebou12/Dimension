@@ -22,7 +22,7 @@ rand = "0.8"
 parse = { path = "../../parse", optional = true, features = ["bvh"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.4", features = ["js"] }
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
 web-sys = { version = "0.3", features = ["Window", "Document", "Element", "HtmlCanvasElement", "DomTokenList", "PointerEvent", "WheelEvent", "EventTarget", "Performance", "console", "KeyboardEvent", "Location"] }
